@@ -51,6 +51,15 @@ It opens the browser (one Google click), exchanges the code, picks the org, revo
 - Python: [pypi.org/project/hai-agents](https://pypi.org/project/hai-agents/) — `run_session`/`start_session` → `SessionHandle`, events/polling, exceptions (defaults to the EU endpoint; set `base_url` for US)
 - TypeScript: [npmjs.com/package/hai-agents](https://www.npmjs.com/package/hai-agents) — `runSession` → `SessionHandle`, error classes, ESM/CJS (same EU-default gotcha)
 
+**The SDK's shape is NOT the HTTP shape above — treat the installed package as the source of truth and introspect it rather than mapping these endpoints onto it.** Module layout, the handle's surface, and some field names diverge from the wire (e.g. the handle exposes `.id`, not `.session_id` or a `live_view_url` — `LiveViewUrl` is an *event* in the trajectory, not a field; polled changes carry `new_events`, not `events`; helpers like `run_session` and the terminal-status constants live in submodules you won't guess). Guessing symbols/attributes is the single biggest crash source, and any list I hardcode here will rot — so spend one line confirming what's actually installed:
+
+```bash
+python3 -m venv .hai-venv && .hai-venv/bin/pip install -q hai-agents   # `pip` is often absent and system pythons are externally-managed (PEP 668); a venv sidesteps both
+.hai-venv/bin/python -c "import hai_agents, inspect; print(dir(hai_agents)); print(inspect.signature(hai_agents.run_session))"
+```
+
+Build the replay link from the handle's id (`https://platform.eu.hcompany.ai/agent-view/{id}`, EU) — see the workflow below for region matching.
+
 **Extras** (`references/extras/` — dev UI/UX knowledge, not endpoint docs):
 - [agent-view-replay.md](references/extras/agent-view-replay.md) — reviewing/replaying runs in the browser (`platform[.eu].hcompany.ai/agent-view/{id}`), deep-linking to an event, sharing a run with someone outside the org
 
@@ -61,7 +70,7 @@ It opens the browser (one Google click), exchanges the code, picks the org, revo
 
 ## The canonical agent workflow (agp)
 
-1. `POST /api/v2/sessions` with a stored agent id or an inline Agent spec (`{name, instructions, model, environments: [{kind: "web", ...}], skills}`). Pass an idempotency key — retried creates replay instead of duplicating (422 conflicting reuse, 409 in-flight).
+1. `POST /api/v2/sessions` with a stored agent id or an inline Agent spec (`{name, instructions, model, environments: [{kind: "web", ...}], skills}`) **plus the actual task as a `messages` entry**. This split is the classic trap: `instructions` is the *system prompt* — who the agent is and its guardrails, the same every run — while `messages` is *what to do now*. Create a session with rich `instructions` but no message and it starts, immediately flips to `idle`, and does nothing — which reads like a dead platform but is just a missing message. Pass an idempotency key — retried creates replay instead of duplicating (422 conflicting reuse, 409 in-flight).
 2. Long-poll `GET /api/v2/sessions/{id}/changes?from_index=N&wait_for_seconds=30` (cap 60 s). Empty window → **204 + `ETag: <from_index>`**, not an error: keep the cursor, re-poll. Advance by `from_index += len(events)` — never reset.
 3. React to events (`AgentEvent.kind` ∈ policy_event / tool_result / answer_event / observation_event / message_event / error_event, plus AgentStarted/Completion/Error, MetricsUpdate, LiveViewUrl, ChatMessage). Interact via `POST .../messages`, `pause`/`resume`, `force_answer`.
 4. In Python this is just `hai_agents.run_session(...)`, in TypeScript `client.runSession(...)` — check the SDK package page ([PyPI](https://pypi.org/project/hai-agents/) / [npm](https://www.npmjs.com/package/hai-agents)) before hand-rolling HTTP.
