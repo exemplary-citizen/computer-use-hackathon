@@ -33,13 +33,7 @@ python scripts/h_login.py --force    # rotate/replace; also --region us|eu (defa
 
 Opens the browser (one Google click), exchanges the code, picks the org, writes `.env` (chmod 600). Headless fallback and full portal auth details: [references/portal/auth.md](references/portal/auth.md).
 
-**`.env` is a file, not your environment — and the SDK only reads the `HAI_API_KEY` *environment variable*.** Writing `.env` is not enough; a `Client()` (or any `python -c` you run to introspect) will raise `ApiError: ... setting HAI_API_KEY` until the var is actually exported. This is the single most common false alarm — it reads like a broken key but the key is fine, it's just not in the env. Load it into the shell for the same command with the `--export` helper:
-
-```bash
-eval "$(python scripts/h_login.py --export)" && .hai-venv/bin/python -c "..."   # one shell → export survives
-```
-
-Each Bash call is a fresh shell, so chain the `eval` and the Python in **one** command (with `&&`), every time. Equivalently, generated scripts can load `.env` themselves at the top — but the `--export` prefix is the no-surprises default for ad-hoc introspection.
+**The SDK reads the `HAI_API_KEY` *environment variable*, not the `.env` file.** A key freshly written to `.env` still gives `ApiError: ... setting HAI_API_KEY` until it's loaded into the environment (`source .env` or equivalent — and since each Bash call is a fresh shell, do it in the same command as the Python). Classic false alarm: the key is fine, it's just not exported.
 
 ## Using the hai-agents SDK
 
@@ -50,7 +44,7 @@ python3 -m venv .hai-venv && .hai-venv/bin/pip install -q hai-agents   # `pip` i
 .hai-venv/bin/python -c "import hai_agents, inspect; print(dir(hai_agents)); print(inspect.signature(hai_agents.run_session))"   # dir()/signature() need no key
 ```
 
-Pure `dir()`/`inspect.signature()` introspection needs no key, but the moment you instantiate a `Client()` or list the agent catalog you do — so prefix those with the `eval "$(... --export)"` from above, or you'll waste round-trips chasing a phantom `HAI_API_KEY` error.
+Pure `dir()`/`inspect.signature()` introspection needs no key, but the moment you instantiate a `Client()` or list the agent catalog you do — so load `.env` first (see above), or you'll waste round-trips chasing a phantom `HAI_API_KEY` error.
 
 Package surfaces (versions, examples): [PyPI](https://pypi.org/project/hai-agents/) / [npm](https://www.npmjs.com/package/hai-agents). Both default to the EU endpoint — set `base_url` for US.
 
@@ -60,13 +54,18 @@ Package surfaces (versions, examples): [PyPI](https://pypi.org/project/hai-agent
 
 ## Show the user the run — offer to open it
 
-The agent-view link is **deterministic from the session id**, which you have the instant you create the session — *before* any blocking wait. So structure the run in this order, and the link is never hard to get:
+When a runnable script is ready, don't end with a prose "Want me to run it?" buried under a wall of explanation — put a **clean yes/no choice** in front of the user (an explicit prompt / choice, not an open question they have to answer in free text). The decision is theirs, but make saying yes a single tap.
 
-1. `create_session(...)` → grab the `id`.
-2. Build the URL and **offer to open it right then**: on yes, `open "<url>"` (macOS; `xdg-open` on Linux).
-3. *Then* block on `wait_for_session(...)` / `run_session(...)` for the result.
+**The instant they say yes, hand them the agent-view (replay) link.** Don't disappear into a long blocking run and surface the link at the end — surfacing it after the fact is the failure. Create the session, print the link, and offer to open it *first thing*, then let the run proceed (see ordering below).
 
-**Do not run the whole script in the background and `grep` its output for the link.** That's the trap: `wait_for_session` blocks for the entire run, so if you print the link *then* block, a foreground script won't surface it until the run is over, and grepping a buffered background log for `agent-view/` just hangs. Get the id from `create_session` and construct the URL yourself — `https://<host>/agent-view/{id}` — instead of scraping it from stdout. (If you must use the all-in-one `run_session`, have the script print the link **first, flushed** (`print(url, flush=True)`), run it in the background, and read just that first line — but the create-then-wait split above is cleaner.)
+The agent-view link is **deterministic from the session id**, which you have the instant you create the session — long before the run finishes. The whole point is to let the user watch **live**, so the link has to reach them *while the agent is still working*.
+
+The trap that defeats this: `wait_for_session` / `run_session` **blocks for the entire run**, and you only see a command's stdout when it *returns*. So if you create the session and block inside **one foreground command**, the link doesn't surface until the run is already over — which is exactly the after-the-fact replay you're trying to avoid. The fix is structural: the create+link step must hand control back to you *before* the long wait begins. Two ways:
+
+- **Background the run (preferred):** print the link **first, flushed** (`print(url, flush=True)`), start the script as a background task, read the link from its opening output and offer to open it — then let the task run and report the result when it completes.
+- **Or split into two commands:** one fast command that creates the session and prints id + link then exits, then a second that resumes from that id and blocks on the wait.
+
+Either way, build the URL yourself from the id (`https://<host>/agent-view/{id}`) — don't scrape it from stdout, and don't busy-loop `grep`-ing a log file for `agent-view/` (that just hangs).
 
 **The host must match the region you called, and these APIs default to EU** — so the link is usually `https://platform.eu.hcompany.ai/agent-view/{id}`; only US sessions use `https://platform.hcompany.ai/agent-view/{id}`. Don't hand an EU session a bare `platform.hcompany.ai` link — it points at the wrong region's UI and the run won't be there.
 
