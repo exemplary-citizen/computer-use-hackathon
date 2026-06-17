@@ -1,6 +1,6 @@
 # hai-agents-demos
 
-Recipes for the [`hai-agents`](https://pypi.org/project/hai-agents/) Python SDK, wired up as **MCP servers and CLI tools for Claude Code**, and runnable in other MCP hosts ([Hermes Agent](hermes/), [Codex](codex/)) too. Each example shows one way to use the SDK in a real workflow.
+Recipes for the [`hai-agents`](https://pypi.org/project/hai-agents/) Python SDK, wired up as **MCP servers and CLI tools for Claude Code**, and runnable in other MCP hosts ([Hermes Agent](hermes/), [Codex](codex/)), or deployed inside NVIDIA's [NemoClaw](nemoclaw/) sandbox. Each example shows one way to use the SDK in a real workflow.
 
 The SDK lets you spin up autonomous agents — web-surfing, code-running, vision-capable — and drive them from Python. This repo wraps that SDK into two interface patterns so you can call the agents from inside Claude Code while you work:
 
@@ -28,6 +28,10 @@ These demos aren't limited to Claude Code. Hermes Agent consumes the same MCP se
 ### Run in Codex (OpenAI)
 
 Codex is an MCP client too. See [`codex/`](codex/) for the same servers in `config.toml` form, including the hosted platform server via `bearer_token_env_var`. Mind Codex's 60 s default tool timeout.
+
+### Deploy inside NVIDIA NemoClaw
+
+NemoClaw isn't a separate host: it runs Hermes inside an NVIDIA OpenShell sandbox. So this is the Hermes integration deployed there, plus an egress policy that lets the sandboxed agent reach `agp`. See [`nemoclaw/`](nemoclaw/).
 
 ### Installing the dependencies
 
@@ -81,6 +85,7 @@ hai-agents-demos/
 ├── skills/      hai-agents · hai-qa-via-cli (published to the marketplace)
 ├── hermes/      run the same demos in Hermes Agent (config + setup guide)
 ├── codex/       run the same demos in OpenAI Codex (config.toml + setup guide)
+├── nemoclaw/    deploy the Hermes integration inside NVIDIA NemoClaw's sandbox (egress policy + image + guide)
 ├── .mcp.json    registers the MCP servers with Claude Code
 ├── .claude-plugin/marketplace.json
 └── pyproject.toml · AGENTS.md
