@@ -33,14 +33,24 @@ python scripts/h_login.py --force    # rotate/replace; also --region us|eu (defa
 
 Opens the browser (one Google click), exchanges the code, picks the org, writes `.env` (chmod 600). Headless fallback and full portal auth details: [references/portal/auth.md](references/portal/auth.md).
 
+**`.env` is a file, not your environment — and the SDK only reads the `HAI_API_KEY` *environment variable*.** Writing `.env` is not enough; a `Client()` (or any `python -c` you run to introspect) will raise `ApiError: ... setting HAI_API_KEY` until the var is actually exported. This is the single most common false alarm — it reads like a broken key but the key is fine, it's just not in the env. Load it into the shell for the same command with the `--export` helper:
+
+```bash
+eval "$(python scripts/h_login.py --export)" && .hai-venv/bin/python -c "..."   # one shell → export survives
+```
+
+Each Bash call is a fresh shell, so chain the `eval` and the Python in **one** command (with `&&`), every time. Equivalently, generated scripts can load `.env` themselves at the top — but the `--export` prefix is the no-surprises default for ad-hoc introspection.
+
 ## Using the hai-agents SDK
 
 Prefer the SDK over hand-rolled HTTP — but **the SDK's shape is not the HTTP shape, so introspect the installed package instead of guessing.** Its module layout, the session handle's surface, and several field names diverge from the wire; guessing them is the single biggest source of crashes, and nothing I write here would stay accurate. One line settles it:
 
 ```bash
 python3 -m venv .hai-venv && .hai-venv/bin/pip install -q hai-agents   # `pip` is often absent and system pythons are externally-managed (PEP 668); a venv sidesteps both
-.hai-venv/bin/python -c "import hai_agents, inspect; print(dir(hai_agents)); print(inspect.signature(hai_agents.run_session))"
+.hai-venv/bin/python -c "import hai_agents, inspect; print(dir(hai_agents)); print(inspect.signature(hai_agents.run_session))"   # dir()/signature() need no key
 ```
+
+Pure `dir()`/`inspect.signature()` introspection needs no key, but the moment you instantiate a `Client()` or list the agent catalog you do — so prefix those with the `eval "$(... --export)"` from above, or you'll waste round-trips chasing a phantom `HAI_API_KEY` error.
 
 Package surfaces (versions, examples): [PyPI](https://pypi.org/project/hai-agents/) / [npm](https://www.npmjs.com/package/hai-agents). Both default to the EU endpoint — set `base_url` for US.
 
@@ -50,7 +60,13 @@ Package surfaces (versions, examples): [PyPI](https://pypi.org/project/hai-agent
 
 ## Show the user the run — offer to open it
 
-The moment a run starts, give the user the agent-view link **and offer to open it in their browser** — on yes, run `open "<url>"` (macOS; `xdg-open` on Linux). Don't skip this: watching the agent live beats reading your summary, and it's the fastest way for the user to see what's happening.
+The agent-view link is **deterministic from the session id**, which you have the instant you create the session — *before* any blocking wait. So structure the run in this order, and the link is never hard to get:
+
+1. `create_session(...)` → grab the `id`.
+2. Build the URL and **offer to open it right then**: on yes, `open "<url>"` (macOS; `xdg-open` on Linux).
+3. *Then* block on `wait_for_session(...)` / `run_session(...)` for the result.
+
+**Do not run the whole script in the background and `grep` its output for the link.** That's the trap: `wait_for_session` blocks for the entire run, so if you print the link *then* block, a foreground script won't surface it until the run is over, and grepping a buffered background log for `agent-view/` just hangs. Get the id from `create_session` and construct the URL yourself — `https://<host>/agent-view/{id}` — instead of scraping it from stdout. (If you must use the all-in-one `run_session`, have the script print the link **first, flushed** (`print(url, flush=True)`), run it in the background, and read just that first line — but the create-then-wait split above is cleaner.)
 
 **The host must match the region you called, and these APIs default to EU** — so the link is usually `https://platform.eu.hcompany.ai/agent-view/{id}`; only US sessions use `https://platform.hcompany.ai/agent-view/{id}`. Don't hand an EU session a bare `platform.hcompany.ai` link — it points at the wrong region's UI and the run won't be there.
 

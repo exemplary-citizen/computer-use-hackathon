@@ -8,6 +8,14 @@ Usage:
     python h_login.py --force               # replace an existing HAI_API_KEY
     python h_login.py --key-name "my-key"   # custom key name (default: "<cwd-name> @ <hostname>")
     python h_login.py --no-rotate           # keep older keys with the same name (default: revoke them)
+    python h_login.py --export              # NO login; print `export HAI_API_KEY=...` read from .env
+
+The SDK reads the HAI_API_KEY *environment variable*, not the .env file — writing
+.env is not enough. To load the key into a shell before running Python, do:
+
+    eval "$(python h_login.py --export)" && python your_script.py
+
+Both run in one shell, so the export survives into the Python call.
 
 Flow: open browser -> Google login via the portal API (portal.api.eu.hcompany.ai)
 -> loopback callback -> exchange one-time code for an access token
@@ -103,6 +111,18 @@ def wait_for_code(port: int) -> str:
     return result["code"]
 
 
+def read_env_key(env_path: str) -> str | None:
+    """Return the HAI_API_KEY value from an .env file, or None if absent/empty."""
+    if not os.path.exists(env_path):
+        return None
+    with open(env_path) as f:
+        for line in f:
+            if line.startswith("HAI_API_KEY="):
+                value = line.split("=", 1)[1].strip().strip("'\"")
+                return value or None
+    return None
+
+
 def write_env(env_path: str, key_value: str) -> None:
     lines: list[str] = []
     if os.path.exists(env_path):
@@ -123,8 +143,24 @@ def main() -> None:
     p.add_argument("--key-name", default=None)
     p.add_argument("--force", action="store_true", help="replace an existing HAI_API_KEY")
     p.add_argument("--no-rotate", action="store_true", help="keep older keys with the same name")
+    p.add_argument(
+        "--export",
+        action="store_true",
+        help='no login; print `export HAI_API_KEY=...` from .env for `eval "$(...)"`',
+    )
     args = p.parse_args()
     base_url = args.base_url or PORTAL_API_URLS[args.region]
+
+    # --export: read the key already in .env and print a shell export line. No network.
+    # Lets `eval "$(python h_login.py --export)"` load the key into the current shell,
+    # since the SDK reads the env var, not the file.
+    if args.export:
+        key = read_env_key(args.env_file)
+        if not key:
+            sys.exit(f"error: no HAI_API_KEY in {args.env_file} — run `python h_login.py` first")
+        # single-quote the value so the eval is safe; hk-… keys contain no quotes
+        print(f"export HAI_API_KEY='{key}'")
+        return
 
     if not args.force and os.path.exists(args.env_file):
         with open(args.env_file) as f:
