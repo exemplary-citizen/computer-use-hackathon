@@ -6,12 +6,13 @@
 
 - [Computer-Use Agent](https://hub.hcompany.ai/computer-use-agent/introduction.md): Run Computer-Use AI agents. Best when there's no API to call.
 - [Quickstart](https://hub.hcompany.ai/computer-use-agent/quickstart.md): Create your first agent session in under 5 minutes.
-- [Integrations](https://hub.hcompany.ai/computer-use-agent/integrations.md): Typed clients, CLI, and a hosted MCP server.
+- [SDKs](https://hub.hcompany.ai/computer-use-agent/integrations.md): Typed Python and TypeScript clients, plus the CLI.
+- [MCP server](https://hub.hcompany.ai/computer-use-agent/mcp.md): Run and manage H agents from any MCP host, no HTTP or SDK code.
+- [Coding skills](https://hub.hcompany.ai/computer-use-agent/coding-skills.md): Install the hai-agents skill so Claude Code, Cursor, and other assistants know the H APIs and help you build use cases.
 
 ## Agents
 
 - [Agents](https://hub.hcompany.ai/computer-use-agent/agents/overview.md): An agent is a reusable configuration that defines what an AI agent can do.
-- [Agent catalog](https://hub.hcompany.ai/computer-use-agent/agents/pre-built.md): Ready-made agents that come fully configured, ready to run without defining your own.
 - [Multi-agent](https://hub.hcompany.ai/computer-use-agent/multi-agent.md): Let one agent delegate to specialist subagents that run in parallel.
 - [Create an agent](https://hub.hcompany.ai/computer-use-agent/agents/create.md): Create a reusable agent in your own catalog.
 - [List agents](https://hub.hcompany.ai/computer-use-agent/agents/list.md): Discover available agents from your catalog and the H preset catalog.
@@ -55,7 +56,6 @@
 ## Skills
 
 - [Skills](https://hub.hcompany.ai/computer-use-agent/skills/overview.md): A skill is a reusable instruction fragment an agent can draw on.
-- [Skill Catalog](https://hub.hcompany.ai/computer-use-agent/skills/catalog.md): Browse computer-use skills maintained by H Company.
 - [Create a skill](https://hub.hcompany.ai/computer-use-agent/skills/create.md): Create a reusable skill in your catalog.
 - [List skills](https://hub.hcompany.ai/computer-use-agent/skills/list.md): Browse your skill catalog.
 - [Retrieve a skill](https://hub.hcompany.ai/computer-use-agent/skills/retrieve.md): Get the full details of a skill.
@@ -71,6 +71,15 @@
 - [Rotate the token](https://hub.hcompany.ai/computer-use-agent/vaults/rotate-token.md): Replace a vault's stored service account token.
 - [Delete a vault](https://hub.hcompany.ai/computer-use-agent/vaults/delete.md): Remove a vault config.
 - [Check health](https://hub.hcompany.ai/computer-use-agent/vaults/health.md): Probe a vault's provider connection.
+
+## Webhooks
+
+- [Webhooks](https://hub.hcompany.ai/computer-use-agent/webhooks/overview.md): Receive signed HTTP notifications when your sessions change status.
+- [Create a webhook](https://hub.hcompany.ai/computer-use-agent/webhooks/create.md): Register a URL to receive signed event notifications.
+- [List webhooks](https://hub.hcompany.ai/computer-use-agent/webhooks/list.md): Browse your organization's webhooks.
+- [Retrieve a webhook](https://hub.hcompany.ai/computer-use-agent/webhooks/retrieve.md): Fetch a single webhook by id.
+- [Update a webhook](https://hub.hcompany.ai/computer-use-agent/webhooks/update.md): Change a webhook's URL, events, description, or disabled state.
+- [Delete a webhook](https://hub.hcompany.ai/computer-use-agent/webhooks/delete.md): Remove a webhook.
 
 ## Reference
 

@@ -5,102 +5,57 @@ description: Expert knowledge of the two H Company backends — the portal (port
 
 # H Company APIs (portal + agent platform)
 
-H Company runs two backends that work together. Pick the right one first:
+H runs two backends, joined by one key. Figure out which you need — then **read the live docs, don't answer from this file's memory.** This skill is a router and a key-bootstrapper, not a copy of the docs: it deliberately holds almost no endpoint/param/field/limit/model detail, because hardcoding that here goes stale and has repeatedly been wrong.
 
-| You're touching… | Product | Base URL | Read |
+| You're touching… | Backend | Base URL | Source of truth |
 |---|---|---|---|
-| Login, users, organizations, invitations, **API key management**, billing, STT tokens | **Portal** (portal) | EU: `https://portal.api.eu.hcompany.ai/api` · US: `https://portal.production.hcompany.ai/api` | [references/portal/](references/portal/) |
-| **Running agents**: sessions, stored agents, skills, environments, vaults, events/long-polling, hai-agents SDK, MCP server | **Agent platform** (agp) | EU (default): `https://agp.eu.hcompany.ai/api` · US: `https://agp.hcompany.ai/api` | [references/agp/](references/agp/) |
+| Users, orgs, **API keys**, invitations, billing, STT | **Portal** | EU `https://portal.api.eu.hcompany.ai/api` · US `https://portal.production.hcompany.ai/api` | no public docs → [references/portal/](references/portal/) |
+| **Running agents**: sessions, agents, skills, environments, vaults, events/long-poll, SDK, MCP | **Agent platform (agp)** — the public hub brands it the "Computer-Use Agent API" | EU (default) `https://agp.eu.hcompany.ai/api` · US `https://agp.hcompany.ai/api` | live docs + swagger (below) |
 
-⚠️ `https://platform.hcompany.ai` is the **product frontend** (the API-keys UI lives at `/settings/api-keys`), not the portal API — its `/api/*` paths return the HTML app shell, except a server-side `/api/portal/[...path]` proxy.
+The **`hk-…` key** is *created* on the portal (by a logged-in user) and *consumed* by agp (`Authorization: Bearer hk-…`). "Get a key" → portal; "use a key" → agp. The full value is shown **only once at creation** — to "retrieve" one, make a new key and revoke the old.
 
-They connect through one object: the **H API key (`hk-...`)** is *created* on the portal (by a logged-in user) and *consumed* by the agent platform (as `Authorization: Bearer hk-...` at the gateway). "Get a key" → portal; "use a key" → agp.
+`https://platform.hcompany.ai` is the product **frontend** (API-keys UI at `/settings/api-keys`), not an API.
 
-## Auth — the three mechanisms
+## Before anything on agp: read references/llms.txt first
 
-1. **Portal session JWT** — for acting as a user on the portal (manage orgs, keys, billing). The guard is hybrid: env-prefixed `access_token` cookie first, `Authorization: Bearer <jwt>` fallback. Access tokens live **10 minutes**.
-2. **H API key (`hk-...`)** — machine auth for the agent platform (and the portal's `POST /api/stt/token` + `GET /api/api-keys/me`). API keys can NOT call the portal's management endpoints. On agp, the gateway validates the key and injects `X-User-*` identity headers — clients never set those.
-3. **Desktop OAuth (RFC 8252 + PKCE)** — how a CLI gets a portal session without a browser cookie: `GET /api/auth/authorize` (loopback `127.0.0.1` redirect + S256 challenge) → one-time `code` (60 s) → `POST /api/auth/desktop/exchange` → `{access_token, refresh_token, session_id}`.
+Start every agp task by opening [references/llms.txt](references/llms.txt) — a complete index of the live public docs (every page, one line + a `.md` URL). Find the page(s) for your task, fetch them, and work from those, not from memory. This file keeps no agp endpoint/param/field/limit/model detail on purpose: the docs are current, this file isn't.
 
-Critical constraint: **the full `hk-...` value is returned only once, at creation** (`POST /api/organizations/{org_id}/keys/`, SHA256-hashed in storage). To "retrieve" a key, create a new one and revoke the old by name.
+Two anchors the index points into, worth calling out:
+- **Exact shapes** (params, bodies, status codes, enums, limits) → the OpenAPI, authoritative and always current, unauthenticated: `https://agp.hcompany.ai/share/openapi.json` (rendered at `/share/docs`).
+- **The `model` field** → the [Agents](https://hub.hcompany.ai/computer-use-agent/agents/overview.md) page. Non-obvious trap: the swagger types `model` as a free string and won't validate it, so a wrong id is accepted at create then fails at run — take the id from the docs, never from memory.
 
-## Getting an HAI_API_KEY into .env automatically
-
-Don't make the user copy-paste from the settings page (`https://platform.hcompany.ai/settings/api-keys`) — run the bundled script (stdlib-only):
+## Get a key into .env (the one thing the docs can't do for you)
 
 ```bash
-python scripts/h_login.py                 # full desktop PKCE flow → writes HAI_API_KEY into ./.env, no-op if set
-python scripts/h_login.py --force         # rotate/replace; also --region us|eu (default: eu), --env-file, --key-name, --no-rotate
+python scripts/h_login.py            # desktop PKCE flow → writes HAI_API_KEY into ./.env; no-op if already set
+python scripts/h_login.py --force    # rotate/replace; also --region us|eu (default eu), --env-file, --key-name, --no-rotate
 ```
 
-It opens the browser (one Google click), exchanges the code, picks the org, revokes stale same-name keys, creates a fresh key, writes `.env` (chmod 600). `--region eu` (default) targets `portal.api.eu.hcompany.ai`; `--region us` targets `portal.production.hcompany.ai`. Headless fallback: `POST /api/auth/token` with `{email, password}` + header `X-SDK-Auth: true` (tokens in the body) — see [references/portal/auth.md](references/portal/auth.md).
+Opens the browser (one Google click), exchanges the code, picks the org, writes `.env` (chmod 600). Headless fallback and full portal auth details: [references/portal/auth.md](references/portal/auth.md).
 
-## Reference map
+## Using the hai-agents SDK
 
-**Portal** (`references/portal/`):
-- [auth.md](references/portal/auth.md) — the 18 `/api/auth` routes: login, signup, Google OAuth, desktop PKCE, refresh, sessions, MFA, `/me`
-- [organizations.md](references/portal/organizations.md) — orgs, memberships, invitations (owner + invitee side), temporal worker tokens
-- [api-keys.md](references/portal/api-keys.md) — key create/list/revoke, `/api/api-keys/me`, how `hk-` auth works
-- [apps-billing-stt.md](references/portal/apps-billing-stt.md) — applications, Stripe credits, STT, error/health conventions, environments
-
-**Agent platform** (agp):
-- For exact request/response **shapes** — every endpoint, param, body, status code — the swagger is the source of truth: `https://agp.hcompany.ai/share/docs` (raw spec at `/share/openapi.json`).
-- [agp/api-notes.md](references/agp/api-notes.md) — the **behavior** the swagger can't express: session lifecycle, the `/changes` 204+ETag long-poll + cursor rule, idempotency semantics, event kinds, the reserved `h/` namespace, the `web` environment, vault/proxy gotchas, the MCP server, gateway auth.
-
-**SDKs** (`hai-agents` — prefer the SDK over hand-rolled HTTP when it fits; check the package page for the current surface, versions, and examples):
-- Python: [pypi.org/project/hai-agents](https://pypi.org/project/hai-agents/) — `run_session`/`start_session` → `SessionHandle`, events/polling, exceptions (defaults to the EU endpoint; set `base_url` for US)
-- TypeScript: [npmjs.com/package/hai-agents](https://www.npmjs.com/package/hai-agents) — `runSession` → `SessionHandle`, error classes, ESM/CJS (same EU-default gotcha)
-
-**The SDK's shape is NOT the HTTP shape above — treat the installed package as the source of truth and introspect it rather than mapping these endpoints onto it.** Module layout, the handle's surface, and some field names diverge from the wire (e.g. the handle exposes `.id`, not `.session_id` or a `live_view_url` — `LiveViewUrl` is an *event* in the trajectory, not a field; polled changes carry `new_events`, not `events`; helpers like `run_session` and the terminal-status constants live in submodules you won't guess). Guessing symbols/attributes is the single biggest crash source, and any list I hardcode here will rot — so spend one line confirming what's actually installed:
+Prefer the SDK over hand-rolled HTTP — but **the SDK's shape is not the HTTP shape, so introspect the installed package instead of guessing.** Its module layout, the session handle's surface, and several field names diverge from the wire; guessing them is the single biggest source of crashes, and nothing I write here would stay accurate. One line settles it:
 
 ```bash
 python3 -m venv .hai-venv && .hai-venv/bin/pip install -q hai-agents   # `pip` is often absent and system pythons are externally-managed (PEP 668); a venv sidesteps both
 .hai-venv/bin/python -c "import hai_agents, inspect; print(dir(hai_agents)); print(inspect.signature(hai_agents.run_session))"
 ```
 
-Build the replay link from the handle's id (`https://platform.eu.hcompany.ai/agent-view/{id}`, EU) — see the workflow below for region matching.
+Package surfaces (versions, examples): [PyPI](https://pypi.org/project/hai-agents/) / [npm](https://www.npmjs.com/package/hai-agents). Both default to the EU endpoint — set `base_url` for US.
 
-**Extras** (`references/extras/` — dev UI/UX knowledge, not endpoint docs):
-- [agent-view-replay.md](references/extras/agent-view-replay.md) — reviewing/replaying runs in the browser (`platform[.eu].hcompany.ai/agent-view/{id}`), deep-linking to an event, sharing a run with someone outside the org
+## The trap the docs won't warn you about
 
-**Official hub docs** ([references/llms.txt](references/llms.txt) — the index of the full public docs on hub.hcompany.ai; more complete than the distilled notes above, but without their gotchas):
-- The public hub brands agp as the **"Computer-Use Agent API"** (URLs are `hub.hcompany.ai/computer-use-agent/…`) — same product as the "agent platform"/agp here, just a different name.
-- Every entry has a one-line description and a live URL. Fetch the matching page (the URLs already end in `.md`) for full endpoint docs — request/response shapes and examples.
-- If a hub page is unreachable or moved (these are fetched live, not bundled), fall back to the agp OpenAPI for shapes: `https://agp.hcompany.ai/share/openapi.json` (`/share/docs` for the rendered swagger) — it's unauthenticated and always current.
+**The task goes in `messages`, never in `instructions`.** `instructions` is the system prompt — *who* the agent is and its guardrails; `messages` is *what to do now*. A session created with rich instructions but **no message** starts, immediately flips to `idle`, and does nothing — which reads like a dead platform but is just a missing message. (Easiest path: use a pre-built `h/` agent — the environment, model, and instructions are already wired and you only supply the message. But **never guess an agent id** — list the catalog first with `GET /api/v2/agents` (SDK: `client.agents.list_agents()`) and pick from the result; an invented `h/...` name just 404s.)
 
-## The canonical agent workflow (agp)
+## Show the user the run — offer to open it
 
-1. `POST /api/v2/sessions` with a stored agent id or an inline Agent spec (`{name, instructions, model, environments: [{kind: "web", ...}], skills}`) **plus the actual task as a `messages` entry**. This split is the classic trap: `instructions` is the *system prompt* — who the agent is and its guardrails, the same every run — while `messages` is *what to do now*. Create a session with rich `instructions` but no message and it starts, immediately flips to `idle`, and does nothing — which reads like a dead platform but is just a missing message. Pass an idempotency key — retried creates replay instead of duplicating (422 conflicting reuse, 409 in-flight).
-2. Long-poll `GET /api/v2/sessions/{id}/changes?from_index=N&wait_for_seconds=30` (cap 60 s). Empty window → **204 + `ETag: <from_index>`**, not an error: keep the cursor, re-poll. Advance by `from_index += len(events)` — never reset.
-3. React to events (`AgentEvent.kind` ∈ policy_event / tool_result / answer_event / observation_event / message_event / error_event, plus AgentStarted/Completion/Error, MetricsUpdate, LiveViewUrl, ChatMessage). Interact via `POST .../messages`, `pause`/`resume`, `force_answer`.
-4. In Python this is just `hai_agents.run_session(...)`, in TypeScript `client.runSession(...)` — check the SDK package page ([PyPI](https://pypi.org/project/hai-agents/) / [npm](https://www.npmjs.com/package/hai-agents)) before hand-rolling HTTP.
-5. **Always hand the user the replay link AND offer to open it**: `https://platform.hcompany.ai/agent-view/{session_id}` (EU sessions → `platform.eu.hcompany.ai`; match the region of the API you called). The moment a run starts, ask the user whether to open it in their browser, and on yes run `open "<agent-view-url>"` (macOS; `xdg-open` on Linux) — watching the agent live beats reading your summary. Details: [references/extras/agent-view-replay.md](references/extras/agent-view-replay.md).
+The moment a run starts, give the user the agent-view link **and offer to open it in their browser** — on yes, run `open "<url>"` (macOS; `xdg-open` on Linux). Don't skip this: watching the agent live beats reading your summary, and it's the fastest way for the user to see what's happening.
 
-## Gotchas that bite
+**The host must match the region you called, and these APIs default to EU** — so the link is usually `https://platform.eu.hcompany.ai/agent-view/{id}`; only US sessions use `https://platform.hcompany.ai/agent-view/{id}`. Don't hand an EU session a bare `platform.hcompany.ai` link — it points at the wrong region's UI and the run won't be there.
 
-- **Portal trailing slashes matter**: `GET /api/organizations/` and `.../keys/`.
-- **The hai-agents SDK defaults to the EU endpoint** (`agp.eu.hcompany.ai`); set `base_url` for US.
-- **Portal cookie names are environment-prefixed** (`staging_access_token`, `dev_…`, `sandbox_…`); `X-SDK-Auth: true` response bodies use those prefixed names as JSON keys.
-- **PKCE redirect is loopback-only**: `http://127.0.0.1:*` or `[::1]` — `localhost` is rejected by design.
-- **agp's only public environment kind is `web`** (Browser); never author `Browser.session_id` (runtime-only).
-- **Reserved `h/` namespace** on agp is read-only for org users; org rows shadow same-id reserved rows.
-- **Vault create/rotate is not idempotent** — list before retrying a timed-out create; vault↔session attachment is platform-managed (no public `vault_id` field on `SessionRequest`).
-- **Quota**: check `GET /api/v2/sessions/quota` before mass-launching sessions.
+Deeper UI/UX notes (deep-linking, sharing outside the org): [references/extras/agent-view-replay.md](references/extras/agent-view-replay.md).
 
 ## Something broken? Report it to feedback@hcompany.ai
 
-If you hit what looks like a **platform-side problem** — an endpoint behaving differently than documented here, an unexplained 5xx, a session stuck with no events, a key that AgP rejects right after creation — don't leave the user stranded: write the report for them and offer to send it to **feedback@hcompany.ai**.
-
-Write the full report yourself (that's the point — the user has nothing to do): one-line summary, region + host called, exact endpoint and method, full response (status, `detail`/`title`, headers like `Retry-After`/`ETag`), timestamp (UTC), session/trajectory id and the agent-view link if relevant, what was expected vs observed, and minimal reproduction steps. Never include `hk-` keys or tokens in the report.
-
-Then **offer to open the user's default email app, pre-filled** via a `mailto:` link — the user only has to hit Send. Write the report to a temp file, then:
-
-```bash
-open "mailto:feedback@hcompany.ai?subject=$(python3 -c 'import urllib.parse;print(urllib.parse.quote("[agp] 504 on /v2/sessions/{id}/changes"))')&body=$(python3 -c 'import urllib.parse;print(urllib.parse.quote(open("/tmp/h-feedback.txt").read()))')"
-```
-
-(`open` is macOS; use `xdg-open` on Linux. Keep the body to a few KB — `mailto:` has length limits — and paste everything inline, no attachments.) If a mail tool is connected (e.g. Gmail MCP), a draft there is a fine alternative. Either way, show the user the report before anything is sent — they press Send, not you.
-
-## Source of truth
-
-Shapes in doubt → start from the docs index in [references/llms.txt](references/llms.txt) and fetch the matching live page on hub.hcompany.ai. For the exact request/response shapes, the public agp OpenAPI is authoritative: `https://agp.hcompany.ai/share/docs`.
+If agp behaves differently than the docs say — unexplained 5xx, a session stuck with no events, a key rejected right after creation — write the report *for* the user: region + host, exact endpoint + method, full response (status, `detail`, headers like `ETag`/`Retry-After`), UTC timestamp, session id + agent-view link, expected vs observed, minimal repro. Never include `hk-` keys or tokens. Then offer a pre-filled `mailto:feedback@hcompany.ai` (or a draft via a connected mail tool) — the user hits Send, not you.
