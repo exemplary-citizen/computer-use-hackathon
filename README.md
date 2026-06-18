@@ -1,14 +1,14 @@
 # hai-agents-demos
 
-Build with H's Computer Use autonomous agents. When the target system exposes no API, our agents operate it directly through the UI — powered by our own harness and our [own VLM](https://hcompany.ai/holo3.1).
+Build with H's Computer Use autonomous agents, powered by our own harness and our [own VLM](https://hcompany.ai/holo3.1). When the target system exposes no API, our agents operate it directly through the UI.
 
 The `hai-agents` SDK gives you programmatic access to our agents from a few lines of [Python](https://pypi.org/project/hai-agents/) or [TypeScript](https://npmjs.com/package/hai-agents).
 
 This repo is a tour of three ways to build with the SDK, from a one-line prompt to production integrations:
 
-1. **Discover** — describe a task in plain language and watch the agent run it.
-2. **Scale via the skill** — let the `/hai-agents` skill scaffold reusable SDK code for you.
-3. **Integrate** — call the agent as an MCP tool from your coding workflow (Claude Code, Hermes Agent, Codex, NemoClaw).
+1. **Discover.** Describe a task in plain language and watch the agent run it.
+2. **Scale via the skill.** Let the `/hai-agents` skill scaffold reusable SDK code for you.
+3. **Integrate.** Call the agent as an MCP tool from your coding workflow (Claude Code, Hermes Agent, Codex, NemoClaw).
 
 ## Quickstart
 
@@ -26,7 +26,7 @@ One prompt, one Python file. You write 10 lines; the agent does the work. Now yo
 > Just describe the task in plain language and let the agent run it:
 
 ```text
-"Searches for "Random Access Memories" by Daft Punk, adds it to the shopping cart."
+"Searches for "Random Access Memories" by Daft Punk on Amazon, adds it to the shopping cart."
 ```
 
 https://github.com/user-attachments/assets/aa7473f8-9666-4640-ac34-6255ab67aa6d
@@ -35,7 +35,7 @@ https://github.com/user-attachments/assets/aa7473f8-9666-4640-ac34-6255ab67aa6d
 
 ## 2. Scale via the skill
 
-The `/hai-agents` skill plugs into your favorite coding agent and writes the SDK code for you, in **Python or TypeScript**. You get a packaged expert writing your code, and an artifact you can deploy anywhere Python or Node runs — independent of the coding agent that scaffolded it. Iterate on prompts to grow your library of CU agents fast.
+The `/hai-agents` skill plugs into your favorite coding agent and writes the SDK code for you, in Python or TypeScript. You get a packaged expert writing your code, and an artifact you can deploy anywhere Python or Node runs, independent of the coding agent that scaffolded it. Iterate on prompts to grow your CU agent library.
 
 > Ask the skill to write the SDK code, and it scaffolds a ready-to-run script:
 
@@ -46,6 +46,8 @@ The `/hai-agents` skill plugs into your favorite coding agent and writes the SDK
 https://github.com/user-attachments/assets/d7d82573-22bb-4e2a-a261-bb603bc576f3
 
 → Generated code: [`examples/product_availability/src/index.ts`](examples/product_availability/src/index.ts) (TypeScript)
+
+For deeper SDK patterns beyond what the skill scaffolds (custom tools, `max_steps` / `max_time_s` budgets, exhaustive sweeps), see [`examples/counterfeit_detection`](examples/counterfeit_detection/README.md).
 
 ## 3. Integrate
 
@@ -63,21 +65,20 @@ https://github.com/user-attachments/assets/f0097089-033b-458b-8e20-2b59cc48b3a0
 
 ### Other hosts
 
-- **Hermes Agent** (Nous Research) — consumes the same MCP servers, skills, and CLIs. See [`hermes/`](hermes/) for the one-time setup.
-- **Codex** (OpenAI) — same servers in `config.toml` form; the hosted platform server uses `bearer_token_env_var`. Watch Codex's 60 s default tool timeout. See [`codex/`](codex/).
-- **NemoClaw** (HAI x NVIDIA x Hermes) — a security runtime, not another MCP host. It builds an NVIDIA OpenShell sandbox and runs Hermes inside it under an explicit network-egress policy — designed for regulated, sandboxed deployments. The wiring is the Hermes integration plus an egress policy that lets the agent reach H's hosted server. See [`nemoclaw/`](nemoclaw/).
-- **Any other MCP-speaking client** — same SDK, different wiring.
+- **Hermes Agent** (Nous Research). Consumes the same MCP servers, skills, and CLIs. See [`hermes/`](hermes/) for the one-time setup.
+- **Codex** (OpenAI). Same servers in `config.toml` form; the hosted platform server uses `bearer_token_env_var`. Watch Codex's 60 s default tool timeout. See [`codex/`](codex/).
+- **NemoClaw** (HAI x NVIDIA x Hermes). A security runtime for regulated, sandboxed deployments, not another MCP host. It builds an NVIDIA OpenShell sandbox and runs Hermes inside it under a network-egress policy. The wiring is the Hermes integration plus an egress policy that lets the agent reach H's hosted server. See [`nemoclaw/`](nemoclaw/).
+- **Any other MCP-speaking client.** Same SDK, different wiring.
 
-## Examples
-
-Each example is a self-contained recipe with its own README. See [`examples/`](examples/README.md) for the full index and the shared architecture.
+### Recipes
 
 | Example | What it shows | Interface |
 | --- | --- | --- |
 | [`qa/mcp`](examples/qa/mcp/README.md) | Autonomous browser agent QAs a remote URL and returns structured `{verdict, summary, findings}` | MCP server (`review_web_ui`, `visual_check`) |
-| [`qa/cli`](examples/qa/cli/README.md) | Same QA agent exposed as a shell command, surfaced to Claude Code via the `hai-qa-via-cli` skill | CLI (`qa-cli review / visual`) |
+| [`qa/cli`](examples/qa/cli/README.md) | Same QA agent exposed as a shell command, surfaced to coding agents via the `hai-qa-via-cli` skill | CLI (`qa-cli review / visual`) |
 | [`extract_anything`](examples/extract_anything/README.md) | Wrap an agent call as a typed Python function (generic `extract(url, task, schema)` or curated `get_*` tools), exposed as both MCP and CLI | MCP server (`extract`) + CLI (`extract-cli`) |
-| [`counterfeit_detection`](examples/counterfeit_detection/README.md) | Single-agent + custom-tools cookbook in three stages: bare `run_session`, then local screenshot-compare tools, then a `max_steps`/`max_time_s` budget for an exhaustive sweep | CLI (`counterfeit-cli simple / tooled / sweep`) |
+
+See [`examples/`](examples/README.md) for the full index and shared architecture.
 
 ## Configuration
 
