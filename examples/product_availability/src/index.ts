@@ -58,19 +58,18 @@ A size is AVAILABLE only if it can be selected and added to the bag (not greyed 
 Report the product name, URL, price, and the availability of each size.`;
 
 async function main(): Promise<void> {
-  // 1) Create the session; returns immediately with an id (does NOT block).
+  // Create the session; returns immediately with an id (does NOT block).
   const handle = await client.startSession({
     agent: "h/web-surfer-pro", // visual web agent, larger model, best for a real shopping flow
     messages: task,
     answerSchema: Availability,
   });
 
-  // 2) Print the live agent-view link FIRST, flushed, so the user can watch now.
+  // Print the live agent-view link first (flushed) so the user can watch now.
   const agentViewUrl = `https://${agentViewHost}/agent-view/${handle.id}`;
   console.log(`\n▶ Watch live: ${agentViewUrl}`);
   console.log(`  session id: ${handle.id}\n  working… (this can take a couple of minutes)\n`);
 
-  // 3) Block until the run settles, then read the typed answer.
   const result = await handle.waitForCompletion();
 
   console.log(`Session status: ${result.status}`);
@@ -81,7 +80,6 @@ async function main(): Promise<void> {
     return;
   }
 
-  // 4) Report clearly.
   console.log("\n================ RESULT ================");
   if (!answer.productFound) {
     console.log("❌ Could not find the France Jacquemus × Nike jersey on jacquemus.com.");

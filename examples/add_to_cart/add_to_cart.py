@@ -44,7 +44,6 @@ def main() -> int:
     print(f"Session : {session.id}", flush=True)
     print(f"Watch   : {live_url}", flush=True)
 
-    # Block until the run settles, then report the agent's answer.
     result = wait_for_session(client, session.id, timeout_seconds=600)
     status = result.status if hasattr(result, "status") else "settled"
     print(f"\nStatus  : {status}")
