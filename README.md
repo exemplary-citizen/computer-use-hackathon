@@ -1,6 +1,6 @@
 # hai-agents-demos
 
-Build with H's Computer Use autonomous agents. When the target system exposes no API, our agents operate it directly through the UI — powered by our own harness and our own VLM (TODO: blog post link).
+Build with H's Computer Use autonomous agents. When the target system exposes no API, our agents operate it directly through the UI — powered by our own harness and our [own VLM](https://hcompany.ai/holo3.1).
 
 The `hai-agents` SDK gives you programmatic access to our agents from a few lines of [Python](https://pypi.org/project/hai-agents/) or [TypeScript](https://npmjs.com/package/hai-agents).
 
@@ -49,29 +49,24 @@ https://github.com/user-attachments/assets/d7d82573-22bb-4e2a-a261-bb603bc576f3
 
 ## 3. Integrate
 
-Call the agent from your coding workflow over MCP. Claude Code, Hermes Agent, Codex, and NemoClaw all speak MCP — same SDK, different host wiring.
+Call the agent from your coding workflow over MCP. Same SDK, different host wiring.
+
+Example with Claude Code:
 
 ```bash
 claude                 # opens Claude Code in the repo; the MCP server is auto-registered
 ```
 
-In Claude Code:
-
 > *"Use `review_web_ui` to check https://news.ycombinator.com and verify the top story link works and the page has reasonable accessibility."*
 
 https://github.com/user-attachments/assets/f0097089-033b-458b-8e20-2b59cc48b3a0
 
-### Run in Hermes Agent (Nous Research)
+### Other hosts
 
-These demos aren't limited to Claude Code. Hermes Agent consumes the same MCP servers, agentskills.io skills, and CLIs, so the SDK code is unchanged and only the host wiring differs. See [`hermes/`](hermes/) for the one-time setup (a config block plus a tool-call timeout bump).
-
-### Run in Codex (OpenAI)
-
-Codex is an MCP client too. See [`codex/`](codex/) for the same servers in `config.toml` form, including the hosted platform server via `bearer_token_env_var`. Mind Codex's 60 s default tool timeout.
-
-### Deploy inside NVIDIA NemoClaw
-
-NemoClaw isn't a separate host: it runs Hermes inside an NVIDIA OpenShell sandbox. So this is the Hermes integration deployed there, plus an egress policy that lets the sandboxed agent reach `agp`. See [`nemoclaw/`](nemoclaw/).
+- **Hermes Agent** (Nous Research) — consumes the same MCP servers, skills, and CLIs. See [`hermes/`](hermes/) for the one-time setup.
+- **Codex** (OpenAI) — same servers in `config.toml` form; the hosted platform server uses `bearer_token_env_var`. Watch Codex's 60 s default tool timeout. See [`codex/`](codex/).
+- **NemoClaw** (HAI x NVIDIA x Hermes) — a security runtime, not another MCP host. It builds an NVIDIA OpenShell sandbox and runs Hermes inside it under an explicit network-egress policy — designed for regulated, sandboxed deployments. The wiring is the Hermes integration plus an egress policy that lets the agent reach H's hosted server. See [`nemoclaw/`](nemoclaw/).
+- **Any other MCP-speaking client** — same SDK, different wiring.
 
 ## Examples
 
@@ -84,27 +79,6 @@ Each example is a self-contained recipe with its own README. See [`examples/`](e
 | [`extract_anything`](examples/extract_anything/README.md) | Wrap an agent call as a typed Python function (generic `extract(url, task, schema)` or curated `get_*` tools), exposed as both MCP and CLI | MCP server (`extract`) + CLI (`extract-cli`) |
 | [`counterfeit_detection`](examples/counterfeit_detection/README.md) | Single-agent + custom-tools cookbook in three stages: bare `run_session`, then local screenshot-compare tools, then a `max_steps`/`max_time_s` budget for an exhaustive sweep | CLI (`counterfeit-cli simple / tooled / sweep`) |
 
-## Installing the dependencies
-
-The repo ships both a `pyproject.toml` (source of truth for dependencies, dev tools, and console scripts) and a `uv.lock` (pinned versions for reproducible installs). Use either tool; both pull the same packages from the same manifest.
-
-**uv (recommended).** Fast, uses the lockfile, and manages the virtualenv for you:
-
-```bash
-uv sync                            # installs runtime + dev deps into .venv/
-uv run qa-cli review --url ...     # runs the console script in the env
-```
-
-**pip + venv.** Same packages, but no lockfile pin:
-
-```bash
-python -m venv .venv && source .venv/bin/activate
-pip install -e .                   # editable install of this repo's deps
-qa-cli review --url ...            # console scripts are on PATH inside the venv
-```
-
-The `.mcp.json` registration assumes `uv run` is available. If you go the pip route, edit `.mcp.json` to invoke the console scripts directly (drop the `uv run --env-file .env` prefix and `source .venv/bin/activate` beforehand, or pass the venv's interpreter explicitly).
-
 ## Configuration
 
 | Env var | Required | Source |
@@ -113,16 +87,12 @@ The `.mcp.json` registration assumes `uv run` is available. If you go the pip ro
 
 The hosted `hai-agents-platform` server in [`.mcp.json`](.mcp.json) (the generic platform MCP, for any H agent) is HTTP, not stdio, so it can't read `.env` like the others: Claude Code expands `${HAI_API_KEY}` in its auth header from the environment. Export the key before launching (`export HAI_API_KEY=hk-...`). It uses the EU endpoint (the demos' default); swap to `agp.hcompany.ai` for US.
 
-## Skills
-
-See [`skills/`](skills/README.md) for the [`/hai-agents`](skills/hai-agents/) and [`/hai-qa-via-cli`](skills/hai-qa-via-cli/) skills.
-
 ## Project layout
 
 ```
 hai-agents-demos/
 ├── examples/    qa · extract_anything · counterfeit_detection · add_to_cart · product_availability (+ _shared.py helpers)
-├── skills/      hai-agents · hai-qa-via-cli (published to the marketplace)
+├── skills/      /hai-agents · /hai-qa-via-cli skills for your coding agent
 ├── hermes/      run the same demos in Hermes Agent (config + setup guide)
 ├── codex/       run the same demos in OpenAI Codex (config.toml + setup guide)
 ├── nemoclaw/    deploy the Hermes integration inside NVIDIA NemoClaw's sandbox (egress policy + image + guide)
@@ -130,6 +100,18 @@ hai-agents-demos/
 ├── .claude-plugin/marketplace.json
 └── pyproject.toml · AGENTS.md
 ```
+
+## Installation alternatives
+
+Quickstart uses `uv sync`. If you prefer pip, the same packages are in `pyproject.toml`:
+
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -e .                   # editable install of this repo's deps
+qa-cli review --url ...            # console scripts are on PATH inside the venv
+```
+
+The `.mcp.json` registration assumes `uv run` is available. If you go the pip route, edit `.mcp.json` to invoke the console scripts directly (drop the `uv run --env-file .env` prefix and `source .venv/bin/activate` beforehand, or pass the venv's interpreter explicitly).
 
 ## Links
 
