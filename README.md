@@ -1,3 +1,5 @@
+
+
 # hai-agents-demos
 
 Recipes for the [`hai-agents`](https://pypi.org/project/hai-agents/) Python SDK, wired up as **MCP servers and CLI tools for Claude Code**, and runnable in other MCP hosts ([Hermes Agent](hermes/), [Codex](codex/)), or deployed inside NVIDIA's [NemoClaw](nemoclaw/) sandbox. Each example shows one way to use the SDK in a real workflow.
@@ -20,6 +22,9 @@ claude                 # opens Claude Code in the repo; the MCP server is auto-r
 In Claude Code:
 
 > *"Use `review_web_ui` to check https://news.ycombinator.com — verify the top story link works and the page has reasonable accessibility."*
+
+https://github.com/user-attachments/assets/f0097089-033b-458b-8e20-2b59cc48b3a0
+
 
 ### Run in Hermes Agent (Nous Research)
 
@@ -78,15 +83,15 @@ Each example is a self-contained recipe with its own README. See [`examples/`](e
 | [`extract_anything`](examples/extract_anything/README.md) | Wrap an agent call as a typed Python function — generic `extract(url, task, schema)` or curated `get_*` tools — exposed as both MCP and CLI | MCP server (`extract`) + CLI (`extract-cli`) |
 | [`counterfeit_detection`](examples/counterfeit_detection/README.md) | Single-agent + custom-tools cookbook in three stages: bare `run_session`, then local screenshot-compare tools, then a `max_steps`/`max_time_s` budget for an exhaustive sweep | CLI (`counterfeit-cli simple / tooled / sweep`) |
 
-
-
-### Drive the SDK straight from a natural-language prompt (Python)
+### Drive the straight from a natural-language prompt (Python)
 
 > Just describe the task in plain language and let the agent run it:
 
 ```text
 "Searches for "Random Access Memories" by Daft Punk, adds it to the shopping cart."
 ```
+
+https://github.com/user-attachments/assets/aa7473f8-9666-4640-ac34-6255ab67aa6d
 
 → Runnable code: [`examples/add_to_cart/add_to_cart.py`](examples/add_to_cart/add_to_cart.py) (Python)
 
@@ -97,6 +102,7 @@ Each example is a self-contained recipe with its own README. See [`examples/`](e
 ```text
 "/hai-agents:hai-agents Generate TypeScript code that navigates to jacquemus.com, searches for the France Jacquemus × Nike football jersey, checks its availability in sizes S and XXL, and reports the results clearly."
 ```
+https://github.com/user-attachments/assets/d7d82573-22bb-4e2a-a261-bb603bc576f3
 
 → Generated code: [`examples/product_availability/src/index.ts`](examples/product_availability/src/index.ts) (TypeScript)
 
