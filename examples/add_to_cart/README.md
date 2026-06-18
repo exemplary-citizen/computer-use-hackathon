@@ -1,7 +1,7 @@
 # add_to_cart (Python)
 
 Drive an H Computer-Use agent straight from the SDK: search a shopping site for a
-product and add it to the cart. The agent *sees* the page and clicks through the UI —
+product and add it to the cart. The agent *sees* the page and clicks through the UI;
 there's no store API involved. (This demo searches for Daft Punk's "Random Access
 Memories".)
 

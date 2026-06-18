@@ -14,7 +14,7 @@
 import { HaiAgentsClient } from "hai-agents";
 import { z } from "zod";
 
-// The SDK reads HAI_API_KEY from the environment — `source .env` first, or export it.
+// The SDK reads HAI_API_KEY from the environment; `source .env` first, or export it.
 if (!process.env.HAI_API_KEY) {
   console.error("Missing HAI_API_KEY. Run the hai-agents login or set it in the environment.");
   process.exit(1);
@@ -58,9 +58,9 @@ A size is AVAILABLE only if it can be selected and added to the bag (not greyed 
 Report the product name, URL, price, and the availability of each size.`;
 
 async function main(): Promise<void> {
-  // 1) Create the session — returns immediately with an id (does NOT block).
+  // 1) Create the session; returns immediately with an id (does NOT block).
   const handle = await client.startSession({
-    agent: "h/web-surfer-pro", // visual web agent, larger model — best for a real shopping flow
+    agent: "h/web-surfer-pro", // visual web agent, larger model, best for a real shopping flow
     messages: task,
     answerSchema: Availability,
   });
@@ -84,7 +84,7 @@ async function main(): Promise<void> {
   // 4) Report clearly.
   console.log("\n================ RESULT ================");
   if (!answer.productFound) {
-    console.log("❌ Could not find the France Jacquemus × Nike jersey on Nike.");
+    console.log("❌ Could not find the France Jacquemus × Nike jersey on jacquemus.com.");
   } else {
     console.log(`Product : ${answer.productName ?? "(name not captured)"}`);
     if (answer.price) console.log(`Price   : ${answer.price}`);

@@ -1,8 +1,8 @@
 """Drive an H Computer-Use agent to add Daft Punk's "Random Access Memories" to an Amazon cart.
 
-The agent *sees* Amazon and decides what to click/type/scroll — there's no Amazon API here.
+The agent *sees* Amazon and decides what to click/type/scroll; there's no Amazon API here.
 Run with:  source .env && .hai-venv/bin/python add_to_cart.py
-(Reads HAI_API_KEY from the environment — `source .env` first, or export it.)
+(Reads HAI_API_KEY from the environment; `source .env` first, or export it.)
 """
 
 import os

@@ -4,10 +4,10 @@
 
 Recipes for the [`hai-agents`](https://pypi.org/project/hai-agents/) Python SDK, wired up as **MCP servers and CLI tools for Claude Code**, and runnable in other MCP hosts ([Hermes Agent](hermes/), [Codex](codex/)), or deployed inside NVIDIA's [NemoClaw](nemoclaw/) sandbox. Each example shows one way to use the SDK in a real workflow.
 
-The SDK lets you spin up autonomous agents — web-surfing, code-running, vision-capable — and drive them from Python. This repo wraps that SDK into two interface patterns so you can call the agents from inside Claude Code while you work:
+The SDK lets you spin up autonomous agents that browse the web, run code, and read what's on screen, then drive them from Python. This repo wraps that SDK into two interface patterns so you can call the agents from inside Claude Code while you work:
 
-- **MCP server** — Claude Code calls the agent like any other MCP tool.
-- **CLI + Claude Code skill** — Claude Code runs a shell command that a skill knows how to invoke.
+- **MCP server:** Claude Code calls the agent like any other MCP tool.
+- **CLI + Claude Code skill:** Claude Code runs a shell command that a skill knows how to invoke.
 
 ## Quickstart
 
@@ -21,7 +21,7 @@ claude                 # opens Claude Code in the repo; the MCP server is auto-r
 
 In Claude Code:
 
-> *"Use `review_web_ui` to check https://news.ycombinator.com — verify the top story link works and the page has reasonable accessibility."*
+> *"Use `review_web_ui` to check https://news.ycombinator.com and verify the top story link works and the page has reasonable accessibility."*
 
 https://github.com/user-attachments/assets/f0097089-033b-458b-8e20-2b59cc48b3a0
 
@@ -40,16 +40,16 @@ NemoClaw isn't a separate host: it runs Hermes inside an NVIDIA OpenShell sandbo
 
 ### Installing the dependencies
 
-The repo ships both a `pyproject.toml` (source of truth for dependencies, dev tools, and console scripts) and a `uv.lock` (pinned versions for reproducible installs). Use either tool — both pull the same packages from the same manifest.
+The repo ships both a `pyproject.toml` (source of truth for dependencies, dev tools, and console scripts) and a `uv.lock` (pinned versions for reproducible installs). Use either tool; both pull the same packages from the same manifest.
 
-**uv (recommended)** — fast, uses the lockfile, manages the virtualenv for you:
+**uv (recommended).** Fast, uses the lockfile, and manages the virtualenv for you:
 
 ```bash
 uv sync                            # installs runtime + dev deps into .venv/
 uv run qa-cli review --url ...     # runs the console script in the env
 ```
 
-**pip + venv** — same packages, no lockfile pin:
+**pip + venv.** Same packages, but no lockfile pin:
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
@@ -57,7 +57,7 @@ pip install -e .                   # editable install of this repo's deps
 qa-cli review --url ...            # console scripts are on PATH inside the venv
 ```
 
-The `.mcp.json` registration assumes `uv run` is available — if you go the pip route, edit `.mcp.json` to invoke the console scripts directly (drop the `uv run --env-file .env` prefix and `source .venv/bin/activate` beforehand, or pass the venv's interpreter explicitly).
+The `.mcp.json` registration assumes `uv run` is available. If you go the pip route, edit `.mcp.json` to invoke the console scripts directly (drop the `uv run --env-file .env` prefix and `source .venv/bin/activate` beforehand, or pass the venv's interpreter explicitly).
 
 
 ## Skills
@@ -80,10 +80,10 @@ Each example is a self-contained recipe with its own README. See [`examples/`](e
 | --- | --- | --- |
 | [`qa/mcp`](examples/qa/mcp/README.md) | Autonomous browser agent QAs a remote URL and returns structured `{verdict, summary, findings}` | MCP server (`review_web_ui`, `visual_check`) |
 | [`qa/cli`](examples/qa/cli/README.md) | Same QA agent exposed as a shell command, surfaced to Claude Code via the `hai-qa-via-cli` skill | CLI (`qa-cli review / visual`) |
-| [`extract_anything`](examples/extract_anything/README.md) | Wrap an agent call as a typed Python function — generic `extract(url, task, schema)` or curated `get_*` tools — exposed as both MCP and CLI | MCP server (`extract`) + CLI (`extract-cli`) |
+| [`extract_anything`](examples/extract_anything/README.md) | Wrap an agent call as a typed Python function (generic `extract(url, task, schema)` or curated `get_*` tools), exposed as both MCP and CLI | MCP server (`extract`) + CLI (`extract-cli`) |
 | [`counterfeit_detection`](examples/counterfeit_detection/README.md) | Single-agent + custom-tools cookbook in three stages: bare `run_session`, then local screenshot-compare tools, then a `max_steps`/`max_time_s` budget for an exhaustive sweep | CLI (`counterfeit-cli simple / tooled / sweep`) |
 
-### Drive the straight from a natural-language prompt (Python)
+### Drive the agent straight from a natural-language prompt (Python)
 
 > Just describe the task in plain language and let the agent run it:
 
@@ -95,7 +95,7 @@ https://github.com/user-attachments/assets/aa7473f8-9666-4640-ac34-6255ab67aa6d
 
 → Runnable code: [`examples/add_to_cart/add_to_cart.py`](examples/add_to_cart/add_to_cart.py) (Python)
 
-### Or let the `/hai-agents` skill generate the SDK code for you — TypeScript (as in this example) or Python
+### Or let the `/hai-agents` skill generate the SDK code for you: TypeScript (as in this example) or Python
 
 > Ask the skill to write the SDK code, and it scaffolds a ready-to-run script:
 

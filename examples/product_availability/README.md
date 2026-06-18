@@ -2,7 +2,7 @@
 
 The TypeScript counterpart to [`add_to_cart`](../add_to_cart/): drive the `hai-agents`
 SDK from Node to find a product on a store's site and report its availability across
-sizes, returning a typed, `zod`-validated answer. (This demo looks up the France
+sizes. It returns a typed, `zod`-validated answer. (This demo looks up the France
 Jacquemus × Nike football jersey on jacquemus.com and checks sizes **S** and **XXL**.)
 
 Entry point: [`src/index.ts`](src/index.ts).
