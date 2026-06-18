@@ -54,16 +54,6 @@ qa-cli review --url ...            # console scripts are on PATH inside the venv
 
 The `.mcp.json` registration assumes `uv run` is available — if you go the pip route, edit `.mcp.json` to invoke the console scripts directly (drop the `uv run --env-file .env` prefix and `source .venv/bin/activate` beforehand, or pass the venv's interpreter explicitly).
 
-## Examples
-
-Each example is a self-contained recipe with its own README. See [`examples/`](examples/README.md) for the full index and the shared architecture.
-
-| Example | What it shows | Interface |
-| --- | --- | --- |
-| [`qa/mcp`](examples/qa/mcp/README.md) | Autonomous browser agent QAs a remote URL and returns structured `{verdict, summary, findings}` | MCP server (`review_web_ui`, `visual_check`) |
-| [`qa/cli`](examples/qa/cli/README.md) | Same QA agent exposed as a shell command, surfaced to Claude Code via the `hai-qa-via-cli` skill | CLI (`qa-cli review / visual`) |
-| [`extract_anything`](examples/extract_anything/README.md) | Wrap an agent call as a typed Python function — generic `extract(url, task, schema)` or curated `get_*` tools — exposed as both MCP and CLI | MCP server (`extract`) + CLI (`extract-cli`) |
-| [`counterfeit_detection`](examples/counterfeit_detection/README.md) | Single-agent + custom-tools cookbook in three stages: bare `run_session`, then local screenshot-compare tools, then a `max_steps`/`max_time_s` budget for an exhaustive sweep | CLI (`counterfeit-cli simple / tooled / sweep`) |
 
 ## Skills
 
@@ -77,11 +67,44 @@ This repo doubles as a **Claude Code plugin marketplace**: each skill ([`hai-age
 
 The hosted `hai-agents-platform` server in [`.mcp.json`](.mcp.json) (the generic platform MCP, for any H agent) is HTTP, not stdio, so it can't read `.env` like the others: Claude Code expands `${HAI_API_KEY}` in its auth header from the environment. Export the key before launching (`export HAI_API_KEY=hk-...`). It uses the EU endpoint (the demos' default); swap to `agp.hcompany.ai` for US.
 
+## Examples
+
+Each example is a self-contained recipe with its own README. See [`examples/`](examples/README.md) for the full index and the shared architecture.
+
+| Example | What it shows | Interface |
+| --- | --- | --- |
+| [`qa/mcp`](examples/qa/mcp/README.md) | Autonomous browser agent QAs a remote URL and returns structured `{verdict, summary, findings}` | MCP server (`review_web_ui`, `visual_check`) |
+| [`qa/cli`](examples/qa/cli/README.md) | Same QA agent exposed as a shell command, surfaced to Claude Code via the `hai-qa-via-cli` skill | CLI (`qa-cli review / visual`) |
+| [`extract_anything`](examples/extract_anything/README.md) | Wrap an agent call as a typed Python function — generic `extract(url, task, schema)` or curated `get_*` tools — exposed as both MCP and CLI | MCP server (`extract`) + CLI (`extract-cli`) |
+| [`counterfeit_detection`](examples/counterfeit_detection/README.md) | Single-agent + custom-tools cookbook in three stages: bare `run_session`, then local screenshot-compare tools, then a `max_steps`/`max_time_s` budget for an exhaustive sweep | CLI (`counterfeit-cli simple / tooled / sweep`) |
+
+
+
+### Drive the SDK straight from a natural-language prompt (Python)
+
+> Just describe the task in plain language and let the agent run it:
+
+```text
+"Searches for "Random Access Memories" by Daft Punk, adds it to the shopping cart."
+```
+
+→ Runnable code: [`examples/add_to_cart/add_to_cart.py`](examples/add_to_cart/add_to_cart.py) (Python)
+
+### Or let the `/hai-agents` skill generate the SDK code for you — TypeScript (as in this example) or Python
+
+> Ask the skill to write the SDK code, and it scaffolds a ready-to-run script:
+
+```text
+"/hai-agents:hai-agents Generate TypeScript code that navigates to jacquemus.com, searches for the France Jacquemus × Nike football jersey, checks its availability in sizes S and XXL, and reports the results clearly."
+```
+
+→ Generated code: [`examples/product_availability/src/index.ts`](examples/product_availability/src/index.ts) (TypeScript)
+
 ## Project layout
 
 ```
 hai-agents-demos/
-├── examples/    qa · extract_anything · counterfeit_detection (+ _shared.py helpers)
+├── examples/    qa · extract_anything · counterfeit_detection · add_to_cart · product_availability (+ _shared.py helpers)
 ├── skills/      hai-agents · hai-qa-via-cli (published to the marketplace)
 ├── hermes/      run the same demos in Hermes Agent (config + setup guide)
 ├── codex/       run the same demos in OpenAI Codex (config.toml + setup guide)

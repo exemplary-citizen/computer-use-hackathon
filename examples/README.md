@@ -8,6 +8,8 @@ Each subdirectory is one self-contained recipe for the `hai-agents` SDK.
 | [`qa/cli`](qa/cli/) | Same QA agent, exposed as a shell command (`qa-cli`) and surfaced to Claude via the `hai-qa-via-cli` skill instead of MCP. |
 | [`extract_anything`](extract_anything/) | One tool exposed two ways. MCP: `extract(url, task, schema)`. CLI: `extract-cli picture`. The cloud browser agent reads the page visually (Wikipedia's Picture of the Day in the CLI demo) and returns JSON matching the schema. |
 | [`counterfeit_detection`](counterfeit_detection/) | Cookbook for the single-agent + custom-tools pattern: find counterfeit listings of a genuine product. Three stages — a bare `run_session`, then local Playwright/Holo screenshot-compare tools, then a `max_steps`/`max_time_s` budget that turns "find one" into "find as many as the budget allows". |
+| [`add_to_cart`](add_to_cart/) | Minimal "drive the SDK straight" recipe (Python): a visual browser agent searches a shopping site for a product and adds it to the cart, printing the live agent-view link first. |
+| [`product_availability`](product_availability/) | The TypeScript counterpart: find a product on a store's site and report availability across sizes, with a `zod`-validated answer schema. |
 
 ## How it works
 
