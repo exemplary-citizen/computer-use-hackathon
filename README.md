@@ -1,14 +1,14 @@
 # hai-agents-demos
 
-Build with H's Computer Use autonomous agents, powered by our own harness and our [own VLM](https://hcompany.ai/holo3.1). When the target system exposes no API, our agents operate it directly through the UI.
+Build with H's Computer-Use Agents, powered by our harness and [VLM](https://hcompany.ai/holo3.1). A Computer-Use Agent sees the screen and decides what to click, type, and scroll, just like a person would. You describe a task in plain language; H provisions the environment, runs the agent, and returns the result. It's the way in when the work lives behind a UI with no API to call.
 
 The `hai-agents` SDK gives you programmatic access to our agents from a few lines of [Python](https://pypi.org/project/hai-agents/) or [TypeScript](https://npmjs.com/package/hai-agents).
 
 This repo is a tour of three ways to build with the SDK, from a one-line prompt to production integrations:
 
 1. **Discover.** Describe a task in plain language and watch the agent run it.
-2. **Scale via the skill.** Let the `/hai-agents` skill scaffold reusable SDK code for you.
-3. **Integrate.** Call the agent as an MCP tool from your coding workflow (Claude Code, Hermes Agent, Codex, NemoClaw).
+2. **Build with the skill** Let the `/hai-agents` skill scaffold reusable SDK code for you.
+3. **Integrate** Call the agent as an MCP tool from your coding workflow (Claude Code, Hermes Agent, Codex, NemoClaw).
 
 ## Quickstart
 
@@ -21,7 +21,7 @@ cp .env.example .env   # add your HAI_API_KEY from https://platform.hcompany.ai/
 
 ## 1. Discover
 
-One prompt, one Python file. You write 10 lines; the agent does the work. Now you've seen our CU agent in action.
+Use the SDK directly. The example below is a single Python file: a few lines of the `hai-agents` SDK wrapped around a plain-language prompt. You write the prompt, the SDK runs the agent, and you've seen a CU agent in action.
 
 > Just describe the task in plain language and let the agent run it:
 
@@ -33,9 +33,16 @@ https://github.com/user-attachments/assets/aa7473f8-9666-4640-ac34-6255ab67aa6d
 
 → Runnable code: [`examples/add_to_cart/add_to_cart.py`](examples/add_to_cart/add_to_cart.py) (Python)
 
-## 2. Scale via the skill
+## 2. Build with the skill
 
-The `/hai-agents` skill plugs into your favorite coding agent and writes the SDK code for you, in Python or TypeScript. You get a packaged expert writing your code, and an artifact you can deploy anywhere Python or Node runs, independent of the coding agent that scaffolded it. Iterate on prompts to grow your CU agent library.
+The [`/hai-agents`](skills/hai-agents) skill plugs into your coding agent and carries everything it needs to write SDK code for you: the full API knowledge, the auth and connection patterns, and enough context to write working SDK code quickly, in Python or TypeScript. You get a packaged expert writing your custom code, and an artifact you can deploy anywhere Python or Node runs, independent of the coding agent that scaffolded it. Iterate on prompts to grow your CU agent library.
+
+This repo also doubles as a [Claude Code plugin marketplace](skills/README.md), so you can install the skill into your own Claude Code without cloning anything:
+
+```
+/plugin marketplace add hcompai/hai-agents-demos
+/plugin install hai-agents@hai-skills
+```
 
 > Ask the skill to write the SDK code, and it scaffolds a ready-to-run script:
 
@@ -51,13 +58,9 @@ For deeper SDK patterns beyond what the skill scaffolds (custom tools, `max_step
 
 ## 3. Integrate
 
-Call the agent from your coding workflow over MCP. Same SDK, different host wiring.
+Now put the agent where you already work. MCP turns it into a first-class tool inside your coding workflow, Claude Code below, plus Hermes, Codex, NemoClaw, or anything that speaks MCP. One agent, many hosts, wiring is the only difference.
 
 Example with Claude Code:
-
-```bash
-claude                 # opens Claude Code in the repo; the MCP server is auto-registered
-```
 
 > *"Use `review_web_ui` to check https://news.ycombinator.com and verify the top story link works and the page has reasonable accessibility."*
 
@@ -65,10 +68,10 @@ https://github.com/user-attachments/assets/f0097089-033b-458b-8e20-2b59cc48b3a0
 
 ### Other hosts
 
+- **Claude Code** (Anthropic). The MCP server is auto-registered from [`.mcp.json`](.mcp.json) when you open the repo, so the agent's tools are available the moment you run `claude`.
 - **Hermes Agent** (Nous Research). Consumes the same MCP servers, skills, and CLIs. See [`hermes/`](hermes/) for the one-time setup.
 - **Codex** (OpenAI). Same servers in `config.toml` form; the hosted platform server uses `bearer_token_env_var`. Watch Codex's 60 s default tool timeout. See [`codex/`](codex/).
 - **NemoClaw** (HAI x NVIDIA x Hermes). A security runtime for regulated, sandboxed deployments, not another MCP host. It builds an NVIDIA OpenShell sandbox and runs Hermes inside it under a network-egress policy. The wiring is the Hermes integration plus an egress policy that lets the agent reach H's hosted server. See [`nemoclaw/`](nemoclaw/).
-- **Any other MCP-speaking client.** Same SDK, different wiring.
 
 ### Recipes
 
