@@ -1,4 +1,4 @@
-# computer-use-agents-demos
+# Computer-use Agents Demos
 
 Build with H's Computer-Use Agents, powered by our harness and [VLM](https://hcompany.ai/holo3.1). A Computer-Use Agent sees the screen and decides what to click, type, and scroll, just like a person would. You describe a task in plain language; H provisions the environment, runs the agent, and returns the result. It's the way in when the work lives behind a UI with no API to call.
 
