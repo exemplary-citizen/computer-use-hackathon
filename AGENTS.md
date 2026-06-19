@@ -1,4 +1,4 @@
-# AGENTS.md — hai-agents-demos
+# AGENTS.md — computer-use-agents-demos
 
 ## Working with Users
 
