@@ -1,4 +1,4 @@
-# hai-agents-demos
+# computer-use-agents-demos
 
 Build with H's Computer-Use Agents, powered by our harness and [VLM](https://hcompany.ai/holo3.1). A Computer-Use Agent sees the screen and decides what to click, type, and scroll, just like a person would. You describe a task in plain language; H provisions the environment, runs the agent, and returns the result. It's the way in when the work lives behind a UI with no API to call.
 
@@ -14,7 +14,7 @@ This repo is a tour of three ways to build with the SDK, from a one-line prompt 
 
 ```bash
 git clone <this-repo>
-cd hai-agents-demos
+cd computer-use-agents-demos
 uv sync
 cp .env.example .env   # add your HAI_API_KEY from https://platform.hcompany.ai/settings/api-keys
 ```
@@ -40,7 +40,7 @@ The [`/hai-agents`](skills/hai-agents) skill plugs into your coding agent and ca
 This repo also doubles as a [Claude Code plugin marketplace](skills/README.md), so you can install the skill into your own Claude Code without cloning anything:
 
 ```
-/plugin marketplace add hcompai/hai-agents-demos
+/plugin marketplace add hcompai/computer-use-agents-demos
 /plugin install hai-agents@hai-skills
 ```
 
@@ -94,7 +94,7 @@ The hosted `hai-agents-platform` server in [`.mcp.json`](.mcp.json) (the generic
 ## Project layout
 
 ```
-hai-agents-demos/
+computer-use-agents-demos/
 ├── examples/    qa · extract_anything · counterfeit_detection · add_to_cart · product_availability (+ _shared.py helpers)
 ├── skills/      /hai-agents · /hai-qa-via-cli skills for your coding agent
 ├── hermes/      run the same demos in Hermes Agent (config + setup guide)
