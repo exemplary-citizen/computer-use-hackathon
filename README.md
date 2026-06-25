@@ -1,7 +1,7 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://github.com/hcompai/hai-agents-python/blob/main/assets/banner-dark.gif?raw=true" />
-    <img src="https://github.com/hcompai/hai-agents-python/blob/main/assets/banner-light.gif?raw=true" alt="Computer-Use Agents" width="700" />
+    <source media="(prefers-color-scheme: dark)" srcset="assets/banner-dark.gif" />
+    <img src="assets/banner-light.gif" alt="Computer-Use Agents" width="700" />
   </picture>
 </p>
 
