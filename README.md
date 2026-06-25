@@ -1,4 +1,31 @@
-# Computer-use Agents Demos
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://github.com/hcompai/hai-agents-python/blob/main/assets/banner-dark.gif?raw=true" />
+    <img src="https://github.com/hcompai/hai-agents-python/blob/main/assets/banner-light.gif?raw=true" alt="Computer-Use Agents" width="700" />
+  </picture>
+</p>
+
+<p align="center">
+  <a href="https://hub.hcompany.ai/computer-use-agents"><img src="https://img.shields.io/badge/docs-hub.hcompany.ai-blue.svg" alt="Documentation" /></a>
+  <a href="https://pypi.org/project/hai-agents/"><img src="https://img.shields.io/pypi/v/hai-agents.svg?label=hai-agents" alt="hai-agents on PyPI" /></a>
+  <a href="LICENSE.txt"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT" /></a>
+</p>
+
+<p align="center">
+  Use cases and integrations for <a href="https://hcompany.ai">H Company</a>'s <a href="https://hub.hcompany.ai/computer-use-agents">Computer-Use Agents</a>, built on the <code>hai-agents</code> SDK.
+</p>
+
+<p align="center">
+  <b><a href="https://hub.hcompany.ai/computer-use-agents">Documentation</a></b>
+  &nbsp;·&nbsp;
+  <a href="https://platform.hcompany.ai/settings/api-keys">Get an API key</a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/hcompai/hai-agents-python">Python SDK</a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/hcompai/hai-agents-ts">TypeScript SDK</a>
+  &nbsp;·&nbsp;
+  <a href="https://hcompany.ai">H Company</a>
+</p>
 
 Build with H's Computer-Use Agents, powered by our harness and [VLM](https://hcompany.ai/holo3.1). A Computer-Use Agent sees the screen and decides what to click, type, and scroll, just like a person would. You describe a task in plain language; H provisions the environment, runs the agent, and returns the result. It's the way in when the work lives behind a UI with no API to call.
 
@@ -13,7 +40,7 @@ This repo is a tour of three ways to build with the SDK, from a one-line prompt 
 ## Quickstart
 
 ```bash
-git clone <this-repo>
+git clone https://github.com/hcompai/computer-use-agents-demos.git
 cd computer-use-agents-demos
 uv sync
 cp .env.example .env   # add your HAI_API_KEY from https://platform.hcompany.ai/settings/api-keys
@@ -119,6 +146,7 @@ The `.mcp.json` registration assumes `uv run` is available. If you go the pip ro
 
 ## Links
 
+- [Computer-Use Agents documentation](https://hub.hcompany.ai/computer-use-agents)
 - [hai-agents on PyPI](https://pypi.org/project/hai-agents/)
 - [hai-agents on Npm](https://npmjs.com/package/hai-agents)
 - [H Company Platform](https://platform.hcompany.ai)
