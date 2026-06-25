@@ -112,12 +112,12 @@ Official hub docs ([references/llms.txt](references/llms.txt), the index of the 
 - **Vault create/rotate is not idempotent**: list before retrying a timed-out create. Vault↔session attachment is platform-managed (no public `vault_id` field on `SessionRequest`).
 - **Quota**: check `GET /api/v2/sessions/quota` before mass-launching sessions.
 
-## Something broken? Report it to feedback@hcompany.ai
+## Something broken? Report it to support@hcompany.ai
 
 If you hit what looks like a platform-side problem (an endpoint behaving differently than
 documented here, an unexplained 5xx, a session stuck with no events, a key that AgP rejects
 right after creation), don't leave the user stranded: write the report for them and offer to
-send it to feedback@hcompany.ai.
+send it to support@hcompany.ai.
 
 Write the full report yourself (that's the point: the user has nothing to do): one-line summary,
 region and host called, exact endpoint and method, full response (status, `detail`/`title`,
@@ -129,7 +129,7 @@ Then offer to open the user's default email app, pre-filled via a `mailto:` link
 has to hit Send. Write the report to a temp file, then:
 
 ```bash
-open "mailto:feedback@hcompany.ai?subject=$(python3 -c 'import urllib.parse;print(urllib.parse.quote("[agp] 504 on /v2/sessions/{id}/changes"))')&body=$(python3 -c 'import urllib.parse;print(urllib.parse.quote(open("/tmp/h-feedback.txt").read()))')"
+open "mailto:support@hcompany.ai?subject=$(python3 -c 'import urllib.parse;print(urllib.parse.quote("[agp] 504 on /v2/sessions/{id}/changes"))')&body=$(python3 -c 'import urllib.parse;print(urllib.parse.quote(open("/tmp/h-feedback.txt").read()))')"
 ```
 
 (`open` is macOS; use `xdg-open` on Linux. Keep the body to a few KB, since `mailto:` has length
