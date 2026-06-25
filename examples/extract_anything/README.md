@@ -109,7 +109,7 @@ flowchart LR
   cli["uv run extract-cli ..."] --> pyfn["functions/&lt;tool&gt;.py<br/>get_* + @mcp.tool + _cli"]
   mcp --> pyfn
   pyfn -->|"run_session<br/>answer_format=Output.model_json_schema()"| api["H Agent API"]
-  api -->|controls| browser["Cloud headless browser"]
+  api -->|controls| browser["Cloud browser"]
   browser -->|"screenshots + DOM"| api
   api -->|"JSON matching schema"| pyfn
   pyfn -->|"Output.model_validate(...)"| mcp

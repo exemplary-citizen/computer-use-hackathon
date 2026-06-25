@@ -23,7 +23,7 @@ def browser_env(start_url: str) -> Browser:
     """Build the inline cloud browser environment a tool drives.
 
     A catalog-id ``str`` would also be valid in ``Agent.environments`` (the env-agnostic
-    seam), but every shipped example today binds to an inline headless browser.
+    seam), but every shipped example today binds to an inline cloud browser.
 
     ``mode`` is left unset (``None``) so it is omitted from the wire and the server applies its
     own default (currently ``visual``). Omitting keeps us forward-compatible if the field's
@@ -38,7 +38,6 @@ def browser_env(start_url: str) -> Browser:
     return Browser(
         id="browser",
         kind="web",  # the API's environment union discriminates on this tag; the SDK doesn't default it
-        headless=True,
         width=1280,
         height=800,
         start_url=start_url,
