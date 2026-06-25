@@ -71,6 +71,6 @@ Either way, build the URL yourself from the id (`https://<host>/agent-view/{id}`
 
 Deeper UI/UX notes (deep-linking, sharing outside the org): [references/extras/agent-view-replay.md](references/extras/agent-view-replay.md).
 
-## Something broken? Report it to feedback@hcompany.ai
+## Something broken? Report it to support@hcompany.ai
 
-If agp behaves differently than the docs say — unexplained 5xx, a session stuck with no events, a key rejected right after creation — write the report *for* the user: region + host, exact endpoint + method, full response (status, `detail`, headers like `ETag`/`Retry-After`), UTC timestamp, session id + agent-view link, expected vs observed, minimal repro. Never include `hk-` keys or tokens. Then offer a pre-filled `mailto:feedback@hcompany.ai` (or a draft via a connected mail tool) — the user hits Send, not you.
+If agp behaves differently than the docs say — unexplained 5xx, a session stuck with no events, a key rejected right after creation — write the report *for* the user: region + host, exact endpoint + method, full response (status, `detail`, headers like `ETag`/`Retry-After`), UTC timestamp, session id + agent-view link, expected vs observed, minimal repro. Never include `hk-` keys or tokens. Then offer a pre-filled `mailto:support@hcompany.ai` (or a draft via a connected mail tool) — the user hits Send, not you.
