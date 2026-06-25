@@ -17,7 +17,7 @@ Each subdirectory is one self-contained recipe for the `hai-agents` SDK.
 flowchart LR
   caller["You in Claude Code / CLI"] -->|tool call| recipe["Example recipe<br/>server.py (MCP) or main.py (CLI)"]
   recipe -->|hai_agents.run_session| api["H Agent API"]
-  api -->|controls| browser["Cloud headless browser"]
+  api -->|controls| browser["Cloud browser"]
   browser -->|"screenshots + DOM"| api
   api -->|"structured answer"| recipe
   recipe -->|result| caller
