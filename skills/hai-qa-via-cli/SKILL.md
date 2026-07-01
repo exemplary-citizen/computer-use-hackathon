@@ -5,6 +5,10 @@ description: >
   Trigger when the user asks to QA a URL, check a deployed site for accessibility, usability,
   or correctness issues, get a structured review of a page, or run a quick visual sanity check
   on a live page (e.g. "what color is the CTA?").
+metadata:
+  version: "1.0.1"
+  author: hcompai
+  repository: https://github.com/hcompai/computer-use-agents-demos/skills
 ---
 
 # Web QA via the hai-agents CLI

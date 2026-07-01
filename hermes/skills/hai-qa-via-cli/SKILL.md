@@ -7,6 +7,9 @@ description: >
   on a live page (e.g. "what color is the CTA?").
 version: 1.0.0
 metadata:
+  version: "1.0.1"
+  author: hcompai
+  repository: https://github.com/hcompai/computer-use-agents-demos/tree/main/hermes/skills
   hermes:
     tags: [web, qa, accessibility, browser-agent]
     category: web
