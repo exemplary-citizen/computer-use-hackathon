@@ -14,6 +14,9 @@ description: >
   what the agent did", "why am I getting 401 from the platform?").
 version: 1.0.0
 metadata:
+  version: "1.0.1"
+  author: hcompai
+  repository: https://github.com/hcompai/computer-use-agents-demos/tree/main/hermes/skills
   hermes:
     tags: [h-company, platform, api, auth, agent-platform]
     category: platform
