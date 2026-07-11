@@ -18,43 +18,43 @@
       {
         "name": "sop",
         "relative_path": "versions/1/SOP.md",
-        "sha256": "f1973bc9e326ead427071e12790f6e0225d8796269a84f211e110f15036c48d7",
+        "sha256": "cca272909e1c02f64a012e2f969f2ff83c597046b4ae0d9bc54447ebb34420fc",
         "media_type": "text/markdown"
       },
       {
         "name": "skill",
         "relative_path": "versions/1/SKILL.md",
-        "sha256": "3bd6c5d863afe0cf62f3b8daf622afb75c0dbb316304511ca3b158ac3b451b51",
+        "sha256": "dd7295635c490f18e02880cd0608d2731fd3d506a61828a4bfd3acd0428df074",
         "media_type": "text/markdown"
       },
       {
         "name": "input_schema",
         "relative_path": "versions/1/inputs.schema.json",
-        "sha256": "58a779ca2a67c595862eb7b0be7ba7817b60ecd53f3fbc9e0b039cf74e344aab",
+        "sha256": "4d6c13553cec3f543d493206e5f4c32e11da6b9b7b24dcb125d5a53d6c2a4f17",
         "media_type": "application/schema+json"
       },
       {
         "name": "tools",
         "relative_path": "versions/1/tools.py",
-        "sha256": "d0fe88ec0e4517bc0ab610fbc4bf29e3c6dd18474a1371fb3e50f158d24802e2",
+        "sha256": "a366c9c13907933e8b50924f08840a15bac897835a297878448310640fd3375d",
         "media_type": "text/x-python"
       },
       {
         "name": "tool_manifest",
         "relative_path": "versions/1/tool_manifest.json",
-        "sha256": "548d6bce619e5b97aab95d1110d15c1ef85ea05b22ff89275efc5104634e1391",
+        "sha256": "9e26e046f9435997faad7420aee9dbe9c387bae70f4080dfb50178bd160b3718",
         "media_type": "application/json"
       },
       {
         "name": "eval_cases",
         "relative_path": "versions/1/eval_cases.json",
-        "sha256": "d178ac10de3eba3633ee29568649a0d24299f04698771742aaa3f0a4e5a2edeb",
+        "sha256": "7663e5cc4bb737eeac9940aacccdc95eea74bc2bd522a3a20433e6df12596cc3",
         "media_type": "application/json"
       },
       {
         "name": "review",
         "relative_path": "versions/1/review.json",
-        "sha256": "24a8cbf4f1312399878e832982fd9f1deff3b01835dcd1dd0cda26bf924def20",
+        "sha256": "7d237fcc564e8b27b998fbe48411bf9e5c99004b0bcc0e974e22f59313f9b9cb",
         "media_type": "application/json"
       }
     ],
@@ -97,7 +97,7 @@
           "type": "object",
           "required": ["lead_name", "lifecycle_status", "owner_name"]
         },
-        "code_sha256": "d0fe88ec0e4517bc0ab610fbc4bf29e3c6dd18474a1371fb3e50f158d24802e2",
+        "code_sha256": "a366c9c13907933e8b50924f08840a15bac897835a297878448310640fd3375d",
         "timeout_seconds": 2.0,
         "memory_limit_mb": 128
       }
@@ -108,14 +108,14 @@
       "id": "d4a47023-b3ec-48d6-974f-2c18861d3f39",
       "decision": "approved",
       "source": "dashboard",
-      "payload_sha256": "5480839819147ea1ac0a1733e43f2148e919cd1612d470a715b160148e0cb534",
+      "payload_sha256": "06e5598d1299d65c520a2ebc24950028130c41a93ef3c0657cd369244e641ae0",
       "actor": "fixture-author",
       "created_at": "2026-07-11T12:00:00Z"
     },
     "created_at": "2026-07-11T12:00:00Z"
   },
-  "sop_markdown": "# Update a CRM lead\n\nUpdate the requested lead's lifecycle status and owner without changing unrelated fields. Stage changes and stop before the final persistent action.\n",
-  "skill_markdown": "---\ndescription: Update a lead's lifecycle status and owner in a desktop CRM, with review before the final save.\n---\n\n# Update CRM lead\n\nLocate the exact lead, change only the requested fields, stage the result, and wait for approval before committing.\n",
+  "sop_markdown": "# Update a CRM lead\n\n## Goal\n\nUpdate the requested lead's lifecycle status and owner without changing unrelated fields.\n\n## Inputs\n\n- `lead_name`: exact lead name shown in the CRM.\n- `lifecycle_status`: new lifecycle status.\n- `owner_name`: new lead owner.\n\n## Procedure\n\n1. Open the target CRM desktop application.\n2. Find the lead whose visible name exactly matches `lead_name`.\n3. Open the lead details and verify the current record identity.\n4. Set Lifecycle Status to `lifecycle_status`.\n5. Set Owner to `owner_name`.\n6. Review the visible values and stop before Save, Commit, or an equivalent persistent action.\n7. Report the staged field changes for human approval.\n8. Only after approval, re-check the same record and staged values, commit once, and verify visible success.\n\n## Failure behavior\n\nStop without committing if the lead is missing, duplicated, the requested values are unavailable, or the staged form cannot be verified.\n",
+  "skill_markdown": "---\ndescription: Update a lead's lifecycle status and owner in a desktop CRM, with review before the final save.\n---\n\n# Update CRM lead\n\nUse the target application and runtime inputs provided by the caller.\n\n1. Locate the exact lead by visible name and verify its record identity.\n2. Change only Lifecycle Status and Owner to the requested values.\n3. Check the visible staged values and do not activate Save, Commit, Submit, or an equivalent control.\n4. Return the record identity, previous values when visible, and proposed values.\n5. Wait for explicit approval.\n6. After approval, verify the same record and values, commit once, and confirm visible success.\n\nDo not use remembered coordinates or assume that another CRM shares this application's navigation or labels.\n",
   "input_schema": {
     "type": "object",
     "additionalProperties": false,
