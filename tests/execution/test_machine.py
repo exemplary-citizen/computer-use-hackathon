@@ -48,9 +48,7 @@ class MachineTestBase(unittest.IsolatedAsyncioTestCase):
         return staged.payload_sha256
 
     async def finish(self, run_id: UUID) -> str:
-        return await wait_for_state(
-            self.coordinator, run_id, RunState.SUCCEEDED, RunState.FAILED, RunState.CANCELLED
-        )
+        return await wait_for_state(self.coordinator, run_id, RunState.SUCCEEDED, RunState.FAILED, RunState.CANCELLED)
 
     def assert_fixture_unchanged(self) -> None:
         self.assertEqual(self.fixture_a.read_bytes(), self.baseline_a)
