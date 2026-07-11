@@ -1,0 +1,140 @@
+{
+  "schema_version": "1.0",
+  "manifest": {
+    "schema_version": "1.0",
+    "id": "6c58a06a-1136-41f3-93f8-7ca258fa7b12",
+    "slug": "update-crm-lead",
+    "name": "Update CRM lead",
+    "status": "approved",
+    "sources": [],
+    "current_version": 1,
+    "approved_version": 1,
+    "created_at": "2026-07-11T12:00:00Z",
+    "updated_at": "2026-07-11T12:00:00Z"
+  },
+  "version": {
+    "version": 1,
+    "artifacts": [
+      {
+        "name": "sop",
+        "relative_path": "versions/1/SOP.md",
+        "sha256": "f1973bc9e326ead427071e12790f6e0225d8796269a84f211e110f15036c48d7",
+        "media_type": "text/markdown"
+      },
+      {
+        "name": "skill",
+        "relative_path": "versions/1/SKILL.md",
+        "sha256": "3bd6c5d863afe0cf62f3b8daf622afb75c0dbb316304511ca3b158ac3b451b51",
+        "media_type": "text/markdown"
+      },
+      {
+        "name": "input_schema",
+        "relative_path": "versions/1/inputs.schema.json",
+        "sha256": "58a779ca2a67c595862eb7b0be7ba7817b60ecd53f3fbc9e0b039cf74e344aab",
+        "media_type": "application/schema+json"
+      },
+      {
+        "name": "tools",
+        "relative_path": "versions/1/tools.py",
+        "sha256": "d0fe88ec0e4517bc0ab610fbc4bf29e3c6dd18474a1371fb3e50f158d24802e2",
+        "media_type": "text/x-python"
+      },
+      {
+        "name": "tool_manifest",
+        "relative_path": "versions/1/tool_manifest.json",
+        "sha256": "548d6bce619e5b97aab95d1110d15c1ef85ea05b22ff89275efc5104634e1391",
+        "media_type": "application/json"
+      },
+      {
+        "name": "eval_cases",
+        "relative_path": "versions/1/eval_cases.json",
+        "sha256": "d178ac10de3eba3633ee29568649a0d24299f04698771742aaa3f0a4e5a2edeb",
+        "media_type": "application/json"
+      },
+      {
+        "name": "review",
+        "relative_path": "versions/1/review.json",
+        "sha256": "24a8cbf4f1312399878e832982fd9f1deff3b01835dcd1dd0cda26bf924def20",
+        "media_type": "application/json"
+      }
+    ],
+    "inputs": [
+      {
+        "name": "lead_name",
+        "json_type": "string",
+        "description": "Exact visible name of the lead to update.",
+        "required": true,
+        "default": null,
+        "examples": ["Sarah Chen"]
+      },
+      {
+        "name": "lifecycle_status",
+        "json_type": "string",
+        "description": "Requested lifecycle status.",
+        "required": true,
+        "default": null,
+        "examples": ["Qualified"]
+      },
+      {
+        "name": "owner_name",
+        "json_type": "string",
+        "description": "Requested lead owner.",
+        "required": true,
+        "default": null,
+        "examples": ["Priya Shah"]
+      }
+    ],
+    "tools": [
+      {
+        "name": "normalize_lead_update",
+        "description": "Normalize and validate lead update inputs.",
+        "entrypoint": "normalize_lead_update",
+        "input_schema": {
+          "type": "object",
+          "required": ["lead_name", "lifecycle_status", "owner_name"]
+        },
+        "output_schema": {
+          "type": "object",
+          "required": ["lead_name", "lifecycle_status", "owner_name"]
+        },
+        "code_sha256": "d0fe88ec0e4517bc0ab610fbc4bf29e3c6dd18474a1371fb3e50f158d24802e2",
+        "timeout_seconds": 2.0,
+        "memory_limit_mb": 128
+      }
+    ],
+    "conflicts": [],
+    "validation_passed": true,
+    "approval": {
+      "id": "d4a47023-b3ec-48d6-974f-2c18861d3f39",
+      "decision": "approved",
+      "source": "dashboard",
+      "payload_sha256": "5480839819147ea1ac0a1733e43f2148e919cd1612d470a715b160148e0cb534",
+      "actor": "fixture-author",
+      "created_at": "2026-07-11T12:00:00Z"
+    },
+    "created_at": "2026-07-11T12:00:00Z"
+  },
+  "sop_markdown": "# Update a CRM lead\n\nUpdate the requested lead's lifecycle status and owner without changing unrelated fields. Stage changes and stop before the final persistent action.\n",
+  "skill_markdown": "---\ndescription: Update a lead's lifecycle status and owner in a desktop CRM, with review before the final save.\n---\n\n# Update CRM lead\n\nLocate the exact lead, change only the requested fields, stage the result, and wait for approval before committing.\n",
+  "input_schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["lead_name", "lifecycle_status", "owner_name"],
+    "properties": {
+      "lead_name": {"type": "string", "minLength": 1},
+      "lifecycle_status": {"type": "string", "minLength": 1},
+      "owner_name": {"type": "string", "minLength": 1}
+    }
+  },
+  "tools_code": "def normalize_lead_update(payload):\n    return {key: ' '.join(str(value).split()) for key, value in payload.items()}\n",
+  "eval_cases": [
+    {
+      "name": "canonical_update",
+      "input": {
+        "lead_name": "Sarah Chen",
+        "lifecycle_status": "Qualified",
+        "owner_name": "Priya Shah"
+      }
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+[
+  {
+    "name": "normalize_whitespace",
+    "input": {
+      "lead_name": "  Sarah   Chen ",
+      "lifecycle_status": " Qualified ",
+      "owner_name": " Priya  Shah "
+    },
+    "expected": {
+      "lead_name": "Sarah Chen",
+      "lifecycle_status": "Qualified",
+      "owner_name": "Priya Shah"
+    }
+  }
+]

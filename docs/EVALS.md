@@ -370,3 +370,28 @@ Quality misses must be documented with measured values and must not conceal a mu
 - [ ] Environment preflight and kill-switch walkthrough pass.
 
 The MVP is complete only when every must-pass checkbox applicable to the implemented release is checked and supported by reproducible evidence.
+
+## 10. Member 1 deterministic checkpoint — 2026-07-11
+
+This checkpoint records the authoring lane before live-provider and Member 2 integration trials. It is not a claim that
+the full MVP or live ingestion thresholds have passed.
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| Shared contract and transition tests | 7 passed | `tests/contracts/` |
+| Upload, storage, preprocessing, generation, validation, approval, and restart tests | 27 passed | `tests/authoring/` |
+| Six-fixture scorer and safety-gate tests | 4 passed | `tests/evals/` and `tests/fixtures/ingestion_gold/` |
+| React authoring component tests | 3 passed | `web/src/**/*.test.tsx` |
+| Frontend lint, typecheck, and production build | Passed | `npm run lint`, `npm run typecheck`, `npm run build` |
+| Diff whitespace check | Passed | `git diff --check` |
+
+The deterministic scorer's canonical self-test produces 100% critical-step recall, 100% confirmation-boundary recall,
+100% evidence coverage, visible expected conflicts, and no prohibited locators. Actual Holo3 outputs still require the
+two-reviewer matching procedure and must meet the same thresholds before release.
+
+Pending release evidence:
+
+- live Gradium, Hermes/Holo3, and mounted-workspace ingestion trials;
+- Member 2's Holo stage/commit, voice, cancellation, and CRM A/CRM B trials;
+- full FastAPI/pytest/ruff/mypy CI after dependency lock refresh;
+- release commit hash and environment/version matrix.

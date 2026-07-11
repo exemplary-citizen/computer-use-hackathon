@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "fixture_name": "silent_video",
+  "source_mode": "visual_only_video",
+  "valid_input": true,
+  "critical_steps": [
+    {"id": "locate_lead", "intent": "Locate a lead from visible UI evidence", "confirmation_boundary": false},
+    {"id": "verify_identity", "intent": "Verify the visible record identity", "confirmation_boundary": false},
+    {"id": "set_fields", "intent": "Stage the visibly demonstrated fields", "confirmation_boundary": false},
+    {"id": "review_staged", "intent": "Review staged fields without saving", "confirmation_boundary": false},
+    {"id": "commit_after_approval", "intent": "Save only after explicit approval", "confirmation_boundary": true},
+    {"id": "verify_success", "intent": "Verify visible success", "confirmation_boundary": false}
+  ],
+  "required_inputs": ["lead_name", "lifecycle_status", "owner_name"],
+  "preconditions": ["Transcript is explicitly marked unavailable"],
+  "completion_checks": ["Visual success indicator appears"],
+  "expected_conflicts": []
+}

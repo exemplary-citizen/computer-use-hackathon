@@ -223,3 +223,15 @@ traces/
 
 # counterfeit_detection example: locally rendered screenshots
 examples/counterfeit_detection/snapshots/
+
+# Automation Foundry local runtime data
+data/
+
+# Frontend dependencies and build output
+web/node_modules/
+web/dist/
+web/*.tsbuildinfo
+web/vite.config.js
+web/vite.config.d.ts
+web/vitest.config.js
+web/vitest.config.d.ts

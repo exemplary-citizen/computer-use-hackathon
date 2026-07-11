@@ -1,0 +1,8 @@
+{
+  "segments": [
+    {"start_seconds": 0.0, "stop_seconds": 4.0, "text": "Find Sarah Chen and verify the lead details."},
+    {"start_seconds": 4.0, "stop_seconds": 10.0, "text": "Set status to Qualified and owner to Priya Shah."},
+    {"start_seconds": 10.0, "stop_seconds": 15.0, "text": "Review both fields, stop before Save, and ask for approval."},
+    {"start_seconds": 15.0, "stop_seconds": 18.0, "text": "After approval save once and check the success banner."}
+  ]
+}

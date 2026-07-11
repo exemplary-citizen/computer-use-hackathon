@@ -1,13 +1,19 @@
 [project]
 name = "computer-use-agents-demos"
 version = "0.1.0"
-description = "Demo recipes for the hai-agents Python SDK, wired up as MCP servers for Claude Code."
+description = "Local application and reference recipes for teaching and running computer-use automations."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12"
 dependencies = [
+    "fastapi>=0.116",
+    "gradium>=0.6,<0.7",
     "hai-agents>=0.1.7",   # 0.1.7 ships custom tools (@tool + run_session tools=...)
     "fastmcp>=2.0",
     "pydantic>=2.7",
+    "pydantic-settings>=2.10",
+    "pymupdf>=1.28,<2",
+    "python-multipart>=0.0.20",
+    "uvicorn>=0.35",
     "tyro>=0.9",
     "python-dotenv>=1.0",
     "openai>=1.40",
@@ -16,6 +22,7 @@ dependencies = [
 ]
 
 [project.scripts]
+automation-foundry-api = "automation_foundry.cli:main"
 hai-agents-demos-qa = "examples.qa.mcp.server:main"
 hai-agents-demos-extract-anything = "examples.extract_anything.server:main"
 debug-qa = "examples.qa.mcp.debug:main"
@@ -27,6 +34,8 @@ extract-cli = "examples.extract_anything.cli:main"
 dev = [
     "ruff>=0.6",
     "mypy>=1.10",
+    "pytest>=8.4",
+    "pytest-asyncio>=1.0",
 ]
 
 [build-system]
@@ -34,7 +43,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["examples"]
+packages = ["examples", "src/automation_foundry"]
 
 [tool.ruff]
 line-length = 120
@@ -44,9 +53,15 @@ convention = "google"
 
 [tool.mypy]
 strict = true
+files = ["src/automation_foundry"]
 # fastmcp + a few hai_agents internals don't ship ``py.typed``; treat them as untyped imports
 # rather than failing every reference to them.
 ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-ra"
 
 [[tool.mypy.overrides]]
 # The SDK's ``tool()`` decorator factory is typed ``-> Any`` (it returns either a ``Tool`` or a
