@@ -112,17 +112,25 @@ class RuleBasedIntentResolver:
             return ResolvedCommand(kind="status_query", echo="Checking the run status.")
 
         inputs: dict[str, str] = {}
-        record = self._match_record(text, context.known_record_names)
-        if record:
-            inputs["lead_name"] = record
-        status = next((value for value in STATUS_VALUES if value.lower() in text), None)
-        if status:
-            inputs["lifecycle_status"] = status
         owner_match = _OWNER_PATTERN.search(utterance)
         if owner_match:
             # Trim trailing location phrases ("… to Priya Shah in Meridian").
             owner = re.split(r"\s+(?:in|on|for|at|inside|using)\s+", owner_match.group(1).strip(), maxsplit=1)[0]
             inputs["owner_name"] = owner.strip().title()
+        # The owner is extracted first so a known name in owner position is
+        # never mistaken for the record being updated.
+        records = self._match_records(text, context.known_record_names, exclude=inputs.get("owner_name"))
+        if len(records) > 1:
+            return ResolvedCommand(
+                kind="clarification",
+                missing=["lead_name"],
+                echo=f"I heard more than one contact ({', '.join(records)}). Which record should I update?",
+            )
+        if records:
+            inputs["lead_name"] = records[0]
+        status = self._match_status(text)
+        if status:
+            inputs["lifecycle_status"] = status
 
         if not inputs:
             return ResolvedCommand(
@@ -153,10 +161,30 @@ class RuleBasedIntentResolver:
         )
         return ResolvedCommand(kind="run_command", target_app=target_app, inputs=inputs, echo=echo)
 
-    def _match_record(self, text: str, known_names: list[str]) -> str | None:
-        for name in known_names:
-            if name.lower() in text:
-                return name
+    def _match_records(self, text: str, known_names: list[str], exclude: str | None = None) -> list[str]:
+        return [
+            name
+            for name in known_names
+            if name.lower() in text and (exclude is None or name.lower() != exclude.lower())
+        ]
+
+    def _match_status(self, text: str) -> str | None:
+        # "to/as/into <status>" is the strongest signal; plain "lead" is too
+        # ambiguous a noun ("update the crm lead") to match on its own.
+        directed = re.search(r"(?:to|as|into|over to)\s+(lead|qualified|active|churned)\b", text)
+        if directed:
+            return directed.group(1).capitalize()
+        for verb, status in (
+            ("qualify", "Qualified"),
+            ("churn", "Churned"),
+            ("reactivate", "Active"),
+            ("activate", "Active"),
+        ):
+            if re.search(rf"\b{verb}\b", text):
+                return status
+        for value in STATUS_VALUES:
+            if value != "Lead" and re.search(rf"\b{value.lower()}\b", text):
+                return value
         return None
 
 
