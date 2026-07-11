@@ -395,3 +395,24 @@ Pending release evidence:
 - Member 2's Holo stage/commit, voice, cancellation, and CRM A/CRM B trials;
 - full FastAPI/pytest/ruff/mypy CI after dependency lock refresh;
 - release commit hash and environment/version matrix.
+
+## 11. Member 1 and Member 2 integration checkpoint — 2026-07-11
+
+Branch baseline: merged PR #2 at `d34aa2e`; integration branch `codex/member1-integration`.
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| Fixed approved-bundle hash and approval binding | Passed | Contract tests and execution loader |
+| Real authoring approval exports an execution-consumable `ApprovedBundle` | Passed | 27 authoring tests, including Member 2's loader |
+| Focused contract and ingestion eval suite | 11 passed | `tests/contracts/`, `tests/evals/` |
+| Frontend lint | Passed | `npm run lint` |
+| Frontend WebSocket proxy | Passed | `/api` proxies to `127.0.0.1:8000` with `ws: true` |
+
+Not yet claimed as passed:
+
+- the deliberate `uv.lock` refresh and full backend suite, because the current sandbox cannot resolve PyPI;
+- frontend typecheck and Vitest in this sandbox, because generated cache files cannot be written outside its workspace;
+- mock execution smoke checks, which require the refreshed Python environment;
+- live Holo and Gradium trials, because this is not the configured demo machine.
+
+No live-eval checkbox above should be checked until evidence exists under `data/execution/evals/`.

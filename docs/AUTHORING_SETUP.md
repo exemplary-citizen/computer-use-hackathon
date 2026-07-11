@@ -53,6 +53,17 @@ Both servers bind to loopback. Vite proxies `/api` to the backend on port 8000.
 Approval binds to hashes for every runnable artifact. Editing an approved artifact forks a new unapproved version.
 Startup reconciliation removes published skills when approved bytes are missing or changed.
 
+Approval also atomically writes the execution handoff at
+`data/automations/<automation-id>/approved_bundle.json`. Point execution at the selected approved result before a
+smoke or live run:
+
+```bash
+export FOUNDRY_BUNDLE_PATH=/absolute/path/to/data/automations/<automation-id>/approved_bundle.json
+uv run python -m automation_foundry.execution.smoke run --app a
+```
+
+Editing, deactivating, or failing reconciliation removes this handoff so execution cannot use stale approval bytes.
+
 ## Verification
 
 ```bash
