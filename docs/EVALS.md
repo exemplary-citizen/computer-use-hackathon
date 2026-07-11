@@ -422,8 +422,8 @@ Not yet claimed as passed:
 
 - frontend `npm ci`, typecheck, and Vitest in this sandbox, because its approval service rejected writes to the checkout;
 - `ruff format --check .`, which reports ten pre-existing formatting-only files and is non-blocking for the hackathon demo;
-- live Holo trials: `holo doctor` reports no downloaded runtime, no local login, no seeded skills, and permissions that
-  must be checked manually after restart;
+- live Holo trials: managed runtime 0.1.8 and 14 skills are installed; local login is still missing, and Accessibility
+  and Screen Recording must be checked manually after restart;
 - live Gradium trials: the key is not exported into this process environment;
 - live Hermes/Holo3 ingestion: no NemoClaw workspace mount or local Hermes endpoint is configured on this machine.
 

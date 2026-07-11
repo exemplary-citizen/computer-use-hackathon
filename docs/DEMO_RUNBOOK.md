@@ -36,6 +36,20 @@ Grant Accessibility, Screen Recording, Input Monitoring, and microphone permissi
 `hai-agent-runtime` process and the terminal. Restart HoloDesktop/runtime processes and the terminal after granting;
 permissions do not apply retroactively. Activate the virtual environment and run `holo doctor` again after restart.
 
+If `holo login` reaches the browser but the desktop exchange returns HTTP 401, use the existing H Company key as a
+session-only environment override. This keeps the key out of shell history and files:
+
+```bash
+read -rsp "HAI API key: " HAI_API_KEY
+printf '\n'
+export HAI_API_KEY
+holo whoami
+holo doctor
+```
+
+Repeat the hidden prompt after restarting the terminal. Rotate the key after the hackathon because it was shared in
+chat.
+
 Run the deterministic integration checks:
 
 ```bash
