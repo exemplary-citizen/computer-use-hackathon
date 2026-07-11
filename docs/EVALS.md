@@ -405,7 +405,7 @@ Branch baseline: merged PR #2 at `d34aa2e`; integration branch `codex/member1-in
 | Fixed approved-bundle hash and approval binding | Passed | Contract tests and execution loader |
 | Real authoring approval exports an execution-consumable `ApprovedBundle` | Passed | 27 authoring tests, including Member 2's loader |
 | Focused contract and ingestion eval suite | 11 passed | `tests/contracts/`, `tests/evals/` |
-| Full Python suite under Python 3.12.13 | 105 passed | `pytest` with runtime data redirected to `/private/tmp` |
+| Full Python suite under Python 3.12.13 | 108 passed | `pytest` with runtime data redirected to `/private/tmp` |
 | Python lint and strict typing | Passed | `ruff check .`; `mypy` checked 35 source files |
 | Fixed-bundle CRM A approve, CRM A reject, and CRM B approve | Passed | Three `execution.smoke run` invocations |
 | SOP-authored approved-bundle handoff | Passed | Upload, preprocess, workspace stage, generate, validate, approve, and execution loader |
@@ -415,6 +415,7 @@ Branch baseline: merged PR #2 at `d34aa2e`; integration branch `codex/member1-in
 | Pre-approval state preservation | 10/10 | Both mock trial summaries report unchanged state in every trial |
 | Voice routing cases | 10/10 | `automation_foundry.evals.execution voice-cases` |
 | Holo Python surface discovery | Passed | `holo_desktop.agent_client` 0.0.2 signatures include create, continue, poll, pause, and cancel |
+| Live Holo adapter contract | Passed | Same-session continuation, budgets, idle liveness, cancellation, and timeout cleanup tests |
 | Frontend lint | Passed | `npm run lint` |
 | Frontend WebSocket proxy | Passed | `/api` proxies to `127.0.0.1:8000` with `ws: true` |
 
@@ -422,8 +423,8 @@ Not yet claimed as passed:
 
 - frontend `npm ci`, typecheck, and Vitest in this sandbox, because its approval service rejected writes to the checkout;
 - `ruff format --check .`, which reports ten pre-existing formatting-only files and is non-blocking for the hackathon demo;
-- live Holo trials: managed runtime 0.1.8 and 14 skills are installed; local login is still missing, and Accessibility
-  and Screen Recording must be checked manually after restart;
+- live Holo trials: managed runtime 0.1.8, 14 skills, and HAI authentication are ready; Accessibility and Screen
+  Recording plus the CRM GUI run must still be verified manually because this workspace cannot launch macOS apps;
 - live Gradium trials: the key is not exported into this process environment;
 - live Hermes/Holo3 ingestion: no NemoClaw workspace mount or local Hermes endpoint is configured on this machine.
 
