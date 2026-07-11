@@ -5,18 +5,24 @@ in `.env`, shell history, logs, screenshots, or git; export them interactively i
 
 ## 1. Prepare the machine
 
-1. Install and sign in to HoloDesktop.
-2. Install Python 3.12, `uv`, Node/npm, FFmpeg/FFprobe, and the configured NemoClaw workspace runtime.
-3. Grant Accessibility, Screen Recording, Input Monitoring, and microphone permissions to HoloDesktop and the terminal.
-4. Restart HoloDesktop and the terminal after granting permissions.
-5. Export `HAI_API_KEY`, `FOUNDRY_HERMES_API_KEY`, `FOUNDRY_GRADIUM_API_KEY`, and
+1. Install Python 3.12, `uv`, Node/npm, FFmpeg/FFprobe, and the configured NemoClaw workspace runtime.
+2. Export `FOUNDRY_HERMES_API_KEY`, `FOUNDRY_GRADIUM_API_KEY`, and
    `FOUNDRY_WORKSPACE_MOUNT` interactively. Never print their values.
+3. Complete the Holo bootstrap below before granting macOS permissions; the first fake run downloads the managed
+   `hai-agent-runtime` binary so it appears in Privacy & Security settings.
 
 ## 2. Install and verify
 
 ```bash
 UV_PYTHON=3.12 uv sync
 UV_PYTHON=3.12 uv run pytest
+
+source .venv/bin/activate
+holo login
+holo whoami
+holo run --fake "Return ready without interacting with desktop applications."
+holo doctor
+deactivate
 
 cd web
 npm ci
@@ -25,6 +31,10 @@ npm run typecheck
 npm test -- --run
 cd ..
 ```
+
+Grant Accessibility, Screen Recording, Input Monitoring, and microphone permissions to HoloDesktop/the
+`hai-agent-runtime` process and the terminal. Restart HoloDesktop/runtime processes and the terminal after granting;
+permissions do not apply retroactively. Activate the virtual environment and run `holo doctor` again after restart.
 
 Run the deterministic integration checks:
 
