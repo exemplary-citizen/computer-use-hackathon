@@ -49,10 +49,13 @@ class AuthoringServiceTests(unittest.TestCase):
         published = self.service.bundles.published_skill_root / automation.slug / "SKILL.md"
         published.parent.mkdir(parents=True)
         published.write_text("published", encoding="utf-8")
+        handoff = self.service.bundles.approved_bundle_path(automation.id)
+        handoff.write_text("published", encoding="utf-8")
 
         inactive = self.service.deactivate(automation.id)
         self.assertEqual(inactive.status, AutomationStatus.INACTIVE)
         self.assertFalse(published.exists())
+        self.assertFalse(handoff.exists())
         self.service.delete(automation.id)
 
         with self.assertRaises(KeyError):

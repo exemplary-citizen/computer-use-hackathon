@@ -14,6 +14,7 @@ from automation_foundry.authoring.tool_testing import SandboxToolTestRunner
 from automation_foundry.authoring.validation import GeneratedToolValidator
 from automation_foundry.authoring.workspace import WorkspaceConfig
 from automation_foundry.contracts import (
+    ApprovedBundle,
     AutomationStatus,
     ConflictSeverity,
     EvidenceReference,
@@ -168,11 +169,26 @@ class BundleApprovalTests(unittest.TestCase):
         self.assertEqual(len(approval.payload_sha256), 64)
         published = self.manager.published_skill_root / manifest.slug / "SKILL.md"
         self.assertEqual(published.read_text(encoding="utf-8"), SAFE_SKILL)
+        handoff_path = self.manager.approved_bundle_path(self.automation.id)
+        handoff = ApprovedBundle.model_validate_json(handoff_path.read_text(encoding="utf-8"))
+        self.assertEqual(handoff.manifest.approved_version, version.version)
+        self.assertEqual(handoff.skill_markdown, SAFE_SKILL)
+        self.assertIn("skill", {artifact.name for artifact in handoff.version.artifacts})
+
+        from automation_foundry.execution.bundles import load_verified_bundle
+
+        loaded = load_verified_bundle(handoff_path)
+        loaded_approval = loaded.bundle.version.approval
+        handoff_approval = handoff.version.approval
+        assert loaded_approval is not None
+        assert handoff_approval is not None
+        self.assertEqual(loaded_approval.payload_sha256, handoff_approval.payload_sha256)
 
     def test_hash_mismatch_blocks_approval_and_reconciliation(self) -> None:
         version, report = self.manager.create_version(self.automation.id, valid_draft())
         self.assertTrue(report.valid)
         self.manager.approve(self.automation.id, version.version, actor="Reviewer")
+        self.assertTrue(self.manager.approved_bundle_path(self.automation.id).is_file())
         skill = self.store.automation_root(self.automation.id) / "versions" / "1" / "SKILL.md"
         skill.write_text(f"{SAFE_SKILL}\nUnexpected edit", encoding="utf-8")
 
@@ -180,10 +196,12 @@ class BundleApprovalTests(unittest.TestCase):
         manifest = self.store.get_manifest(self.automation.id)
         self.assertIsNone(manifest.approved_version)
         self.assertEqual(manifest.status, AutomationStatus.REVIEW_REQUIRED)
+        self.assertFalse(self.manager.approved_bundle_path(self.automation.id).exists())
 
     def test_editing_approved_artifact_creates_unapproved_version(self) -> None:
         version, _ = self.manager.create_version(self.automation.id, valid_draft())
         self.manager.approve(self.automation.id, version.version, actor="Reviewer")
+        self.assertTrue(self.manager.approved_bundle_path(self.automation.id).is_file())
 
         edited, report = self.manager.edit_artifact(
             self.automation.id,
@@ -199,6 +217,7 @@ class BundleApprovalTests(unittest.TestCase):
         self.assertEqual(manifest.current_version, 2)
         self.assertIsNone(manifest.approved_version)
         self.assertFalse((self.manager.published_skill_root / manifest.slug / "SKILL.md").exists())
+        self.assertFalse(self.manager.approved_bundle_path(self.automation.id).exists())
 
     def test_unresolved_material_conflict_blocks_approval(self) -> None:
         draft = valid_draft()
