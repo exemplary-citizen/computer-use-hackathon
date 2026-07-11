@@ -1,0 +1,179 @@
+/* Execution-feature additions on top of the shared styles.css system. */
+
+.execution-page select {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.75rem;
+  padding: 0.8rem;
+  color: inherit;
+  background: #fff;
+  font: inherit;
+}
+
+.field-error {
+  color: #b91c1c;
+  font-weight: 600;
+}
+
+.run-preview,
+.staged-change,
+.execution-live,
+.result-view {
+  margin-top: 1.5rem;
+  padding: 1.25rem;
+  border: 1px solid #dbe3f0;
+  border-radius: 1rem;
+  background: #f8fafc;
+}
+
+.run-preview h3,
+.staged-change h3,
+.execution-live h3,
+.result-view h3 {
+  margin: 0;
+}
+
+.preview-grid {
+  display: grid;
+  gap: 0.85rem;
+  margin: 1.25rem 0 0;
+}
+
+.preview-grid dt {
+  color: #64748b;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.preview-grid dd {
+  margin: 0.15rem 0 0;
+  font-weight: 600;
+}
+
+.diff-table {
+  width: 100%;
+  margin-top: 1rem;
+  border-collapse: collapse;
+}
+
+.diff-table th,
+.diff-table td {
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid #dbe3f0;
+  text-align: left;
+}
+
+.diff-table thead th {
+  color: #64748b;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.diff-arrow {
+  color: #94a3b8;
+}
+
+.verification-quote {
+  margin: 1rem 0 0;
+  border-left: 4px solid #16a34a;
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+  color: #166534;
+  background: #f0fdf4;
+}
+
+.countdown {
+  margin-top: 1rem;
+  color: #92400e;
+  font-weight: 700;
+}
+
+.decision-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.timeline {
+  display: grid;
+  gap: 0.6rem;
+  margin: 1.25rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.timeline li {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid #e6ecf5;
+  padding-bottom: 0.6rem;
+}
+
+.timeline li:last-child {
+  border-bottom: 0;
+}
+
+.timeline small {
+  color: #94a3b8;
+  white-space: nowrap;
+}
+
+.timeline-heartbeat {
+  color: #94a3b8;
+  font-style: italic;
+}
+
+.timeline-details {
+  margin-top: 1.5rem;
+}
+
+.timeline-details summary {
+  color: #64748b;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.kill-switch-hint {
+  font-size: 0.85rem;
+}
+
+.reconnecting {
+  color: #92400e;
+  font-weight: 700;
+}
+
+.no-changes {
+  font-weight: 700;
+}
+
+.status-succeeded {
+  color: #166534;
+  background: #dcfce7;
+}
+
+.status-cancelled,
+.status-prepared {
+  color: #334155;
+  background: #e2e8f0;
+}
+
+.status-executing,
+.status-committing,
+.status-awaiting_start_confirmation,
+.status-awaiting_commit_approval {
+  color: #92400e;
+  background: #fef3c7;
+}
+
+@media (max-width: 640px) {
+  .decision-controls {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
