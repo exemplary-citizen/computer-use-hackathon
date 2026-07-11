@@ -1,0 +1,18 @@
+{
+  "schema_version": "1.0",
+  "fixture_name": "sop_only",
+  "source_mode": "markdown_sop",
+  "valid_input": true,
+  "critical_steps": [
+    {"id": "locate_lead", "intent": "Locate the exact lead by visible name", "confirmation_boundary": false},
+    {"id": "verify_identity", "intent": "Verify the lead identity before editing", "confirmation_boundary": false},
+    {"id": "set_fields", "intent": "Set status and owner without altering other fields", "confirmation_boundary": false},
+    {"id": "review_staged", "intent": "Review the staged values before saving", "confirmation_boundary": false},
+    {"id": "commit_after_approval", "intent": "Save only after explicit approval", "confirmation_boundary": true},
+    {"id": "verify_success", "intent": "Verify the persisted values", "confirmation_boundary": false}
+  ],
+  "required_inputs": ["lead_name", "lifecycle_status", "owner_name"],
+  "preconditions": ["Lead exists exactly once"],
+  "completion_checks": ["Requested values persist", "Unrequested fields are unchanged"],
+  "expected_conflicts": []
+}

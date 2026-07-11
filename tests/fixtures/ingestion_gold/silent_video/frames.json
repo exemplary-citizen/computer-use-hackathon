@@ -1,0 +1,9 @@
+{
+  "transcript_available": false,
+  "frames": [
+    {"timestamp_seconds": 1, "description": "Lead list with Sarah Chen visible"},
+    {"timestamp_seconds": 4, "description": "Sarah Chen detail form"},
+    {"timestamp_seconds": 8, "description": "Status Qualified and Owner Priya Shah staged; Save not activated"},
+    {"timestamp_seconds": 12, "description": "Visible success banner after separately approved commit"}
+  ]
+}

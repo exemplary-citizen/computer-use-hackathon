@@ -1,0 +1,19 @@
+{
+  "schema_version": "1.0",
+  "fixture_name": "video_only",
+  "source_mode": "narrated_video",
+  "valid_input": true,
+  "critical_steps": [
+    {"id": "locate_lead", "intent": "Locate the exact lead by visible name", "confirmation_boundary": false},
+    {"id": "verify_identity", "intent": "Verify the lead identity before editing", "confirmation_boundary": false},
+    {"id": "set_status", "intent": "Set only the requested lifecycle status", "confirmation_boundary": false},
+    {"id": "set_owner", "intent": "Set only the requested owner", "confirmation_boundary": false},
+    {"id": "review_staged", "intent": "Review the visible staged values without saving", "confirmation_boundary": false},
+    {"id": "commit_after_approval", "intent": "Save only after explicit approval", "confirmation_boundary": true},
+    {"id": "verify_success", "intent": "Verify visible success after the save", "confirmation_boundary": false}
+  ],
+  "required_inputs": ["lead_name", "lifecycle_status", "owner_name"],
+  "preconditions": ["Target CRM is open", "Lead name identifies exactly one record"],
+  "completion_checks": ["Only requested fields changed", "Visible success is present"],
+  "expected_conflicts": []
+}

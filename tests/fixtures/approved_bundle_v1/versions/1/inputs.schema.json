@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["lead_name", "lifecycle_status", "owner_name"],
+  "properties": {
+    "lead_name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Exact visible name of the lead to update."
+    },
+    "lifecycle_status": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Requested lifecycle status."
+    },
+    "owner_name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Requested lead owner."
+    }
+  }
+}

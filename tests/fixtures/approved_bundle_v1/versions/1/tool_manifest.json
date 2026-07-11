@@ -1,0 +1,19 @@
+{
+  "tools": [
+    {
+      "name": "normalize_lead_update",
+      "description": "Normalize and validate lead update inputs.",
+      "entrypoint": "normalize_lead_update",
+      "input_schema": {
+        "type": "object",
+        "required": ["lead_name", "lifecycle_status", "owner_name"]
+      },
+      "output_schema": {
+        "type": "object",
+        "required": ["lead_name", "lifecycle_status", "owner_name"]
+      },
+      "timeout_seconds": 2.0,
+      "memory_limit_mb": 128
+    }
+  ]
+}
