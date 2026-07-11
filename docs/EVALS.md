@@ -410,6 +410,10 @@ Branch baseline: merged PR #2 at `d34aa2e`; integration branch `codex/member1-in
 | Fixed-bundle CRM A approve, CRM A reject, and CRM B approve | Passed | Three `execution.smoke run` invocations |
 | SOP-authored approved-bundle handoff | Passed | Upload, preprocess, workspace stage, generate, validate, approve, and execution loader |
 | Authored-bundle CRM A approve, CRM A reject, and CRM B approve | Passed | Three runs with `FOUNDRY_BUNDLE_PATH` set to the exported handoff |
+| Authored-bundle CRM A mock trial matrix | 5/5 exact | `data/execution/evals/20260711T234327Z-crm_a-mock/` |
+| Authored-bundle CRM B mock trial matrix | 5/5 exact | `data/execution/evals/20260711T234329Z-crm_b-mock/` |
+| Pre-approval state preservation | 10/10 | Both mock trial summaries report unchanged state in every trial |
+| Voice routing cases | 10/10 | `automation_foundry.evals.execution voice-cases` |
 | Holo Python surface discovery | Passed | `holo_desktop.agent_client` 0.0.2 signatures include create, continue, poll, pause, and cancel |
 | Frontend lint | Passed | `npm run lint` |
 | Frontend WebSocket proxy | Passed | `/api` proxies to `127.0.0.1:8000` with `ws: true` |
