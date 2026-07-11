@@ -69,6 +69,7 @@ class RecordDialog(QDialog):
         self.status = QComboBox()
         self.status.addItems(list(STATUS_VALUES))
         self.status.setCurrentText(record.status)
+        self.owner = QLineEdit(record.owner)
         self.notes = QPlainTextEdit(record.notes)
         self.notes.setFixedHeight(110)
         for label_text, widget in (
@@ -78,6 +79,7 @@ class RecordDialog(QDialog):
             (labels["phone"], self.phone),
             (labels["email"], self.email),
             (labels["status"], self.status),
+            (labels["owner"], self.owner),
             (labels["notes"], self.notes),
         ):
             label = QLabel(label_text)
@@ -106,6 +108,7 @@ class RecordDialog(QDialog):
                 "phone": self.phone.text().strip(),
                 "email": self.email.text().strip(),
                 "status": self.status.currentText(),
+                "owner": self.owner.text().strip(),
                 "notes": self.notes.toPlainText().strip(),
             }
         )

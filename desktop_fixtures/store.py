@@ -17,7 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 AppKey = Literal["a", "b"]
 
-STATUS_VALUES = ("Lead", "Active", "Churned")
+STATUS_VALUES = ("Lead", "Qualified", "Active", "Churned")
 
 FIELD_LABELS: dict[str, dict[AppKey, str]] = {
     "first_name": {"a": "First Name", "b": "Given name"},
@@ -26,6 +26,7 @@ FIELD_LABELS: dict[str, dict[AppKey, str]] = {
     "phone": {"a": "Phone", "b": "Contact No."},
     "email": {"a": "Email", "b": "E-mail address"},
     "status": {"a": "Status", "b": "Stage"},
+    "owner": {"a": "Owner", "b": "Account manager"},
     "notes": {"a": "Notes", "b": "Remarks"},
 }
 """Canonical field name -> visible label per app; deliberately different wording."""
@@ -42,7 +43,8 @@ class ContactRecord(BaseModel):
     company: str = Field(min_length=1, max_length=120)
     phone: str = Field(min_length=1, max_length=40)
     email: str = Field(min_length=1, max_length=120)
-    status: str = Field(pattern=r"^(Lead|Active|Churned)$")
+    status: str = Field(pattern=r"^(Lead|Qualified|Active|Churned)$")
+    owner: str = Field(default="Unassigned", min_length=1, max_length=80)
     notes: str = Field(default="", max_length=2_000)
 
     @property
@@ -72,7 +74,19 @@ def default_seed() -> CrmState:
                 phone="+1 415 555 0117",
                 email="maya.okafor@halcyon.example",
                 status="Active",
+                owner="Ben Alvarez",
                 notes="Renewal due in Q3.",
+            ),
+            ContactRecord(
+                id="c006",
+                first_name="Sarah",
+                last_name="Chen",
+                company="Bluepine Media",
+                phone="+1 206 555 0173",
+                email="sarah.chen@bluepine.example",
+                status="Lead",
+                owner="Unassigned",
+                notes="Canonical eval-case lead (approved_bundle_v1).",
             ),
             ContactRecord(
                 id="c002",

@@ -71,6 +71,7 @@ class CrmAWindow(QMainWindow):
                 "phone": self._phone.text().strip(),
                 "email": self._email.text().strip(),
                 "status": self._status.currentText(),
+                "owner": self._owner.text().strip(),
                 "notes": self._notes.toPlainText().strip(),
             }
         )
@@ -103,6 +104,7 @@ class CrmAWindow(QMainWindow):
         self._email = QLineEdit()
         self._status = QComboBox()
         self._status.addItems(list(STATUS_VALUES))
+        self._owner = QLineEdit()
         self._notes = QPlainTextEdit()
         self._notes.setFixedHeight(120)
         for label_text, widget in (
@@ -112,6 +114,7 @@ class CrmAWindow(QMainWindow):
             (labels["phone"], self._phone),
             (labels["email"], self._email),
             (labels["status"], self._status),
+            (labels["owner"], self._owner),
             (labels["notes"], self._notes),
         ):
             label = QLabel(label_text)
@@ -143,6 +146,7 @@ class CrmAWindow(QMainWindow):
         self._phone.setText(record.phone)
         self._email.setText(record.email)
         self._status.setCurrentText(record.status)
+        self._owner.setText(record.owner)
         self._notes.setPlainText(record.notes)
 
 

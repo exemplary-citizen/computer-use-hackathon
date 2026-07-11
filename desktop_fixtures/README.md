@@ -11,7 +11,7 @@ Member 1 may define shared fixture contracts or consume reset/state-inspection c
 | Navigation | Left-hand contact list | Top tab bar + search-driven lookup |
 | Editing | Inline detail form | Modal "Record" dialog |
 | Persist action | Bottom-right **Save** | Dialog **Commit Changes** |
-| Labels | First Name / Last Name / Company / Phone / Email / Status / Notes | Given name / Family name / Organisation / Contact No. / E-mail address / Stage / Remarks |
+| Labels | First Name / Last Name / Company / Phone / Email / Status / Owner / Notes | Given name / Family name / Organisation / Contact No. / E-mail address / Stage / Account manager / Remarks |
 
 Both apps present the same seeded records (canonical schema in `store.py`; label equivalence in `FIELD_LABELS`). Vision-legibility contract: 14px text, high-contrast light theme forced (independent of macOS dark mode), text-labeled buttons only, fixed 1280×800 window at (80, 60).
 
