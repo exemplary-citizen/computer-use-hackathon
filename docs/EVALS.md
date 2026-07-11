@@ -392,8 +392,8 @@ two-reviewer matching procedure and must meet the same thresholds before release
 Pending release evidence:
 
 - live Gradium, Hermes/Holo3, and mounted-workspace ingestion trials;
-- Member 2's Holo stage/commit, voice, cancellation, and CRM A/CRM B trials;
-- full FastAPI/pytest/ruff/mypy CI after dependency lock refresh;
+- live Holo stage/commit, voice, cancellation, and CRM A/CRM B trials;
+- frontend clean-install, typecheck, and Vitest verification on a writable checkout;
 - release commit hash and environment/version matrix.
 
 ## 11. Member 1 and Member 2 integration checkpoint — 2026-07-11
@@ -405,14 +405,22 @@ Branch baseline: merged PR #2 at `d34aa2e`; integration branch `codex/member1-in
 | Fixed approved-bundle hash and approval binding | Passed | Contract tests and execution loader |
 | Real authoring approval exports an execution-consumable `ApprovedBundle` | Passed | 27 authoring tests, including Member 2's loader |
 | Focused contract and ingestion eval suite | 11 passed | `tests/contracts/`, `tests/evals/` |
+| Full Python suite under Python 3.12.13 | 105 passed | `pytest` with runtime data redirected to `/private/tmp` |
+| Python lint and strict typing | Passed | `ruff check .`; `mypy` checked 35 source files |
+| Fixed-bundle CRM A approve, CRM A reject, and CRM B approve | Passed | Three `execution.smoke run` invocations |
+| SOP-authored approved-bundle handoff | Passed | Upload, preprocess, workspace stage, generate, validate, approve, and execution loader |
+| Authored-bundle CRM A approve, CRM A reject, and CRM B approve | Passed | Three runs with `FOUNDRY_BUNDLE_PATH` set to the exported handoff |
+| Holo Python surface discovery | Passed | `holo_desktop.agent_client` 0.0.2 signatures include create, continue, poll, pause, and cancel |
 | Frontend lint | Passed | `npm run lint` |
 | Frontend WebSocket proxy | Passed | `/api` proxies to `127.0.0.1:8000` with `ws: true` |
 
 Not yet claimed as passed:
 
-- the deliberate `uv.lock` refresh and full backend suite, because the current sandbox cannot resolve PyPI;
-- frontend typecheck and Vitest in this sandbox, because generated cache files cannot be written outside its workspace;
-- mock execution smoke checks, which require the refreshed Python environment;
-- live Holo and Gradium trials, because this is not the configured demo machine.
+- frontend `npm ci`, typecheck, and Vitest in this sandbox, because its approval service rejected writes to the checkout;
+- `ruff format --check .`, which reports ten pre-existing formatting-only files and is non-blocking for the hackathon demo;
+- live Holo trials: `holo doctor` reports no downloaded runtime, no local login, no seeded skills, and permissions that
+  must be checked manually after restart;
+- live Gradium trials: the key is not exported into this process environment;
+- live Hermes/Holo3 ingestion: no NemoClaw workspace mount or local Hermes endpoint is configured on this machine.
 
 No live-eval checkbox above should be checked until evidence exists under `data/execution/evals/`.
