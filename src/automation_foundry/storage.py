@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import os
 import re
 import shutil
@@ -14,7 +13,7 @@ from tempfile import NamedTemporaryFile
 from typing import BinaryIO
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 from automation_foundry.contracts import AutomationManifest, AutomationStatus, EvidenceSourceType, SourceMetadata
 

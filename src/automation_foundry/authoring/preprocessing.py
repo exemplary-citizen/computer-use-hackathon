@@ -236,7 +236,7 @@ def _extract_text_pages(path: Path) -> list[str]:
 def _extract_pdf_pages(path: Path) -> list[str]:
     import pymupdf
 
-    with pymupdf.open(path) as document:
+    with pymupdf.Document(path) as document:
         return [page.get_text().strip() for page in document]
 
 
