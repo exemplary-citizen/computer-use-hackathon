@@ -10,6 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Literal
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 HoloMode = Literal["mock", "live"]
@@ -34,6 +35,14 @@ class ExecutionSettings(BaseSettings):
     """Ceiling a RunRequest.max_time_seconds may never exceed."""
     voice_enabled: bool = True
     """Off hides voice UI and skips Gradium init; dashboard flow unaffected."""
+    intent_mode: Literal["rules", "llm"] = "rules"
+    """Voice intent resolver: deterministic rules (demo-safe) or Hermes LLM with rule fallback."""
+    gradium_api_key: SecretStr | None = None
+    """Backend-only Gradium credential (same FOUNDRY_GRADIUM_API_KEY var Member 1 uses)."""
+    hermes_base_url: str = "http://127.0.0.1:8642/v1"
+    """OpenAI-compatible endpoint used by the LLM intent resolver."""
+    hermes_model: str = "hermes"
+    """Model name for LLM intent resolution."""
     bundle_path: Path = Path("tests/fixtures/approved_bundle_v1/approved_bundle.json")
     """Approved bundle consumed by the execution lane (fixed fixture until final integration)."""
     runs_root: Path = Path("data/execution/runs")

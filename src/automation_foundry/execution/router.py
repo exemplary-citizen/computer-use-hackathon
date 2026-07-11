@@ -27,6 +27,14 @@ from automation_foundry.execution.machine import InputValidationError, RunCoordi
 
 router = APIRouter(prefix="/api/execution", tags=["execution"])
 
+
+def _include_voice_router() -> None:
+    # Deferred import: voice.py imports helpers from this module.
+    from automation_foundry.execution.voice import voice_router
+
+    router.include_router(voice_router)
+
+
 _FAULT_STATUS = {
     "run_conflict": 409,
     "stale_approval": 409,
@@ -290,3 +298,6 @@ def _fault_response(error: ExecutionFault) -> JSONResponse:
 
 def _not_found(run_id: UUID) -> JSONResponse:
     return JSONResponse({"error_code": "unknown_run", "message": f"Unknown run: {run_id}"}, status_code=404)
+
+
+_include_voice_router()
