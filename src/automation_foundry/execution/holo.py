@@ -16,7 +16,7 @@ import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal, Protocol
+from typing import Any, Literal, Protocol, cast
 
 from hai_agents import Client, HaiAgentsEnvironment
 from hai_agents.polling import SessionHandle
@@ -45,7 +45,7 @@ FAKE_SCRIPTS = (
 class HoloTaskSpec:
     """Everything one run hands the adapter, resolved and validated up front."""
 
-    app: AppKey
+    app: str
     record_name: str
     field_changes: dict[str, str]
     skill_markdown: str
@@ -53,6 +53,8 @@ class HoloTaskSpec:
     max_steps: int
     max_time_seconds: int
     region: Literal["us", "eu"] = "us"
+    stage_instructions: tuple[str, ...] = ()
+    commit_instructions: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -168,7 +170,9 @@ class ScriptedFakeHolo:
         )
 
     def _apply_changes(self, changes: dict[str, str]) -> None:
-        path = state_path(self.spec.app, self.data_root)
+        if self.spec.app not in ("a", "b"):
+            raise fault("wrong_app_state", f"scripted fixture does not support {self.spec.app}")
+        path = state_path(cast(AppKey, self.spec.app), self.data_root)
         state = load_state(path)
         for index, record in enumerate(state.records):
             if record.full_name == self.spec.record_name:

@@ -13,9 +13,10 @@ from desktop_fixtures.store import load_state, state_path
 from automation_foundry.contracts import InvocationSource, RunState
 from automation_foundry.contracts.transitions import require_run_transition
 from automation_foundry.execution.errors import ExecutionFault
+from automation_foundry.execution.holo import TurnOutcome
 from automation_foundry.execution.machine import InputValidationError, RunCoordinator
 
-from tests.execution.helpers import CANONICAL_INPUTS, make_settings, wait_for_state
+from tests.execution.helpers import CANONICAL_INPUTS, make_generic_bundle, make_settings, wait_for_state
 
 
 class MachineTestBase(unittest.IsolatedAsyncioTestCase):
@@ -97,6 +98,75 @@ class HappyPathTests(MachineTestBase):
         state = load_state(self.fixture_a)
         sarah = next(record for record in state.records if record.full_name == "Sarah Chen")
         self.assertEqual(sarah.status, "Qualified")
+
+
+class GenericBundleTests(unittest.IsolatedAsyncioTestCase):
+    """Execute learned schemas without CRM-specific field assumptions."""
+
+    async def test_generic_bundle_stages_plan_then_commits_same_adapter(self) -> None:
+        temporary = TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        settings = make_settings(root)
+        settings.bundle_path = make_generic_bundle(root / "generic")
+        adapter = _GenericAdapter()
+        coordinator = RunCoordinator(settings, adapter_factory=lambda _spec: adapter)
+        await coordinator.startup()
+
+        preview = await coordinator.prepare(
+            "TextEdit",
+            {"greeting_text": "Hello from Foundry"},
+            InvocationSource.TELEGRAM,
+        )
+        await coordinator.confirm_start(preview.request.id)
+        await wait_for_state(coordinator, preview.request.id, RunState.AWAITING_COMMIT_APPROVAL)
+        staged = coordinator.staged_change(preview.request.id)
+        assert staged is not None
+        self.assertEqual(staged.target_app, "TextEdit")
+        self.assertEqual(staged.changes[0].before, None)
+        self.assertEqual(staged.changes[0].after, "Hello from Foundry")
+
+        await coordinator.approve_commit(
+            preview.request.id,
+            staged.payload_sha256,
+            InvocationSource.TELEGRAM,
+            "telegram-owner",
+        )
+        state = await wait_for_state(coordinator, preview.request.id, RunState.SUCCEEDED)
+
+        self.assertEqual(state, "succeeded")
+        self.assertEqual(len(adapter.messages), 2)
+        self.assertIn("Open TextEdit", adapter.messages[0])
+        self.assertIn("Type the exact greeting_text", adapter.messages[1])
+
+
+class _GenericAdapter:
+    """One-session stand-in for generic learned desktop execution."""
+
+    def __init__(self) -> None:
+        self.messages: list[str] = []
+
+    def start_session(self) -> str:
+        return "generic-session"
+
+    def send_message(self, session_reference: str, message: str) -> TurnOutcome:
+        assert session_reference == "generic-session"
+        self.messages.append(message)
+        if len(self.messages) == 1:
+            return TurnOutcome(
+                answer=(
+                    '{"record":"TextEdit","staged_fields":{"greeting_text":"Hello from Foundry"},'
+                    '"visible_verification":"Blank unsaved TextEdit document is ready."}'
+                ),
+                steps_used=2,
+            )
+        return TurnOutcome(answer="Typed the approved text and verified it visually.", steps_used=1)
+
+    def is_alive(self, session_reference: str) -> bool:
+        return session_reference == "generic-session"
+
+    def cancel(self, session_reference: str) -> None:
+        assert session_reference == "generic-session"
 
 
 class ApprovalSafetyTests(MachineTestBase):

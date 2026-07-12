@@ -40,7 +40,7 @@ from collections.abc import Callable, Coroutine, Mapping
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Literal
+from typing import Literal, cast
 from uuid import UUID
 
 from desktop_fixtures.store import AppKey, CrmState, load_state, state_path
@@ -167,11 +167,12 @@ class RunCoordinator:
         """
         loaded = self._verified_bundle()
         field_errors = validate_inputs(loaded.bundle, inputs)
-        app = _APP_ALIASES.get(target_app.strip().lower())
-        if app is None:
+        fixture_bundle = _uses_fixture_contract(loaded)
+        app = _APP_ALIASES.get(target_app.strip().lower()) if fixture_bundle else None
+        if fixture_bundle and app is None:
             field_errors["target_app"] = "Unknown application; use CRM A or CRM B."
         record_name = str(inputs.get(RECORD_SELECTOR_INPUT, "")).strip()
-        if app is not None and record_name and RECORD_SELECTOR_INPUT not in field_errors:
+        if fixture_bundle and app is not None and record_name and RECORD_SELECTOR_INPUT not in field_errors:
             state = load_state(self._fixture_path(app))
             if not any(record.full_name.lower() == record_name.lower() for record in state.records):
                 field_errors[RECORD_SELECTOR_INPUT] = f"No record named '{record_name}' in the target CRM."
@@ -187,7 +188,7 @@ class RunCoordinator:
             id=uuid.uuid4(),
             automation_id=loaded.bundle.manifest.id,
             version=loaded.bundle.version.version,
-            target_app=f"crm_{app}",
+            target_app=f"crm_{app}" if fixture_bundle else target_app.strip(),
             inputs=dict(inputs),  # type: ignore[arg-type]
             invocation_source=invocation_source,
             max_steps=steps,
@@ -376,11 +377,14 @@ class RunCoordinator:
             )
             return
         request = self._request(run_id)
-        app = _APP_ALIASES[request.target_app.lower()]
         try:
             loaded = load_verified_bundle(self.settings.bundle_path)  # re-verify immediately pre-session (N8)
+            fixture_bundle = _uses_fixture_contract(loaded)
+            app = _APP_ALIASES.get(request.target_app.lower()) if fixture_bundle else None
+            if fixture_bundle and app is None:
+                raise fault("wrong_app_state", f"unsupported fixture app: {request.target_app}")
             spec = self._task_spec(loaded, request, app)
-            pre_state = load_state(self._fixture_path(app))
+            pre_state = load_state(self._fixture_path(app)) if app is not None else None
             runtime.adapter = self._adapter_factory(spec)
             runtime.session_reference = await asyncio.to_thread(runtime.adapter.start_session)
             await self.events.append(
@@ -399,8 +403,8 @@ class RunCoordinator:
                 await self._finalize(run_id, RunState.CANCELLED, answer="Cancelled during staging; nothing saved.")
                 return
             self._check_stage_answer(spec, stage_outcome)
-            post_stage = load_state(self._fixture_path(app))
-            if post_stage != pre_state:
+            post_stage = load_state(self._fixture_path(app)) if app is not None else None
+            if pre_state is not None and post_stage != pre_state:
                 await asyncio.to_thread(runtime.adapter.cancel, runtime.session_reference)
                 raise fault("unsafe_stage")
             staged = self._build_staged_change(run_id, spec, pre_state, runtime.session_reference, stage_outcome)
@@ -460,7 +464,7 @@ class RunCoordinator:
                 RunState.COMMITTING,
                 asyncio.to_thread(runtime.adapter.send_message, runtime.session_reference, self._commit_prompt(spec)),
             )
-            verification = self._verify_commit(spec, pre_state, staged)
+            verification = self._verify_commit(spec, pre_state, staged, commit_outcome)
             await self._finalize(
                 run_id,
                 RunState.SUCCEEDED,
@@ -505,15 +509,21 @@ class RunCoordinator:
         self,
         run_id: UUID,
         spec: HoloTaskSpec,
-        pre_state: CrmState,
+        pre_state: CrmState | None,
         session_reference: str,
         outcome: TurnOutcome,
     ) -> StagedChange:
-        record = next(item for item in pre_state.records if item.full_name == spec.record_name)
-        changes = [
-            FieldChange(field=field_name, before=getattr(record, field_name), after=after)
-            for field_name, after in sorted(spec.field_changes.items())
-        ]
+        if pre_state is None:
+            changes = [
+                FieldChange(field=field_name, before=None, after=after)
+                for field_name, after in sorted(spec.field_changes.items())
+            ]
+        else:
+            record = next(item for item in pre_state.records if item.full_name == spec.record_name)
+            changes = [
+                FieldChange(field=field_name, before=getattr(record, field_name), after=after)
+                for field_name, after in sorted(spec.field_changes.items())
+            ]
         payload = [{"field": change.field, "before": change.before, "after": change.after} for change in changes]
         digest = hashlib.sha256(json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")).hexdigest()
         verification = ""
@@ -523,7 +533,7 @@ class RunCoordinator:
             pass
         return StagedChange(
             run_id=run_id,
-            target_app=f"crm_{spec.app}",
+            target_app=f"crm_{spec.app}" if spec.app in ("a", "b") else spec.app,
             record_identity=spec.record_name,
             changes=changes,
             visible_verification=verification or "Agent reported the form shows the staged values.",
@@ -531,8 +541,18 @@ class RunCoordinator:
             payload_sha256=digest,
         )
 
-    def _verify_commit(self, spec: HoloTaskSpec, pre_state: CrmState, staged: StagedChange) -> str:
-        post_state = load_state(self._fixture_path(spec.app))
+    def _verify_commit(
+        self,
+        spec: HoloTaskSpec,
+        pre_state: CrmState | None,
+        staged: StagedChange,
+        outcome: TurnOutcome,
+    ) -> str:
+        if pre_state is None:
+            return f"Live session reported visible completion: {outcome.answer}"
+        if spec.app not in ("a", "b"):
+            raise fault("commit_verify_failed", f"unsupported fixture app: {spec.app}")
+        post_state = load_state(self._fixture_path(cast(AppKey, spec.app)))
         expected_records = []
         for record in pre_state.records:
             if record.full_name == spec.record_name:
@@ -545,14 +565,23 @@ class RunCoordinator:
         summary = ", ".join(f"{change.field}: {change.before!r} -> {change.after!r}" for change in staged.changes)
         return f"Persisted state matches the approved change exactly ({summary})."
 
-    def _task_spec(self, loaded: LoadedBundle, request: RunRequest, app: AppKey) -> HoloTaskSpec:
-        record_name = str(request.inputs[RECORD_SELECTOR_INPUT])
-        field_changes = {
-            INPUT_FIELD_MAP[name]: str(value) for name, value in request.inputs.items() if name in INPUT_FIELD_MAP
-        }
+    def _task_spec(self, loaded: LoadedBundle, request: RunRequest, app: AppKey | None) -> HoloTaskSpec:
+        fixture_bundle = app is not None
+        record_name = str(request.inputs[RECORD_SELECTOR_INPUT]) if fixture_bundle else request.target_app
+        field_changes = (
+            {INPUT_FIELD_MAP[name]: str(value) for name, value in request.inputs.items() if name in INPUT_FIELD_MAP}
+            if fixture_bundle
+            else {name: str(value) for name, value in request.inputs.items()}
+        )
+        persistent_index = next(
+            (index for index, step in enumerate(loaded.bundle.version.steps) if step.persistent_action),
+            len(loaded.bundle.version.steps),
+        )
+        stage_instructions = tuple(step.instruction for step in loaded.bundle.version.steps[:persistent_index])
+        commit_instructions = tuple(step.instruction for step in loaded.bundle.version.steps[persistent_index:])
         task_text = self._stage_prompt_text(loaded, request, record_name, field_changes)
         return HoloTaskSpec(
-            app=app,
+            app=app or request.target_app,
             record_name=record_name,
             field_changes=field_changes,
             skill_markdown=loaded.bundle.skill_markdown,
@@ -560,6 +589,8 @@ class RunCoordinator:
             max_steps=request.max_steps,
             max_time_seconds=request.max_time_seconds,
             region=self.settings.holo_region,
+            stage_instructions=stage_instructions,
+            commit_instructions=commit_instructions,
         )
 
     def _stage_prompt_text(
@@ -568,10 +599,21 @@ class RunCoordinator:
         changes = "; ".join(f"{name} -> {value}" for name, value in sorted(field_changes.items()))
         return (
             f"{loaded.bundle.skill_markdown}\n\n"
-            f"Target application: {request.target_app}. Record: {record_name}. Requested changes: {changes}."
+            f"Target application: {request.target_app}. Record/context: {record_name}. Runtime inputs: {changes}."
         )
 
     def _stage_prompt(self, spec: HoloTaskSpec) -> str:
+        if spec.stage_instructions or spec.commit_instructions:
+            stage_steps = "\n".join(f"- {instruction}" for instruction in spec.stage_instructions) or "- Prepare the app."
+            blocked_steps = "\n".join(f"- {instruction}" for instruction in spec.commit_instructions)
+            return (
+                f"{spec.task_text}\n\nTURN 1 OF 2 — STAGE ONLY. Execute only these non-persistent setup steps:\n"
+                f"{stage_steps}\n\nDo not execute these approval-gated steps yet:\n{blocked_steps}\n"
+                "Do not Save, Commit, Submit, type approval-gated content, or perform any equivalent persistent action. "
+                "Visually verify the app is ready, then end your turn. "
+                f'Answer with JSON whose `record` is {json.dumps(spec.record_name)}, whose `staged_fields` is exactly '
+                f'{json.dumps(spec.field_changes, sort_keys=True)}, and whose `visible_verification` describes readiness.'
+            )
         return (
             f"{spec.task_text}\n\nTURN 1 OF 2 — STAGE ONLY: fill the requested values in the form, visually "
             "verify them, then END YOUR TURN. Do NOT press Save, Commit, Submit, or any equivalent. "
@@ -579,7 +621,14 @@ class RunCoordinator:
         )
 
     def _commit_prompt(self, spec: HoloTaskSpec) -> str:
-        del spec
+        if spec.commit_instructions:
+            commit_steps = "\n".join(f"- {instruction}" for instruction in spec.commit_instructions)
+            return (
+                "TURN 2 OF 2 — APPROVED COMMIT. The displayed staged plan was explicitly approved. Re-check the same "
+                f"application and execute only these approval-gated steps once:\n{commit_steps}\n"
+                f"Use these exact approved values: {json.dumps(spec.field_changes, sort_keys=True)}. "
+                "Visually verify completion and report what changed."
+            )
         return (
             "TURN 2 OF 2 — COMMIT: the staged change has been approved. Re-check the staged values are still "
             "visible, press the Save/Commit control once, and verify the application shows success."
@@ -747,6 +796,11 @@ class RunCoordinator:
             connection.execute(
                 "CREATE UNIQUE INDEX IF NOT EXISTS ux_runs_one_active ON runs (is_active) WHERE is_active = 1"
             )
+
+
+def _uses_fixture_contract(loaded: LoadedBundle) -> bool:
+    properties = loaded.bundle.input_schema.get("properties", {})
+    return RECORD_SELECTOR_INPUT in properties and any(name in properties for name in INPUT_FIELD_MAP)
 
 
 def _now() -> str:
