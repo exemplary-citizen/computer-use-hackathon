@@ -108,16 +108,15 @@ def test_live_adapter_accepts_missing_optional_stage_outcome_when_answer_is_stru
     assert json.loads(staged.answer)["record"] == "Sarah Chen"
 
 
-def test_live_adapter_requests_format_only_follow_up_for_prose_stage_answer() -> None:
+def test_live_adapter_returns_prose_stage_answer_without_extra_session_turn() -> None:
     client = FakeClient()
     client.handle.first_answer = "The form is ready and nothing was saved."
     adapter = LiveHoloAdapter(_spec(), lambda _environment: client)
 
     staged = adapter.send_message(adapter.start_session(), "stage only")
 
-    assert len(client.handle.messages) == 1
-    assert client.handle.messages[0].startswith("FORMAT-ONLY FOLLOW-UP")
-    assert json.loads(staged.answer)["staged_fields"] == {"owner": "Priya Shah"}
+    assert client.handle.messages == []
+    assert staged.answer == "The form is ready and nothing was saved."
 
 
 def _spec() -> HoloTaskSpec:

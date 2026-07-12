@@ -210,8 +210,9 @@ class LiveHoloAdapter:
             instructions=(
                 "Operate only the target application named by the approved task. Treat the first user message as a "
                 "strict staging turn: never Save, Commit, Submit, send, publish, purchase, delete, or perform another "
-                "persistent action. End the turn after visible verification. Perform a persistent action only when a "
-                "later message in this same session explicitly states that the staged change was approved."
+                "persistent action. End the staging turn with outcome partial, not success, because an approval-gated "
+                "step remains; leave the session idle awaiting the next message. Perform a persistent action only when "
+                "a later message in this same session explicitly states that the staged change was approved."
             ),
         )
 
@@ -248,8 +249,6 @@ class LiveHoloAdapter:
             error_code = getattr(result, "error_code", None)
             raise fault(code, f"status={status}, outcome={outcome or 'unknown'}, error_code={error_code or 'none'}")
         answer = result.answer
-        if self._turns_completed == 0 and not _matches_stage_contract(answer, self.spec):
-            answer = self._request_stage_report()
         if answer is None:
             raise fault("malformed_stage_answer", "live session returned no answer")
         status_snapshot = self._handle.status()
@@ -292,40 +291,3 @@ class LiveHoloAdapter:
     def _require_reference(self, session_reference: str) -> None:
         if session_reference != self._reference or self._cancelled:
             raise fault("session_lost", "unknown or cancelled live session")
-
-    def _request_stage_report(self) -> object:
-        assert self._handle is not None
-        self._handle.send_message(
-            "FORMAT-ONLY FOLLOW-UP. Do not use any desktop tool and do not change the screen. Return one JSON object "
-            f"with `record` exactly {json.dumps(self.spec.record_name)}, `staged_fields` exactly "
-            f"{json.dumps(self.spec.field_changes, sort_keys=True)}, and `visible_verification` summarizing what is "
-            "currently visible. Return no Markdown or additional prose."
-        )
-        try:
-            result = self._handle.wait_for_completion(timeout_seconds=60.0)
-        except Exception as exc:
-            raise fault("malformed_stage_answer", "format-only follow-up failed") from exc
-        if str(result.status) not in ("idle", "completed") or result.answer is None:
-            raise fault("malformed_stage_answer", "format-only follow-up returned no answer")
-        return result.answer
-
-
-def _matches_stage_contract(answer: object, spec: HoloTaskSpec) -> bool:
-    if isinstance(answer, dict):
-        parsed = answer
-    elif isinstance(answer, str):
-        first_brace = answer.find("{")
-        last_brace = answer.rfind("}")
-        if first_brace < 0 or last_brace <= first_brace:
-            return False
-        try:
-            parsed = json.loads(answer[first_brace : last_brace + 1])
-        except json.JSONDecodeError:
-            return False
-    else:
-        return False
-    return (
-        parsed.get("record") == spec.record_name
-        and parsed.get("staged_fields") == spec.field_changes
-        and bool(parsed.get("visible_verification"))
-    )

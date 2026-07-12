@@ -499,7 +499,9 @@ class RunCoordinator:
         try:
             parsed = _parse_json_object(outcome.answer)
         except ValueError as error:
-            raise fault("malformed_stage_answer", "stage answer was not structured") from error
+            if _prose_matches_stage(spec, outcome.answer):
+                return
+            raise fault("malformed_stage_answer", "stage report did not contain the exact requested values") from error
         if not isinstance(parsed, dict) or "staged_fields" not in parsed or "record" not in parsed:
             raise fault("malformed_stage_answer", "stage answer missing record/staged_fields")
         if parsed["staged_fields"] != spec.field_changes:
@@ -530,7 +532,7 @@ class RunCoordinator:
         try:
             verification = str(_parse_json_object(outcome.answer).get("visible_verification", ""))
         except ValueError:  # already rejected by _check_stage_answer
-            pass
+            verification = outcome.answer[:4_000]
         return StagedChange(
             run_id=run_id,
             target_app=f"crm_{spec.app}" if spec.app in ("a", "b") else spec.app,
@@ -610,7 +612,8 @@ class RunCoordinator:
                 f"{spec.task_text}\n\nTURN 1 OF 2 — STAGE ONLY. Execute only these non-persistent setup steps:\n"
                 f"{stage_steps}\n\nDo not execute these approval-gated steps yet:\n{blocked_steps}\n"
                 "Do not Save, Commit, Submit, type approval-gated content, or perform any equivalent persistent action. "
-                "Visually verify the app is ready, then end your turn. "
+                "Visually verify the app is ready, then end your turn with outcome partial—not success—because the "
+                "approval-gated step remains. Leave the session idle awaiting the next message. "
                 f'Answer with JSON whose `record` is {json.dumps(spec.record_name)}, whose `staged_fields` is exactly '
                 f'{json.dumps(spec.field_changes, sort_keys=True)}, and whose `visible_verification` describes readiness.'
             )
@@ -819,6 +822,12 @@ def _parse_json_object(content: str) -> dict[str, object]:
         if isinstance(parsed, dict):
             return parsed
     raise ValueError("Stage answer contains no JSON object")
+
+
+def _prose_matches_stage(spec: HoloTaskSpec, content: str) -> bool:
+    normalized = " ".join(content.casefold().replace("_", " ").split())
+    required = [spec.record_name, *spec.field_changes.keys(), *spec.field_changes.values()]
+    return all(" ".join(str(value).casefold().replace("_", " ").split()) in normalized for value in required)
 
 
 def _now() -> str:
