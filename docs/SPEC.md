@@ -243,20 +243,23 @@ launch it.
 
 The local demo environment may run a click-through, always-on-top red crosshair overlay centered on the macOS pointer so
 mouse movement remains visible in recordings across Apple Mail and Atlas. The overlay must never intercept input. When
-the operator activates the green **Apply Resolution** button, Atlas shows a small non-modal `Updated!` popup immediately;
-the popup auto-dismisses and does not add another confirmation step.
+the operator activates the green **Apply Resolution** button, Atlas reveals red `UPDATED!` text directly beneath the
+button without a popup, dialog, or additional confirmation step.
 
 The canonical cross-application Atlas demonstration begins in Apple Mail with an owner-provided dummy message among the
-three newest inbox items. The operator inspects at most three subjects, identifies the message containing an `RTN-####`
-case ID, reads the customer context, launches Atlas through Spotlight, searches that exact case, and stages an internal
-decision note. For the `RTN-1064` example the note is `Customer sounds very frustrated. Initiate return ASAP.` The final
+three newest inbox items. On every run, the operator re-reads the current Inbox order newest-to-oldest and selects the
+newest matching message containing an `RTN-####` case ID; a remembered case ID or an older matching message must never
+win over a newer match. After reading that message's customer context, the workflow leaves Mail once, launches Atlas
+through Spotlight, searches that exact case, and remains in Atlas through note staging and commit without returning to
+Mail. For the `RTN-1064` example the note is `Customer sounds very frustrated. Initiate return ASAP.` The final
 **Apply Resolution** click is the only persistent action and therefore requires Telegram commit approval. The workflow must
 not reply to, move, delete, or otherwise modify unrelated mail.
 
 For the owner-only Atlas hackathon demo, the hash-bound Telegram **Start** button also authorizes the staged Atlas commit.
 The trusted host still stages and verifies the proposed change in the retained Holo session, then automatically resolves
 that session's commit tool and waits for terminal verification. Telegram does not render a second Commit/Reject prompt
-for this target. The Atlas commit turn must click the green **Apply Resolution** button exactly once, observe `Updated!`,
+for this target. The Atlas commit turn must click the green **Apply Resolution** button exactly once, observe red `UPDATED!`
+directly beneath it,
 quit Atlas, and end without another desktop action. Atlas-only terminal failures are retained in local run records but
 are not posted back to Telegram. All non-Atlas automations retain the separate commit approval and failure-report flow.
 

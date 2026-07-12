@@ -371,9 +371,8 @@ Must-pass demo checks:
 - [ ] Searching or filtering the work queue selects the expected seeded case and updates the visible case details.
 - [ ] Editing the decision workbench and choosing **Save Draft** never changes the case's resolved status.
 - [ ] **Apply Resolution** accepts an internal note without requiring optional decision fields, persists the note and
-  audit event, and reports `Updated!` in the status area without opening a validation or confirmation dialog.
-- [ ] **Apply Resolution** immediately shows a small non-modal `Updated!` popup that auto-dismisses without requiring a
-  click.
+  audit event, and reveals red `UPDATED!` text beneath the button without opening a popup, validation, or confirmation
+  dialog.
 - [ ] The demo cursor overlay renders a red crosshair centered on the pointer, remains above Mail and Atlas, and is
   transparent to mouse input.
 - [ ] Quitting and reopening Atlas restores canonical case data and does not reopen on the previously resolved case.
@@ -384,9 +383,11 @@ Must-pass demo checks:
   requiring the workflow to inspect or modify unrelated mail contents.
 - [ ] The recorded cross-app task checks no more than three messages, extracts `RTN-1064`, finds that Atlas case, stages
   the exact frustration/urgency note, and identifies **Apply Resolution** as the approval-gated persistent action.
+- [ ] When more than one of the three newest Inbox messages contains a case ID, the workflow chooses the newest match;
+  after leaving Mail it does not return before the Atlas workflow ends.
 - [ ] For target `Atlas Returns Desk`, Telegram **Start** stages, verifies, and commits in the retained Holo session
   without rendering a second Commit/Reject prompt; a non-Atlas target still requires the separate commit button.
-- [ ] The Atlas commit turn clicks the green **Apply Resolution** button once, observes `Updated!`, quits Atlas, and ends;
+- [ ] The Atlas commit turn clicks the green **Apply Resolution** button once, observes red `UPDATED!`, quits Atlas, and ends;
   an Atlas terminal failure remains locally inspectable but produces no Telegram failure reply.
 
 Focused automated command: `uv run pytest tests/desktop_fixtures/test_atlas_returns.py -q`.

@@ -659,6 +659,13 @@ class RunCoordinator:
             stage_steps = (
                 "\n".join(f"- {instruction}" for instruction in spec.stage_instructions) or "- Prepare the app."
             )
+            if spec.app.strip().casefold() == "atlas returns desk":
+                stage_steps += (
+                    "\n\nATLAS CONTINUITY RULE: Read the current Apple Mail Inbox order fresh on this run and choose the "
+                    "newest matching RTN case among at most the three newest messages. Never reuse a prior case ID. "
+                    "Once the chosen email context is captured and Atlas is opened, do not return to Mail. Remain in "
+                    "Atlas through search, note entry, visual staging verification, and the approval tool call."
+                )
             blocked_steps = "\n".join(f"- {instruction}" for instruction in spec.commit_instructions)
             return (
                 f"{spec.task_text}\n\nTURN 1 OF 2 — STAGE ONLY. Execute only these non-persistent setup steps:\n"
@@ -689,10 +696,10 @@ class RunCoordinator:
                 "TURN 2 OF 2 — APPROVED ATLAS COMMIT. "
                 f"{target_guard}Reactivate Atlas Returns Desk and verify the same return case and staged internal note. "
                 "Click the green button labeled `Apply Resolution` exactly once. Wait until the Atlas status area "
-                "visibly displays the exact text `Updated!`. Then quit Atlas Returns Desk and perform no further "
+                "visibly displays red `UPDATED!` directly beneath the button. Then quit Atlas Returns Desk and perform no further "
                 "desktop action. Report `record` as the same target context, `staged_fields` as these exact approved "
                 f"values: {json.dumps(approved_fields, sort_keys=True)}, and `visible_verification` confirming that "
-                "`Updated!` appeared before Atlas was closed."
+                "red `UPDATED!` appeared before Atlas was closed."
             )
         if spec.commit_instructions:
             commit_steps = "\n".join(f"- {instruction}" for instruction in spec.commit_instructions)

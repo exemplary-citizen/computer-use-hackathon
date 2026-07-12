@@ -6,7 +6,7 @@ import csv
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QAction, QColor, QCloseEvent, QIcon, QKeySequence, QPixmap
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -123,7 +123,6 @@ class AtlasReturnsWindow(QMainWindow):
         self._state: ReturnsState = load_returns_state(path)
         self._current_case_id: str | None = None
         self._visible_case_ids: list[str] = []
-        self._update_popup: QMessageBox | None = None
         self.setWindowTitle("Atlas Returns Desk")
         self.setFixedSize(WINDOW_WIDTH, WINDOW_HEIGHT)
         self.move(WINDOW_ORIGIN_X, WINDOW_ORIGIN_Y)
@@ -268,8 +267,7 @@ class AtlasReturnsWindow(QMainWindow):
         self.filter_cases()
         if self._queue.rowCount():
             self._queue.selectRow(0)
-        self.statusBar().showMessage("Updated!", 8_000)
-        self._show_update_popup()
+        self._update_confirmation.setText("UPDATED!")
         return True
 
     def assign_selected_case(self) -> None:
@@ -754,6 +752,10 @@ class AtlasReturnsWindow(QMainWindow):
         self.apply_button.setObjectName("primaryAction")
         self.apply_button.clicked.connect(lambda: self.apply_resolution())
         layout.addWidget(self.apply_button)
+        self._update_confirmation = QLabel("")
+        self._update_confirmation.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._update_confirmation.setStyleSheet("color:#b42318;font-size:14px;font-weight:800;")
+        layout.addWidget(self._update_confirmation)
         warning = QLabel("SYSTEM OF RECORD ACTION — applies inventory routing, financial adjustment and audit event.")
         warning.setWordWrap(True)
         warning.setStyleSheet("color:#7c2d24;font-size:10px;font-weight:700;")
@@ -999,6 +1001,7 @@ class AtlasReturnsWindow(QMainWindow):
         self._refund_amount.setValue(round(case.refund_amount))
         self._restocking_fee.setValue(round(case.restocking_fee))
         self._internal_note.setPlainText(case.internal_note)
+        self._update_confirmation.clear()
         self.apply_button.setEnabled(case.status != "Resolved")
         self.statusBar().showMessage(f"Loaded {case.case_id} — {case.customer_name}", 4_000)
 
@@ -1032,6 +1035,7 @@ class AtlasReturnsWindow(QMainWindow):
         self._refund_amount.setValue(0)
         self._restocking_fee.setValue(0)
         self._internal_note.clear()
+        self._update_confirmation.clear()
 
     def _refresh_metrics(self) -> None:
         self._metric_labels["open"].setText(str(sum(case.status != "Resolved" for case in self._state.cases)))
@@ -1045,20 +1049,6 @@ class AtlasReturnsWindow(QMainWindow):
 
     def _refresh_summary_pages(self) -> None:
         self._refresh_metrics()
-
-    def _show_update_popup(self) -> None:
-        if self._update_popup is not None:
-            self._update_popup.close()
-        popup = QMessageBox(self)
-        popup.setWindowTitle("Atlas Returns Desk")
-        popup.setText("Updated!")
-        popup.setIcon(QMessageBox.Icon.Information)
-        popup.setStandardButtons(QMessageBox.StandardButton.NoButton)
-        popup.setModal(False)
-        popup.setWindowFlag(Qt.WindowType.Tool)
-        popup.show()
-        self._update_popup = popup
-        QTimer.singleShot(1_800, popup.close)
 
     def _pages_set_index(self, index: int) -> None:
         if hasattr(self, "_pages"):
