@@ -241,10 +241,7 @@ a clean work queue rather than the case and decision left by the prior demo. The
 `Atlas Returns Desk.app` under the user's Applications directory with LaunchServices metadata so Spotlight can find and
 launch it.
 
-The local demo environment may run a click-through, focus-independent, always-on-top red cursor marker centered on the
-macOS pointer so mouse movement remains visible in recordings across Apple Mail and Atlas. The marker must remain visible
-when either application owns focus and must never intercept input. When
-the operator activates the green **Apply Resolution** button, Atlas reveals red `UPDATED!` text directly beneath the
+When the operator activates the green **Apply Resolution** button, Atlas reveals red `UPDATED!` text directly beneath the
 button without a popup, dialog, or additional confirmation step. After a brief visible interval, Atlas restores its
 canonical queue in the background while remaining open, so a later activation never resumes on the processed case.
 

@@ -374,8 +374,6 @@ Must-pass demo checks:
   audit event, and reveals red `UPDATED!` text beneath the button without opening a popup, validation, or confirmation
   dialog.
 - [ ] After displaying `UPDATED!`, Atlas restores canonical queue state in the background while remaining open.
-- [ ] The demo cursor overlay renders a red marker centered on the pointer, remains visible while Mail or Atlas owns
-  focus, and is transparent to mouse input.
 - [ ] Quitting and reopening Atlas restores canonical case data and does not reopen on the previously resolved case.
 - [ ] Reset restores deterministic seed data, including two analogous damaged lithium-product cases.
 - [ ] The app exposes a visually dense work queue, case tabs, policy matrix, reports, customers, products, and working
