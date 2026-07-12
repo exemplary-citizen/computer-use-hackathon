@@ -62,6 +62,20 @@ UV_PYTHON=3.12 uv run python -m automation_foundry.execution.smoke doctor
 The approve run must show the staged diff, state that persisted data remained unchanged before approval, and finish
 with `exec-smoke PASSED`.
 
+### One-command local launch
+
+Run the full local demo stack from Terminal.app so macOS attributes Holo screen capture to Terminal rather than
+ChatGPT:
+
+```bash
+cd /Users/rushendra/Desktop/work/projects/computer-use-hackathon
+./scripts/run_demo.sh
+```
+
+The script starts the backend in live mode, the Vite dashboard, and both CRM fixtures. Keep that terminal open and
+press `Ctrl+C` once to stop the backend, dashboard, CRM processes, and Holo runtime. Logs remain under
+`/private/tmp/automation-foundry-demo/`.
+
 ## 3. Create the authored handoff
 
 Use the authoring UI to ingest the canonical video and/or SOP, review the generated artifacts, resolve any blocking
