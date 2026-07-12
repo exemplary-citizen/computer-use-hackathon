@@ -372,6 +372,10 @@ Must-pass demo checks:
 - [ ] Reset restores deterministic seed data, including two analogous damaged lithium-product cases.
 - [ ] The app exposes a visually dense work queue, case tabs, policy matrix, reports, customers, products, and working
   assignment, escalation, validation, preview, export, and reset controls.
+- [ ] An owner-provided Apple Mail dummy message exposes `RTN-1064` in one of the three newest inbox subjects without
+  requiring the workflow to inspect or modify unrelated mail contents.
+- [ ] The recorded cross-app task checks no more than three messages, extracts `RTN-1064`, finds that Atlas case, stages
+  the exact frustration/urgency note, and stops before **Save Draft** for approval.
 
 Focused automated command: `uv run pytest tests/desktop_fixtures/test_atlas_returns.py -q`.
 

@@ -236,6 +236,13 @@ so a skill learned from one narrated demonstration can be run on another case. S
 test-only CLI can reset or inspect it. The macOS installer creates `Atlas Returns Desk.app` under the user's Applications
 directory with LaunchServices metadata so Spotlight can find and launch it.
 
+The canonical cross-application Atlas demonstration begins in Apple Mail with an owner-provided dummy message among the
+three newest inbox items. The operator inspects at most three subjects, identifies the message containing an `RTN-####`
+case ID, reads the customer context, launches Atlas through Spotlight, searches that exact case, and stages an internal
+decision note. For the `RTN-1064` example the note is `Customer sounds very frustrated. Initiate return ASAP.` The final
+**Save Draft** click is the only persistent action and therefore requires Telegram commit approval. The workflow must
+not reply to, move, delete, or otherwise modify unrelated mail.
+
 ### 5.10 Hermes orchestration surfaces
 
 NemoClaw/Hermes is the sole agentic orchestrator for dashboard, Telegram, and Gradium interactions. Telegram and Gradium
