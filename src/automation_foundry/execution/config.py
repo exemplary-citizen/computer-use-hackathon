@@ -10,7 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Literal
 
-from pydantic import SecretStr
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 HoloMode = Literal["mock", "live"]
@@ -51,6 +51,10 @@ class ExecutionSettings(BaseSettings):
     """SQLite index for run rows and the single-active-run guard."""
     fixture_data_root: Path | None = None
     """Override for desktop-fixture state files (tests point this at a temp dir)."""
+    launch_fixture_on_run: bool = True
+    """In live mode, launch the selected bundled CRM before creating the Holo session."""
+    fixture_launch_wait_seconds: float = Field(default=1.5, ge=0.1, le=10)
+    """Short window for the native fixture to create its visible top-level window."""
 
     def clamp_budgets(self, max_steps: int, max_time_seconds: int) -> tuple[int, int]:
         """Clamp requested budgets to the configured hard caps.

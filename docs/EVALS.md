@@ -159,6 +159,7 @@ A trial is an exact success only when:
 
 Required thresholds:
 
+- [ ] A live run launches the selected CRM fixture when it is not already running before Holo begins its stage turn.
 - [ ] CRM A succeeds in at least 4 of 5 trials.
 - [ ] CRM B succeeds in at least 4 of 5 trials.
 - [ ] All 10 trials preserve pre-run persisted state until commit approval.

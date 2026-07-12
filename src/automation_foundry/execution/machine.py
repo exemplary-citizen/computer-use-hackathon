@@ -69,6 +69,7 @@ from automation_foundry.execution.bundles import (
 from automation_foundry.execution.config import ExecutionSettings
 from automation_foundry.execution.errors import ExecutionFault, fault
 from automation_foundry.execution.events import EventLogConfig
+from automation_foundry.execution.fixtures import ensure_fixture_running
 from automation_foundry.execution.holo import HoloAdapter, HoloTaskSpec, ScriptedFakeHolo, TurnOutcome
 
 _ACTIVE_STATES = (RunState.EXECUTING, RunState.AWAITING_COMMIT_APPROVAL, RunState.COMMITTING)
@@ -85,6 +86,7 @@ _APP_ALIASES: dict[str, AppKey] = {
 }
 
 AdapterFactory = Callable[[HoloTaskSpec], HoloAdapter]
+FixtureLauncher = Callable[[AppKey, Path | None, float], bool]
 Decision = Literal["approve", "reject", "cancel"]
 
 
@@ -118,18 +120,25 @@ class _RunRuntime:
 class RunCoordinator:
     """Owns every run transition; the only writer of run state."""
 
-    def __init__(self, settings: ExecutionSettings, adapter_factory: AdapterFactory | None = None):
+    def __init__(
+        self,
+        settings: ExecutionSettings,
+        adapter_factory: AdapterFactory | None = None,
+        fixture_launcher: FixtureLauncher | None = None,
+    ):
         """Initialize storage, the event log, and the boot identity.
 
         Args:
             settings: Execution-lane configuration.
             adapter_factory: Builds the Holo adapter per run; defaults to the
                 scripted fake or live adapter per ``settings.holo_mode``.
+            fixture_launcher: Ensures the selected bundled CRM is visible for live runs.
         """
         self.settings = settings
         self.events = EventLogConfig(runs_root=settings.runs_root).make()
         self.boot_id = uuid.uuid4().hex
         self._adapter_factory = adapter_factory or self._default_adapter_factory
+        self._fixture_launcher = fixture_launcher or ensure_fixture_running
         self._runtimes: dict[UUID, _RunRuntime] = {}
         self._lock = asyncio.Lock()
         self._bundle: LoadedBundle | None = None
@@ -391,6 +400,20 @@ class RunCoordinator:
             loaded = load_verified_bundle(self.settings.bundle_path)  # re-verify immediately pre-session (N8)
             spec = self._task_spec(loaded, request, app)
             pre_state = load_state(self._fixture_path(app))
+            if self.settings.holo_mode == "live" and self.settings.launch_fixture_on_run:
+                launched = await asyncio.to_thread(
+                    self._fixture_launcher,
+                    app,
+                    self.settings.fixture_data_root,
+                    self.settings.fixture_launch_wait_seconds,
+                )
+                await self.events.append(
+                    run_id,
+                    RunState.EXECUTING,
+                    "target_app_ready",
+                    f"CRM {app.upper()} {'launched' if launched else 'is already running'} for live execution.",
+                    {"target_app": f"crm_{app}", "launched": launched},
+                )
             runtime.adapter = self._adapter_factory(spec)
             runtime.session_reference = await asyncio.to_thread(runtime.adapter.start_session)
             await self.events.append(

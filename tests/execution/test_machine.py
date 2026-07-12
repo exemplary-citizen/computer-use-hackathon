@@ -14,6 +14,7 @@ from desktop_fixtures.store import load_state, state_path
 from automation_foundry.contracts import InvocationSource, RunState
 from automation_foundry.contracts.transitions import require_run_transition
 from automation_foundry.execution.errors import ExecutionFault
+from automation_foundry.execution.holo import ScriptedFakeHolo
 from automation_foundry.execution.machine import InputValidationError, RunCoordinator
 
 from tests.execution.helpers import CANONICAL_INPUTS, make_settings, wait_for_state
@@ -62,6 +63,33 @@ class MachineTestBase(unittest.IsolatedAsyncioTestCase):
 
 
 class HappyPathTests(MachineTestBase):
+    async def test_live_run_ensures_target_fixture_is_running_before_holo(self) -> None:
+        calls: list[tuple[str, Path | None, float]] = []
+        settings = self.settings.model_copy(update={"holo_mode": "live"})
+
+        def launch(app, data_root, wait_seconds):
+            calls.append((app, data_root, wait_seconds))
+            return True
+
+        coordinator = RunCoordinator(
+            settings,
+            adapter_factory=lambda spec: ScriptedFakeHolo(
+                spec=spec,
+                script="stage-ok",
+                data_root=settings.fixture_data_root,
+            ),
+            fixture_launcher=launch,
+        )
+        await coordinator.startup()
+        preview = await coordinator.prepare("CRM A", dict(CANONICAL_INPUTS), InvocationSource.DASHBOARD)
+        await coordinator.confirm_start(preview.request.id)
+        await wait_for_state(coordinator, preview.request.id, RunState.AWAITING_COMMIT_APPROVAL)
+
+        self.assertEqual(calls, [("a", settings.fixture_data_root, settings.fixture_launch_wait_seconds)])
+        events = coordinator.events.replay(preview.request.id)
+        self.assertTrue(any(event.event_type == "target_app_ready" for event in events))
+        await coordinator.cancel(preview.request.id)
+
     async def test_full_stage_approve_commit_flow(self) -> None:
         run_id = await self.staged_run()
         self.assert_fixture_unchanged()  # nothing persisted before approval
