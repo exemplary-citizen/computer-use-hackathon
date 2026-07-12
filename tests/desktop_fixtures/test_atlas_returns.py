@@ -75,6 +75,25 @@ class AtlasReturnsTests(unittest.TestCase):
         self.assertEqual(resolved.timeline[-1].action, "Resolution applied")
         self.assertEqual(self.window.statusBar().currentMessage(), "Changes applied")
 
+    def test_quit_restores_canonical_state_for_next_launch(self) -> None:
+        self.window._search.setText("RTN-1064")
+        self.window.filter_cases()
+        self.window._queue.selectRow(0)
+        self.window._internal_note.setPlainText("Temporary demo decision")
+        self.assertTrue(self.window.apply_resolution())
+
+        self.window.show()
+        QApplication.processEvents()
+        self.window.close()
+
+        restored = next(case for case in load_returns_state(self.path).cases if case.case_id == "RTN-1064")
+        self.assertEqual(restored.status, "Escalated")
+        self.assertEqual(restored.internal_note, "")
+        reopened = AtlasReturnsWindow(self.path)
+        self.addCleanup(reopened.close)
+        self.assertEqual(reopened._search.text(), "")
+        self.assertNotEqual(reopened._current_case_id, "RTN-1064")
+
     def test_installer_creates_launchable_macos_bundle(self) -> None:
         destination = Path(self._temporary.name) / "Applications"
 

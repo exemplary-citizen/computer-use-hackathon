@@ -67,6 +67,7 @@ class TelegramExecutionCoordinator:
         self._pending_inputs: dict[int, UUID] = {}
         self._coordinators: dict[UUID, RunCoordinator] = {}
         self._run_coordinators: dict[UUID, RunCoordinator] = {}
+        self._auto_commit_run_ids: set[UUID] = set()
 
     def expects_input(self, telegram_user_id: int) -> bool:
         """Return whether a previous `/run` is collecting schema fields.
@@ -176,6 +177,8 @@ class TelegramExecutionCoordinator:
             return TelegramSurfaceResponse(text=exc.spec.message)
         self._pending_inputs.pop(update.user_id, None)
         self._run_coordinators[preview.request.id] = coordinator
+        if self._auto_commit_enabled(target_app):
+            self._auto_commit_run_ids.add(preview.request.id)
         payload_hash = _run_request_hash(preview.request.model_dump(mode="json"))
         issued = self.interactions.callbacks.mint(
             action=SurfaceCallbackAction.START_RUN,
@@ -186,11 +189,13 @@ class TelegramExecutionCoordinator:
             run_id=preview.request.id,
         )
         formatted = "; ".join(f"{name}={value}" for name, value in sorted(values.items()))
+        execution_message = (
+            "The desktop agent will stage, verify, and complete the Atlas change automatically."
+            if preview.request.id in self._auto_commit_run_ids
+            else "The desktop agent will stage first and stop for a separate Commit approval."
+        )
         return TelegramSurfaceResponse(
-            text=(
-                f"Ready to start `{manifest.name}` on `{target_app}`.\n"
-                f"Inputs: {formatted}\nThe desktop agent will stage first and stop for a separate Commit approval."
-            ),
+            text=(f"Ready to start `{manifest.name}` on `{target_app}`.\nInputs: {formatted}\n{execution_message}"),
             buttons=(TelegramButton(label="Start", callback_data=issued.callback_data),),
         )
 
@@ -240,6 +245,14 @@ class TelegramExecutionCoordinator:
                 staged = coordinator.staged_change(run_id)
                 if staged is None:
                     return TelegramSurfaceResponse(text="Run failed to produce a staged-change summary.")
+                if run_id in self._auto_commit_run_ids:
+                    await coordinator.approve_commit(
+                        run_id,
+                        staged.payload_sha256,
+                        InvocationSource.TELEGRAM,
+                        f"telegram:{self.interactions.config.owner_user_id}:start-authorized",
+                    )
+                    return await self.wait_for_terminal(run_id)
                 owner = self.interactions.config.owner_user_id
                 commit = self.interactions.callbacks.mint(
                     action=SurfaceCallbackAction.COMMIT_RUN,
@@ -267,6 +280,7 @@ class TelegramExecutionCoordinator:
                     ),
                 )
             if state in _TERMINAL_RUN_STATES:
+                self._auto_commit_run_ids.discard(run_id)
                 result = status.get("result")
                 answer = result.get("answer") if isinstance(result, dict) else None
                 return TelegramSurfaceResponse(text=f"Run `{state}`. {answer or ''}".strip())
@@ -283,6 +297,7 @@ class TelegramExecutionCoordinator:
             status = coordinator.get_status(run_id)
             state = str(status["state"])
             if state in _TERMINAL_RUN_STATES:
+                self._auto_commit_run_ids.discard(run_id)
                 result = status.get("result")
                 answer = result.get("answer") if isinstance(result, dict) else None
                 return TelegramSurfaceResponse(text=f"Run `{state}`. {answer or ''}".strip())
@@ -328,9 +343,12 @@ class TelegramExecutionCoordinator:
         payload_hash = _run_request_hash(status["request"])
         self._consume(update, grant, payload_hash)
         await coordinator.confirm_start(run_id)
-        return TelegramSurfaceResponse(
-            text="Start approved. The desktop agent is staging now; nothing will be committed."
+        message = (
+            "Start approved. The desktop agent will stage, verify, and complete the Atlas change."
+            if run_id in self._auto_commit_run_ids
+            else "Start approved. The desktop agent is staging now; nothing will be committed."
         )
+        return TelegramSurfaceResponse(text=message)
 
     async def _commit_run(self, update: TelegramInboundUpdate, grant: SurfaceCallbackGrant) -> TelegramSurfaceResponse:
         coordinator, run_id = self._bound_run(grant)
@@ -371,6 +389,13 @@ class TelegramExecutionCoordinator:
         if grant.run_id is None:
             raise ValueError("Callback has no run")
         return self._run_coordinators[grant.run_id], grant.run_id
+
+    def _auto_commit_enabled(self, target_app: str) -> bool:
+        normalized_target = target_app.strip().casefold()
+        return normalized_target in {
+            configured_target.strip().casefold()
+            for configured_target in self.execution_settings.telegram_auto_commit_targets
+        }
 
     def _resolve_automation(self, selector: str) -> AutomationManifest:
         try:

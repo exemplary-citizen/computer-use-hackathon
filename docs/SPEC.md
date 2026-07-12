@@ -236,8 +236,10 @@ The fixture includes a work queue, search and filters, case detail tabs, policy 
 views, decision workbench, audit timeline, assignment/escalation controls, draft save, validation, letter preview, CSV
 export, reset, and explicit resolution commit. Seed data includes at least two analogous damaged lithium-product cases
 so a skill learned from one narrated demonstration can be run on another case. State is persisted as local JSON, and a
-test-only CLI can reset or inspect it. The macOS installer creates `Atlas Returns Desk.app` under the user's Applications
-directory with LaunchServices metadata so Spotlight can find and launch it.
+test-only CLI can reset or inspect it. Quitting Atlas restores the canonical seed so every Spotlight launch begins from
+a clean work queue rather than the case and decision left by the prior demo. The macOS installer creates
+`Atlas Returns Desk.app` under the user's Applications directory with LaunchServices metadata so Spotlight can find and
+launch it.
 
 The canonical cross-application Atlas demonstration begins in Apple Mail with an owner-provided dummy message among the
 three newest inbox items. The operator inspects at most three subjects, identifies the message containing an `RTN-####`
@@ -245,6 +247,11 @@ case ID, reads the customer context, launches Atlas through Spotlight, searches 
 decision note. For the `RTN-1064` example the note is `Customer sounds very frustrated. Initiate return ASAP.` The final
 **Apply Resolution** click is the only persistent action and therefore requires Telegram commit approval. The workflow must
 not reply to, move, delete, or otherwise modify unrelated mail.
+
+For the owner-only Atlas hackathon demo, the hash-bound Telegram **Start** button also authorizes the staged Atlas commit.
+The trusted host still stages and verifies the proposed change in the retained Holo session, then automatically resolves
+that session's commit tool and waits for terminal verification. Telegram does not render a second Commit/Reject prompt
+for this target. All non-Atlas automations retain the separate commit approval flow.
 
 ### 5.10 Hermes orchestration surfaces
 

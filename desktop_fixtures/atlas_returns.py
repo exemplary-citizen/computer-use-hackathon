@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QAction, QColor, QIcon, QKeySequence, QPixmap
+from PySide6.QtGui import QAction, QColor, QCloseEvent, QIcon, QKeySequence, QPixmap
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -411,6 +411,15 @@ class AtlasReturnsWindow(QMainWindow):
             self._queue.selectRow(0)
         self._refresh_summary_pages()
         self.statusBar().showMessage("Canonical Atlas demo data restored", 6_000)
+
+    def closeEvent(self, event: QCloseEvent) -> None:
+        """Restore canonical demo state whenever Atlas exits.
+
+        Args:
+            event: Qt close event for the main window.
+        """
+        self._state = reset_returns_state(self._path)
+        super().closeEvent(event)
 
     def _build_ui(self) -> None:
         self.setMenuBar(self._build_menu())

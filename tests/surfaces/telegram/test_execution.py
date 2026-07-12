@@ -42,9 +42,10 @@ class GenericLiveStandIn:
         assert session_reference == "telegram-live-session"
         self.messages.append(message)
         if len(self.messages) == 1:
+            target_app = "Atlas Returns Desk" if "Atlas Returns Desk" in message else "TextEdit"
             return TurnOutcome(
                 answer=(
-                    "TextEdit is open with a blank unsaved document. The greeting_text value "
+                    f"{target_app} is open with a blank unsaved document. The greeting_text value "
                     "Hello from Telegram is staged for approval and has not been typed."
                 ),
                 steps_used=3,
@@ -142,6 +143,26 @@ class TestTelegramExecutionCoordinator:
         assert len(self.adapter.messages) == 2
         assert "Open TextEdit" in self.adapter.messages[0]
         assert "Type the exact greeting_text" in self.adapter.messages[1]
+
+    @pytest.mark.asyncio
+    async def test_atlas_start_stages_and_commits_without_second_button(self) -> None:
+        review = self.execution.review(self._message(10, "/review Test Automation"), "Test Automation")
+        await self._press(11, review.buttons[0].callback_data)
+        self.execution.begin_run(self._message(12, "/run Test Automation"), "Test Automation")
+        preview = await self.execution.collect_inputs(
+            self._message(13, "target_app=Atlas Returns Desk; greeting_text=Hello from Telegram"),
+            "target_app=Atlas Returns Desk; greeting_text=Hello from Telegram",
+        )
+
+        assert "complete the Atlas change automatically" in preview.text
+        started = await self._press(14, preview.buttons[0].callback_data)
+        assert "complete the Atlas change" in started.response.text
+
+        terminal = await self.execution.wait_for_run(started.watch_run_id)
+
+        assert "succeeded" in terminal.text
+        assert terminal.buttons == ()
+        assert len(self.adapter.messages) == 2
 
     async def _press(self, update_id: int, callback_data):
         update = self._callback(update_id, callback_data)

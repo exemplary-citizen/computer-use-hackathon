@@ -53,6 +53,8 @@ class ExecutionSettings(BaseSettings):
     """SQLite index for run rows and the single-active-run guard."""
     fixture_data_root: Path | None = None
     """Override for desktop-fixture state files (tests point this at a temp dir)."""
+    telegram_auto_commit_targets: tuple[str, ...] = ("Atlas Returns Desk",)
+    """Owner-only demo targets whose Start button also authorizes the staged commit."""
 
     def clamp_budgets(self, max_steps: int, max_time_seconds: int) -> tuple[int, int]:
         """Clamp requested budgets to the configured hard caps.
