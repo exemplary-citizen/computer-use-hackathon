@@ -111,10 +111,15 @@ class TelegramExecutionCoordinator:
         report = self.authoring.validation(manifest.id, version.version)
         input_names = ", ".join(item.name for item in version.inputs) or "none"
         persistent = next((step.instruction for step in version.steps if step.persistent_action), "none")
+        action_label = (
+            "Start-authorized action"
+            if manifest.name.casefold() == "atlas mail return triage"
+            else "Approval-gated action"
+        )
         summary = (
             f"Review `{manifest.name}` version {version.version}\n"
             f"Runtime inputs: {input_names}\n"
-            f"Approval-gated action: {persistent}\n"
+            f"{action_label}: {persistent}\n"
             f"Host validation: {'passed' if report.valid else 'blocked'}"
         )
         if manifest.status is AutomationStatus.APPROVED and manifest.approved_version == version.version:

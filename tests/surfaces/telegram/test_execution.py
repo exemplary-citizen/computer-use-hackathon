@@ -160,6 +160,22 @@ class TestTelegramExecutionCoordinator:
         assert "Open TextEdit" in self.adapter.messages[0]
         assert "Type the exact greeting_text" in self.adapter.messages[1]
 
+    def test_atlas_review_describes_start_authorized_action(self) -> None:
+        manifest = self.authoring.store.create_automation("Atlas Mail Return Triage")
+        draft = valid_draft()
+        draft.steps[-1].instruction = "Click green Apply Resolution once, verify UPDATED!, quit Atlas, and end."
+        _, report = self.authoring.bundles.create_version(manifest.id, draft)
+        assert report.valid
+
+        review = self.execution.review(
+            self._message(8, "/review Atlas Mail Return Triage"),
+            "Atlas Mail Return Triage",
+        )
+
+        assert "Start-authorized action: Click green Apply Resolution" in review.text
+        assert "Approval-gated action" not in review.text
+        assert "stop for explicit approval" not in review.text.casefold()
+
     @pytest.mark.asyncio
     async def test_atlas_start_stages_and_commits_without_second_button(self) -> None:
         manifest = self.authoring.store.create_automation("Atlas Dynamic Automation")

@@ -387,6 +387,8 @@ Must-pass demo checks:
   after leaving Mail it does not return before the Atlas workflow ends.
 - [ ] For target `Atlas Returns Desk`, Telegram **Start** stages, verifies, and commits in the retained Holo session
   without rendering a second Commit/Reject prompt; a non-Atlas target still requires the separate commit button.
+- [ ] The Atlas review summary labels its persistent step **Start-authorized action** and does not instruct the owner to
+  stop for a second approval.
 - [ ] The Atlas commit turn clicks the green **Apply Resolution** button once, observes red `UPDATED!`, quits Atlas, and ends;
   an Atlas terminal failure remains locally inspectable but produces no Telegram failure reply.
 

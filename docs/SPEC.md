@@ -258,7 +258,8 @@ not reply to, move, delete, or otherwise modify unrelated mail.
 For the owner-only Atlas hackathon demo, the hash-bound Telegram **Start** button also authorizes the staged Atlas commit.
 The trusted host still stages and verifies the proposed change in the retained Holo session, then automatically resolves
 that session's commit tool and waits for terminal verification. Telegram does not render a second Commit/Reject prompt
-for this target. The Atlas commit turn must click the green **Apply Resolution** button exactly once, observe red `UPDATED!`
+for this target. Telegram review describes this as a **Start-authorized action**, and the visible action summary must not
+tell the owner to stop for another approval. The Atlas commit turn must click the green **Apply Resolution** button exactly once, observe red `UPDATED!`
 directly beneath it,
 quit Atlas, and end without another desktop action. Atlas-only terminal failures are retained in local run records but
 are not posted back to Telegram. All non-Atlas automations retain the separate commit approval and failure-report flow.
