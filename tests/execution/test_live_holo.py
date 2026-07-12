@@ -21,6 +21,7 @@ class FakeSessionHandle:
         self.steps = 0
         self.cancelled = False
         self.first_outcome: str | None = "partial"
+        self.answer_schema = None
 
     def send_message(self, message: str) -> None:
         self.messages.append(message)
@@ -36,7 +37,9 @@ class FakeSessionHandle:
             }
         else:
             self.steps = 10
-            answer = "Saved and visibly verified."
+            answer = {"completion_summary": "Saved and visibly verified."}
+        if self.answer_schema is not None:
+            answer = self.answer_schema(**answer)
         outcome = self.first_outcome if self.wait_count == 1 else "success"
         return SimpleNamespace(status="idle", outcome=outcome, answer=answer)
 
@@ -56,6 +59,7 @@ class FakeClient:
 
     def start_session(self, **kwargs):
         self.start_calls.append(kwargs)
+        self.handle.answer_schema = kwargs.get("answer_schema")
         return self.handle
 
 
@@ -72,6 +76,7 @@ def test_live_adapter_uses_one_session_for_stage_and_commit() -> None:
     assert environments == [HaiAgentsEnvironment.US]
     assert len(client.start_calls) == 1
     assert client.start_calls[0]["messages"] == "stage only"
+    assert client.start_calls[0]["answer_schema"].__name__ == "_LiveTurnAnswer"
     assert client.handle.messages == ["approved; commit"]
     assert json.loads(staged.answer)["staged_fields"] == {"owner": "Priya Shah"}
     assert staged.steps_used == 7

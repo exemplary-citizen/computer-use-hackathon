@@ -23,6 +23,7 @@ from hai_agents.polling import SessionHandle
 from hai_agents.types.agent import Agent
 from hai_agents.types.environment import Environment_Desktop
 from hai_agents.types.session_changes_answer import SessionChangesAnswer
+from pydantic import BaseModel, ConfigDict, Field
 
 from desktop_fixtures.store import AppKey, load_state, state_path, write_state_atomic
 
@@ -231,6 +232,7 @@ class LiveHoloAdapter:
                     messages=message,
                     max_steps=self.spec.max_steps,
                     max_time_s=float(self.spec.max_time_seconds),
+                    answer_schema=_LiveTurnAnswer,
                 )
             else:
                 self._handle.send_message(message)
@@ -249,6 +251,8 @@ class LiveHoloAdapter:
         answer = result.answer
         if answer is None:
             raise fault("malformed_stage_answer", "live session returned no answer")
+        if isinstance(answer, BaseModel):
+            answer = answer.model_dump(mode="json", exclude_none=True)
         status_snapshot = self._handle.status()
         total_steps = int(status_snapshot.steps or self._last_steps)
         turn_steps = max(0, total_steps - self._last_steps)
@@ -289,3 +293,23 @@ class LiveHoloAdapter:
     def _require_reference(self, session_reference: str) -> None:
         if session_reference != self._reference or self._cancelled:
             raise fault("session_lost", "unknown or cancelled live session")
+
+
+class _LiveTurnAnswer(BaseModel):
+    """Structured answer format shared by stage and commit turns."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    record: str | None = Field(default=None, description="Stage target record or application context.")
+    staged_fields: dict[str, str] | None = Field(
+        default=None,
+        description="Exact proposed runtime input values; required for the stage turn.",
+    )
+    visible_verification: str | None = Field(
+        default=None,
+        description="Visible evidence that the stage is ready or commit completed.",
+    )
+    completion_summary: str | None = Field(
+        default=None,
+        description="Commit-turn completion summary; omit during staging.",
+    )
