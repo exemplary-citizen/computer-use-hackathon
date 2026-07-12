@@ -76,7 +76,10 @@ def run(
             raise SystemExit(1)
         prepared_request = prepared.json()["request"]
         run_id = prepared_request["id"]
-        live_turn_timeout = float(prepared_request["max_time_seconds"]) + 30.0
+        # The adapter's turn deadline adds 30 seconds to the runtime budget, then
+        # performs fail-closed cancellation/transport cleanup. Keep the smoke
+        # harness outside that envelope so it can observe the terminal result.
+        live_turn_timeout = float(prepared_request["max_time_seconds"]) + 90.0
         print(f"prepared run {run_id}")
         client.post(f"/api/execution/runs/{run_id}/confirm-start", headers=headers)
         status = _wait_for(
