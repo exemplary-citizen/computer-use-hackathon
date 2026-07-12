@@ -659,8 +659,11 @@ class RunCoordinator:
         return (
             f'{spec.task_text}\n\nThe target is the already-visible "{window_title}" window. '
             f"TURN 1 OF 2 — STAGE ONLY: {interaction}, visually "
-            "verify them, then END YOUR TURN. Do NOT press Save, Commit, Submit, or any equivalent. "
-            'Answer with JSON: {"record": ..., "staged_fields": {...}, "visible_verification": ...}.'
+            "verify them, and leave the editor visibly open with the unsaved staged values. "
+            "Do NOT press Save, Commit, Submit, or any equivalent. After verification, do not press Escape, "
+            "switch or minimize applications, close the editor, or perform any other desktop action. "
+            "Immediately return control by answering in your assistant response with only this JSON: "
+            '{"record": ..., "staged_fields": {...}, "visible_verification": ...}.'
         )
 
     def _commit_prompt(self, spec: HoloTaskSpec) -> str:

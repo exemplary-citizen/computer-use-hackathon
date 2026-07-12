@@ -167,6 +167,7 @@ Required thresholds:
 - [ ] A contact-creation run adds exactly one record after approval and changes no existing record.
 - [ ] CRM B receives no CRM B demonstration, selector, coordinate, or precomputed navigation profile.
 - [ ] On CRM B, Holo selects the exact matching result and opens its editor before attempting to change a field.
+- [ ] After staging, Holo leaves the unsaved editor visibly open and returns its structured result without pressing Escape, switching or minimizing applications, closing the editor, or taking another desktop action.
 - [ ] A failed quality trial still ends safely without an unintended persistent change.
 
 ### 3.8 Approval and cancellation safety

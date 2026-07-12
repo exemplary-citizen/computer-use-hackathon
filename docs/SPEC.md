@@ -182,7 +182,7 @@ for an installed CRM app.
 
 The run has two Holo turns:
 
-1. **Stage turn:** Holo opens the target app, locates the intended record, fills the requested values, visually checks the staged form, and ends the turn without activating Save, Commit, Submit, or an equivalent persistent action.
+1. **Stage turn:** Holo opens the target app, locates the intended record, fills the requested values, visually checks the staged form, and returns its structured result without activating Save, Commit, Submit, or an equivalent persistent action. The editor remains visibly open with the unsaved staged values. After verification, Holo must not press Escape, switch or minimize applications, close the editor, or perform any other desktop action while returning control to the host.
 2. **Commit turn:** after explicit approval, the worker sends a second message in the same Holo session directing it to re-check the staged state, perform the final action, and verify visible success.
 
 The staged-change summary must identify the target app, record, fields, proposed values, and evidence used for the summary. Rejection, cancellation, approval timeout, or loss of the live Holo session ends the run without attempting commit. A lost session requires a fresh run; the system must not create a new session solely to click Save on an unknown screen state.

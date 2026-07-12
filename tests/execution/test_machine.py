@@ -14,7 +14,7 @@ from desktop_fixtures.store import load_state, state_path
 from automation_foundry.contracts import InvocationSource, RunState
 from automation_foundry.contracts.transitions import require_run_transition
 from automation_foundry.execution.errors import ExecutionFault
-from automation_foundry.execution.holo import ScriptedFakeHolo
+from automation_foundry.execution.holo import HoloTaskSpec, ScriptedFakeHolo
 from automation_foundry.execution.machine import InputValidationError, RunCoordinator
 
 from tests.execution.helpers import CANONICAL_INPUTS, make_settings, wait_for_state
@@ -66,6 +66,7 @@ class HappyPathTests(MachineTestBase):
     async def test_live_run_ensures_target_fixture_is_running_before_holo(self) -> None:
         calls: list[tuple[str, Path | None, float]] = []
         task_texts: list[str] = []
+        task_specs: list[HoloTaskSpec] = []
         settings = self.settings.model_copy(update={"holo_mode": "live"})
 
         def launch(app, data_root, wait_seconds):
@@ -74,6 +75,7 @@ class HappyPathTests(MachineTestBase):
 
         def adapter(spec):
             task_texts.append(spec.task_text)
+            task_specs.append(spec)
             return ScriptedFakeHolo(
                 spec=spec,
                 script="stage-ok",
@@ -96,6 +98,11 @@ class HappyPathTests(MachineTestBase):
         self.assertIn("Click the exact matching name or row", task_texts[0])
         self.assertIn("Open Record, Edit, or View Details", task_texts[0])
         self.assertIn('Verify the opened editor still belongs to "Sarah Chen"', task_texts[0])
+        stage_prompt = coordinator._stage_prompt(task_specs[0])
+        self.assertIn("leave the editor visibly open with the unsaved staged values", stage_prompt)
+        self.assertIn("do not press Escape", stage_prompt)
+        self.assertIn("switch or minimize applications", stage_prompt)
+        self.assertIn("Immediately return control", stage_prompt)
         events = coordinator.events.replay(preview.request.id)
         self.assertTrue(any(event.event_type == "target_app_ready" for event in events))
         await coordinator.cancel(preview.request.id)
