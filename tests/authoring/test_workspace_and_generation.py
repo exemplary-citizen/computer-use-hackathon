@@ -244,6 +244,7 @@ class WorkspaceAndGenerationTests(unittest.IsolatedAsyncioTestCase):
                 "conflicts": [],
             }
         )
+        response = f"Generated bundle follows.\n```json\n{response}\n```\n"
         client = FakeHermesClient(response)
 
         draft = await BundleGenerator(self.bridge, client).generate(automation.id, evidence)

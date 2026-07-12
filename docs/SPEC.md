@@ -115,6 +115,8 @@ For combined video and SOP inputs:
 - unresolved material conflicts block approval.
 
 Generated procedural content must be semantic. It may name visible concepts and expected labels, but must not contain screen coordinates, DOM selectors, source-app window geometry, or claims that a target application will share CRM A's layout.
+The host accepts either a bare generated JSON object or exactly one `json`-labeled Markdown code fence containing that
+object, then applies the same strict bundle schema validation. Prose or multiple fenced payloads remain invalid.
 
 ### 5.4 Review and approval
 

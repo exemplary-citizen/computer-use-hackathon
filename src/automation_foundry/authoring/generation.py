@@ -189,7 +189,17 @@ def _generation_prompt(job: GenerationJob) -> str:
 
 def _parse_result(content: str) -> GeneratedBundleDraft:
     try:
-        payload = json.loads(content)
+        payload = _load_json_payload(content)
         return GeneratedBundleDraft.model_validate(payload)
     except (json.JSONDecodeError, ValidationError) as exc:
         raise ValueError("Hermes returned an invalid automation bundle") from exc
+
+
+def _load_json_payload(content: str) -> Any:
+    try:
+        return json.loads(content)
+    except json.JSONDecodeError as direct_error:
+        if content.count("```json") != 1 or content.count("```") != 2:
+            raise direct_error
+        fenced_payload = content.split("```json", 1)[1].split("```", 1)[0].strip()
+        return json.loads(fenced_payload)

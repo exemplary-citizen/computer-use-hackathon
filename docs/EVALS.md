@@ -77,6 +77,8 @@ Required thresholds:
 - [ ] Every generated critical step has a valid evidence reference or is explicitly labeled an inference requiring review.
 - [ ] Every expected material conflict is visible and blocks approval.
 - [ ] No generated skill contains screen coordinates, selectors, or CRM B-specific knowledge.
+- [ ] A single `json`-labeled Markdown fence around an otherwise valid Hermes bundle is normalized and validated, while
+  malformed JSON, multiple fenced payloads, and schema-invalid bundles are rejected.
 
 ### 3.3 Bundle structure, review, and approval
 
