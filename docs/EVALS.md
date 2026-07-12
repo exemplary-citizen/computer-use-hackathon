@@ -360,6 +360,21 @@ npm run build
 3. Confirm the run cancels at the documented action boundary.
 4. Confirm the UI reports cancellation and offers no automatic commit or retry.
 
+### 5.5.1 Atlas Returns Desk fixture
+
+Must-pass demo checks:
+
+- [ ] `Atlas Returns Desk.app` is installed under `~/Applications`, is registered with LaunchServices, and launches by
+  name through Spotlight.
+- [ ] Searching or filtering the work queue selects the expected seeded case and updates the visible case details.
+- [ ] Editing the decision workbench and choosing **Save Draft** never changes the case's resolved status.
+- [ ] **Apply Resolution** persists the exact resolution, disposition, route, amount, fee, note, status, and audit event.
+- [ ] Reset restores deterministic seed data, including two analogous damaged lithium-product cases.
+- [ ] The app exposes a visually dense work queue, case tabs, policy matrix, reports, customers, products, and working
+  assignment, escalation, validation, preview, export, and reset controls.
+
+Focused automated command: `uv run pytest tests/desktop_fixtures/test_atlas_returns.py -q`.
+
 ### 5.6 Telegram walkthrough
 
 1. Start the local Foundry host worker, Hermes gateway, and thin Telegram adapter with the dedicated test bot; confirm no

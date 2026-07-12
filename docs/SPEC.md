@@ -221,6 +221,21 @@ The same approved bundle must run on either application. A CRM B run receives on
 
 Both fixtures provide test-only seed, reset, and persisted-state inspection commands. Those commands are for evaluation and must not be exposed to Holo during live execution.
 
+### 5.9.1 Atlas Returns Desk demo fixture
+
+The hackathon demo also ships **Atlas Returns Desk**, a Spotlight-launchable native PySide6 application representing a
+siloed retail return-management workstation. It is intentionally dense and legacy-styled while remaining visually
+legible to computer-use models. The primary business workflow resolves a high-value hazardous-product return correctly:
+the operator searches a case, reviews customer/product/risk context, stages a resolution and disposition, validates it,
+and activates **Apply Resolution** as the sole persistent action.
+
+The fixture includes a work queue, search and filters, case detail tabs, policy matrix, reports, customer and product
+views, decision workbench, audit timeline, assignment/escalation controls, draft save, validation, letter preview, CSV
+export, reset, and explicit resolution commit. Seed data includes at least two analogous damaged lithium-product cases
+so a skill learned from one narrated demonstration can be run on another case. State is persisted as local JSON, and a
+test-only CLI can reset or inspect it. The macOS installer creates `Atlas Returns Desk.app` under the user's Applications
+directory with LaunchServices metadata so Spotlight can find and launch it.
+
 ### 5.10 Hermes orchestration surfaces
 
 NemoClaw/Hermes is the sole agentic orchestrator for dashboard, Telegram, and Gradium interactions. Telegram and Gradium
