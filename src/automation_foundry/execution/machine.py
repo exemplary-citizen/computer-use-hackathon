@@ -302,6 +302,9 @@ class RunCoordinator:
         if runtime.decision is None:
             runtime.decision = "cancel"
             runtime.decision_event.set()
+        task = runtime.task
+        if task is not None and task is not asyncio.current_task():
+            await task
 
     async def force_release(self) -> list[UUID]:
         """Admin escape hatch: fail every active run and free the single-run slot."""
@@ -364,6 +367,14 @@ class RunCoordinator:
 
     async def _execute(self, run_id: UUID) -> None:
         runtime = self._runtimes[run_id]
+        if runtime.cancel_requested:
+            await self._finalize(
+                run_id,
+                RunState.CANCELLED,
+                answer="Cancelled before Holo started; nothing saved.",
+                from_states=(RunState.EXECUTING,),
+            )
+            return
         request = self._request(run_id)
         app = _APP_ALIASES[request.target_app.lower()]
         try:
