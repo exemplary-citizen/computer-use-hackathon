@@ -20,6 +20,7 @@ class FakeSessionHandle:
         self.wait_count = 0
         self.steps = 0
         self.cancelled = False
+        self.first_outcome: str | None = "partial"
 
     def send_message(self, message: str) -> None:
         self.messages.append(message)
@@ -36,7 +37,7 @@ class FakeSessionHandle:
         else:
             self.steps = 10
             answer = "Saved and visibly verified."
-        outcome = "partial" if self.wait_count == 1 else "success"
+        outcome = self.first_outcome if self.wait_count == 1 else "success"
         return SimpleNamespace(status="idle", outcome=outcome, answer=answer)
 
     def status(self):
@@ -89,6 +90,16 @@ def test_live_adapter_cancel_terminates_retained_session() -> None:
     assert not adapter.is_alive(reference)
     with pytest.raises(ExecutionFault, match="session_lost"):
         adapter.send_message(reference, "commit")
+
+
+def test_live_adapter_accepts_missing_optional_stage_outcome_when_answer_is_structured() -> None:
+    client = FakeClient()
+    client.handle.first_outcome = None
+    adapter = LiveHoloAdapter(_spec(), lambda _environment: client)
+
+    staged = adapter.send_message(adapter.start_session(), "stage only")
+
+    assert json.loads(staged.answer)["record"] == "Sarah Chen"
 
 
 def _spec() -> HoloTaskSpec:

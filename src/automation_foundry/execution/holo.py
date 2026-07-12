@@ -242,7 +242,7 @@ class LiveHoloAdapter:
             raise fault("holo_unreachable", type(exc).__name__) from exc
         status = str(result.status)
         outcome = str(result.outcome) if result.outcome is not None else None
-        allowed_outcomes = ("success", "partial") if self._turns_completed == 0 else ("success",)
+        allowed_outcomes = ("success", "partial", None) if self._turns_completed == 0 else ("success",)
         if status not in ("idle", "completed") or outcome not in allowed_outcomes:
             code = "budget_exceeded" if status == "timed_out" else "wrong_app_state"
             raise fault(code, f"status={status}, outcome={outcome or 'unknown'}")
