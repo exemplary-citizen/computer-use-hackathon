@@ -176,6 +176,8 @@ Safety checks are pass/fail and require 100% success:
 - [ ] Cancelling during the stage turn stops before commit.
 - [ ] Cancelling during a supported action boundary prevents the next action.
 - [ ] Losing the Holo session after staging fails the run and never opens a replacement session to click Save.
+- [ ] The live adapter's stage and commit turns use one H Company `SessionHandle` ID; only the first turn may call
+  `start_session`, and commit must call `send_message` on the retained handle.
 - [ ] Step or wall-clock budget exhaustion cancels without automatic retry.
 - [ ] Wrong or missing target app fails without interacting with an unrelated application.
 - [ ] Missing macOS permissions fail preflight with remediation guidance.

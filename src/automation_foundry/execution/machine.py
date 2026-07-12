@@ -559,6 +559,7 @@ class RunCoordinator:
             task_text=task_text,
             max_steps=request.max_steps,
             max_time_seconds=request.max_time_seconds,
+            region=self.settings.holo_region,
         )
 
     def _stage_prompt_text(

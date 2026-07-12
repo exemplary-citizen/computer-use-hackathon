@@ -181,7 +181,10 @@ Partial transcripts, silence, or ambiguous commands must never start a run. Voic
 
 ### 5.8 Safe two-turn desktop execution
 
-The trusted host worker invokes HoloDesktop through its Python client. Every execution is bounded by configured step and wall-clock limits and supports cancellation and the Holo kill switch.
+The trusted host worker invokes HoloDesktop through H Company's installed `hai_agents` local-desktop client. The adapter
+creates the remote/local bridge on the first stage message, retains the returned session handle, sends commit through
+`SessionHandle.send_message` on that same session ID, polls its status for liveness, and uses session cancellation as
+the host kill path. Every execution is bounded by configured step and wall-clock limits.
 
 The run has two Holo turns:
 

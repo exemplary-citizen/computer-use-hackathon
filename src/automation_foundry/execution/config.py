@@ -25,6 +25,8 @@ class ExecutionSettings(BaseSettings):
     """`mock` drives the scripted fake adapter; `live` requires HoloDesktop."""
     holo_mock_script: str = "stage-ok"
     """Behavior of the fake adapter (see execution.holo.FAKE_SCRIPTS)."""
+    holo_region: Literal["us", "eu"] = "us"
+    """H Company agent-platform region used by the live desktop adapter."""
     approval_timeout_seconds: float = 120.0
     """Commit-approval window; expiry cancels the run without saving."""
     heartbeat_seconds: float = 10.0
