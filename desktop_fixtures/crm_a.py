@@ -30,8 +30,10 @@ from desktop_fixtures.store import (
     FIELD_LABELS,
     STATUS_VALUES,
     AppKey,
+    ContactRecord,
     CrmState,
     load_state,
+    next_contact_id,
     state_path,
     write_state_atomic,
 )
@@ -52,6 +54,7 @@ class CrmAWindow(QMainWindow):
         self._path = path
         self._state: CrmState = load_state(path)
         self._current_index: int | None = None
+        self._creating_new = False
         self.setWindowTitle("Northlight CRM")
         fix_window_geometry(self)
         self._build_ui()
@@ -60,6 +63,30 @@ class CrmAWindow(QMainWindow):
 
     def save_current_record(self) -> None:
         """Apply form edits to the selected record and persist the whole store."""
+        if self._creating_new:
+            first_name = self._first_name.text().strip()
+            last_name = self._last_name.text().strip()
+            if not first_name or not last_name:
+                self.statusBar().showMessage("First Name and Last Name are required", 5_000)
+                return
+            record = ContactRecord(
+                id=next_contact_id(self._state),
+                first_name=first_name,
+                last_name=last_name,
+                company=self._company.text().strip() or "Not provided",
+                phone=self._phone.text().strip() or "Not provided",
+                email=self._email.text().strip() or "Not provided",
+                status=self._status.currentText(),
+                owner=self._owner.text().strip() or "Unassigned",
+                notes=self._notes.toPlainText().strip(),
+            )
+            self._state.records.append(record)
+            write_state_atomic(self._path, self._state)
+            self._contact_list.addItem(record.full_name)
+            self._creating_new = False
+            self._contact_list.setCurrentRow(len(self._state.records) - 1)
+            self.statusBar().showMessage(f"Added {record.full_name}", 5_000)
+            return
         if self._current_index is None:
             return
         record = self._state.records[self._current_index]
@@ -78,7 +105,33 @@ class CrmAWindow(QMainWindow):
         self._state.records[self._current_index] = updated
         write_state_atomic(self._path, self._state)
         self._contact_list.item(self._current_index).setText(updated.full_name)
+        self._set_form_editable(False)
         self.statusBar().showMessage(f"Saved {updated.full_name}", 5_000)
+
+    def begin_add_record(self) -> None:
+        """Clear and enable the form for a new unsaved record."""
+        self._contact_list.setCurrentRow(-1)
+        self._current_index = None
+        self._creating_new = True
+        for field in (self._first_name, self._last_name, self._company, self._phone, self._email, self._owner):
+            field.clear()
+        self._status.setCurrentText("Lead")
+        self._notes.clear()
+        self.save_button.setText("Add Record")
+        self._set_form_editable(True)
+        self._first_name.setFocus()
+        self.statusBar().showMessage("Enter contact details, then choose Add Record")
+
+    def begin_edit_record(self) -> None:
+        """Enable the selected record's fields without persisting anything."""
+        if self._current_index is None:
+            self.statusBar().showMessage("Select a record first", 5_000)
+            return
+        self._creating_new = False
+        self.save_button.setText("Save")
+        self._set_form_editable(True)
+        self._owner.setFocus()
+        self.statusBar().showMessage("Editing; changes remain unsaved until Save")
 
     def _build_ui(self) -> None:
         labels = {field: per_app[_APP_KEY] for field, per_app in FIELD_LABELS.items()}
@@ -92,6 +145,14 @@ class CrmAWindow(QMainWindow):
             self._contact_list.addItem(record.full_name)
         self._contact_list.currentRowChanged.connect(self._load_record)
         left.addWidget(self._contact_list)
+        actions = QHBoxLayout()
+        self.add_button = QPushButton("Add Record")
+        self.add_button.clicked.connect(self.begin_add_record)
+        actions.addWidget(self.add_button)
+        self.edit_button = QPushButton("Edit Record")
+        self.edit_button.clicked.connect(self.begin_edit_record)
+        actions.addWidget(self.edit_button)
+        left.addLayout(actions)
         layout.addLayout(left, 1)
 
         right = QVBoxLayout()
@@ -132,6 +193,7 @@ class CrmAWindow(QMainWindow):
         layout.addLayout(right, 2)
 
         self.setCentralWidget(root)
+        self._set_form_editable(False)
         self.statusBar().showMessage("Ready")
 
     def _load_record(self, row: int) -> None:
@@ -139,6 +201,8 @@ class CrmAWindow(QMainWindow):
             self._current_index = None
             return
         self._current_index = row
+        self._creating_new = False
+        self.save_button.setText("Save")
         record = self._state.records[row]
         self._first_name.setText(record.first_name)
         self._last_name.setText(record.last_name)
@@ -148,6 +212,21 @@ class CrmAWindow(QMainWindow):
         self._status.setCurrentText(record.status)
         self._owner.setText(record.owner)
         self._notes.setPlainText(record.notes)
+        self._set_form_editable(False)
+
+    def _set_form_editable(self, editable: bool) -> None:
+        for field in (
+            self._first_name,
+            self._last_name,
+            self._company,
+            self._phone,
+            self._email,
+            self._status,
+            self._owner,
+            self._notes,
+        ):
+            field.setEnabled(editable)
+        self.save_button.setEnabled(editable)
 
 
 def main() -> None:
