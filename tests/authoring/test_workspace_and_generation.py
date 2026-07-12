@@ -212,6 +212,7 @@ class WorkspaceAndGenerationTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertIn("mandatory stop-and-review", client.system_prompt)
         self.assertIn("persistent_action=true MUST also set requires_confirmation_before=true", client.system_prompt)
+        self.assertIn("skill_markdown MUST start with YAML frontmatter", client.system_prompt)
         self.assertEqual(draft.sop_markdown.splitlines()[0], "# Update lead")
         outputs = list((self.mount / "automation-foundry" / "jobs").glob("*/output/bundle.json"))
         self.assertEqual(len(outputs), 1)

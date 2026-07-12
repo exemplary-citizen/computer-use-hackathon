@@ -21,6 +21,8 @@ Hard requirements:
 - Cite video timestamps or SOP pages/sections for procedural claims when evidence exists.
 - Mark unsupported claims as inferences that require review.
 - When audio_path is present but transcript is empty, treat narration as unavailable and never invent spoken instructions.
+- skill_markdown MUST start with YAML frontmatter delimited by `---` lines and include a non-empty `description:` value
+  no longer than 280 characters, followed by a non-empty procedure body.
 - Never emit screen coordinates, selectors, source-app geometry, secrets, or CRM-B-specific knowledge.
 - Preserve source disagreements as explicit conflicts. Never silently choose one source.
 - Include a mandatory stop-and-review boundary before Save, Commit, Submit, or an equivalent persistent action.
