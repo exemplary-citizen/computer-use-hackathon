@@ -21,7 +21,7 @@ class FakeSessionHandle:
         self.steps = 0
         self.cancelled = False
         self.first_outcome: str | None = "partial"
-        self.answer_schema = None
+        self.first_answer: object | None = None
 
     def send_message(self, message: str) -> None:
         self.messages.append(message)
@@ -30,7 +30,7 @@ class FakeSessionHandle:
         self.wait_count += 1
         if self.wait_count == 1:
             self.steps = 7
-            answer = {
+            answer = self.first_answer or {
                 "record": "Sarah Chen",
                 "staged_fields": {"owner": "Priya Shah"},
                 "visible_verification": "Owner is staged and Save was not pressed.",
@@ -42,8 +42,6 @@ class FakeSessionHandle:
                 "staged_fields": {"owner": "Priya Shah"},
                 "visible_verification": "Saved and visibly verified.",
             }
-        if self.answer_schema is not None:
-            answer = self.answer_schema(**answer)
         outcome = self.first_outcome if self.wait_count == 1 else "success"
         return SimpleNamespace(status="idle", outcome=outcome, answer=answer)
 
@@ -63,7 +61,6 @@ class FakeClient:
 
     def start_session(self, **kwargs):
         self.start_calls.append(kwargs)
-        self.handle.answer_schema = kwargs.get("answer_schema")
         return self.handle
 
 
@@ -80,7 +77,7 @@ def test_live_adapter_uses_one_session_for_stage_and_commit() -> None:
     assert environments == [HaiAgentsEnvironment.US]
     assert len(client.start_calls) == 1
     assert client.start_calls[0]["messages"] == "stage only"
-    assert client.start_calls[0]["answer_schema"].__name__ == "_LiveTurnAnswer"
+    assert "answer_schema" not in client.start_calls[0]
     assert client.handle.messages == ["approved; commit"]
     assert json.loads(staged.answer)["staged_fields"] == {"owner": "Priya Shah"}
     assert staged.steps_used == 7
@@ -109,6 +106,18 @@ def test_live_adapter_accepts_missing_optional_stage_outcome_when_answer_is_stru
     staged = adapter.send_message(adapter.start_session(), "stage only")
 
     assert json.loads(staged.answer)["record"] == "Sarah Chen"
+
+
+def test_live_adapter_requests_format_only_follow_up_for_prose_stage_answer() -> None:
+    client = FakeClient()
+    client.handle.first_answer = "The form is ready and nothing was saved."
+    adapter = LiveHoloAdapter(_spec(), lambda _environment: client)
+
+    staged = adapter.send_message(adapter.start_session(), "stage only")
+
+    assert len(client.handle.messages) == 1
+    assert client.handle.messages[0].startswith("FORMAT-ONLY FOLLOW-UP")
+    assert json.loads(staged.answer)["staged_fields"] == {"owner": "Priya Shah"}
 
 
 def _spec() -> HoloTaskSpec:

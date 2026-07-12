@@ -23,7 +23,6 @@ from hai_agents.polling import SessionHandle
 from hai_agents.types.agent import Agent
 from hai_agents.types.environment import Environment_Desktop
 from hai_agents.types.session_changes_answer import SessionChangesAnswer
-from pydantic import BaseModel, ConfigDict, Field
 
 from desktop_fixtures.store import AppKey, load_state, state_path, write_state_atomic
 
@@ -232,7 +231,6 @@ class LiveHoloAdapter:
                     messages=message,
                     max_steps=self.spec.max_steps,
                     max_time_s=float(self.spec.max_time_seconds),
-                    answer_schema=_LiveTurnAnswer,
                 )
             else:
                 self._handle.send_message(message)
@@ -247,12 +245,13 @@ class LiveHoloAdapter:
         allowed_outcomes = ("success", "partial", None) if self._turns_completed == 0 else ("success",)
         if status not in ("idle", "completed") or outcome not in allowed_outcomes:
             code = "budget_exceeded" if status == "timed_out" else "wrong_app_state"
-            raise fault(code, f"status={status}, outcome={outcome or 'unknown'}")
+            error_code = getattr(result, "error_code", None)
+            raise fault(code, f"status={status}, outcome={outcome or 'unknown'}, error_code={error_code or 'none'}")
         answer = result.answer
+        if self._turns_completed == 0 and not _matches_stage_contract(answer, self.spec):
+            answer = self._request_stage_report()
         if answer is None:
             raise fault("malformed_stage_answer", "live session returned no answer")
-        if isinstance(answer, BaseModel):
-            answer = answer.model_dump(mode="json", exclude_none=True)
         status_snapshot = self._handle.status()
         total_steps = int(status_snapshot.steps or self._last_steps)
         turn_steps = max(0, total_steps - self._last_steps)
@@ -294,16 +293,39 @@ class LiveHoloAdapter:
         if session_reference != self._reference or self._cancelled:
             raise fault("session_lost", "unknown or cancelled live session")
 
+    def _request_stage_report(self) -> object:
+        assert self._handle is not None
+        self._handle.send_message(
+            "FORMAT-ONLY FOLLOW-UP. Do not use any desktop tool and do not change the screen. Return one JSON object "
+            f"with `record` exactly {json.dumps(self.spec.record_name)}, `staged_fields` exactly "
+            f"{json.dumps(self.spec.field_changes, sort_keys=True)}, and `visible_verification` summarizing what is "
+            "currently visible. Return no Markdown or additional prose."
+        )
+        try:
+            result = self._handle.wait_for_completion(timeout_seconds=60.0)
+        except Exception as exc:
+            raise fault("malformed_stage_answer", "format-only follow-up failed") from exc
+        if str(result.status) not in ("idle", "completed") or result.answer is None:
+            raise fault("malformed_stage_answer", "format-only follow-up returned no answer")
+        return result.answer
 
-class _LiveTurnAnswer(BaseModel):
-    """Structured answer format shared by stage and commit turns."""
 
-    model_config = ConfigDict(extra="forbid")
-
-    record: str = Field(description="Target record or application context.")
-    staged_fields: dict[str, str] = Field(
-        description="Exact approved runtime input values for this turn.",
-    )
-    visible_verification: str = Field(
-        description="Visible evidence that staging is ready or commit completed.",
+def _matches_stage_contract(answer: object, spec: HoloTaskSpec) -> bool:
+    if isinstance(answer, dict):
+        parsed = answer
+    elif isinstance(answer, str):
+        first_brace = answer.find("{")
+        last_brace = answer.rfind("}")
+        if first_brace < 0 or last_brace <= first_brace:
+            return False
+        try:
+            parsed = json.loads(answer[first_brace : last_brace + 1])
+        except json.JSONDecodeError:
+            return False
+    else:
+        return False
+    return (
+        parsed.get("record") == spec.record_name
+        and parsed.get("staged_fields") == spec.field_changes
+        and bool(parsed.get("visible_verification"))
     )
