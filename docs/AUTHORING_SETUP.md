@@ -6,7 +6,7 @@ the two-turn run state machine remain in Member 2's lane.
 ## Prerequisites
 
 - macOS with Python 3.12 or newer, `uv`, Node/npm, and FFmpeg/FFprobe;
-- a mounted NemoClaw workspace corresponding to `/sandbox/workspace`;
+- a NemoClaw workspace exposed by a verified host mount or the authenticated CLI upload transport;
 - a Hermes API forward available at `http://127.0.0.1:8642/v1` by default;
 - a Hermes bearer token and, for narrated video, a Gradium API key.
 
@@ -16,6 +16,14 @@ The backend reads configuration from the process environment only. It does not l
 export FOUNDRY_WORKSPACE_MOUNT=/absolute/host/path/to/sandbox-workspace
 export FOUNDRY_HERMES_API_KEY=replace-with-local-secret
 export FOUNDRY_GRADIUM_API_KEY=replace-with-local-secret
+```
+
+On macOS systems where macFUSE is unavailable, use a local staging directory and the NemoClaw upload transport:
+
+```bash
+export FOUNDRY_WORKSPACE_MOUNT="$PWD/data/nemoclaw-workspace"
+export FOUNDRY_WORKSPACE_REQUIRE_MOUNT=false
+export FOUNDRY_NEMOCLAW_SANDBOX_NAME=hai-hermes
 ```
 
 Optional settings include `FOUNDRY_HERMES_BASE_URL`, `FOUNDRY_HERMES_MODEL`, `FOUNDRY_DATA_ROOT`,

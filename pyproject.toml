@@ -64,6 +64,9 @@ ignore_missing_imports = true
 testpaths = ["tests"]
 pythonpath = ["src"]
 addopts = "-ra"
+markers = [
+    "live: requires explicitly configured local/provider integrations",
+]
 
 [[tool.mypy.overrides]]
 # The SDK's ``tool()`` decorator factory is typed ``-> Any`` (it returns either a ``Tool`` or a

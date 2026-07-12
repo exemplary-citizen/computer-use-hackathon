@@ -16,6 +16,9 @@ class AppSettings(BaseSettings):
     published_skill_root: Path = Path("data/holo-skills")
     workspace_mount: Path | None = None
     workspace_require_mount: bool = True
+    nemoclaw_sandbox_name: str | None = None
+    nemohermes_binary: str = "nemohermes"
+    workspace_transfer_timeout_seconds: float = 120
     gradium_api_key: SecretStr | None = None
     hermes_api_key: SecretStr | None = None
     hermes_base_url: str = "http://127.0.0.1:8642/v1"

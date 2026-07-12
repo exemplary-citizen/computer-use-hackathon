@@ -23,6 +23,8 @@ Hard requirements:
 - Never emit screen coordinates, selectors, source-app geometry, secrets, or CRM-B-specific knowledge.
 - Preserve source disagreements as explicit conflicts. Never silently choose one source.
 - Include a mandatory stop-and-review boundary before Save, Commit, Submit, or an equivalent persistent action.
+- Every step with persistent_action=true MUST also set requires_confirmation_before=true. Never rely on prose alone for
+  this boundary. Set persistent_action=false for all non-persistent steps.
 - Generated Python may only parse, normalize, map, or validate JSON-compatible data. It may not use network,
   subprocess, arbitrary files, dynamic evaluation, or desktop control.
 """

@@ -138,8 +138,14 @@ class ProcedureStep(StrictModel):
     id: str = Field(pattern=r"^[a-z][a-z0-9_]*$")
     instruction: str = Field(min_length=1, max_length=4_000)
     critical: bool = True
-    persistent_action: bool = False
-    requires_confirmation_before: bool = False
+    persistent_action: bool = Field(
+        default=False,
+        description="True only when this step changes persistent external state.",
+    )
+    requires_confirmation_before: bool = Field(
+        default=False,
+        description="Must be true whenever persistent_action is true; prose approval language is insufficient.",
+    )
     evidence: list[EvidenceReference] = Field(min_length=1)
 
     @model_validator(mode="after")

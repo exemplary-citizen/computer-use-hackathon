@@ -259,6 +259,9 @@ def build_authoring_service(settings: AppSettings) -> AuthoringService:
         workspace = WorkspaceConfig(
             host_mount=settings.workspace_mount,
             require_mount=settings.workspace_require_mount,
+            nemoclaw_sandbox_name=settings.nemoclaw_sandbox_name,
+            nemohermes_binary=settings.nemohermes_binary,
+            transfer_timeout_seconds=settings.workspace_transfer_timeout_seconds,
         ).make(store)
         workspace.initialize()
         transcriber = None
