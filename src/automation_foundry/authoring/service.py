@@ -94,6 +94,7 @@ class AuthoringService:
         manifest.status = AutomationStatus.PROCESSING
         self.store.save_manifest(manifest)
         self._write_progress(automation_id, "queued", 0, "Ingestion job accepted")
+        error_path = self.store.automation_root(automation_id) / "processing_error.json"
         try:
             if self.pipeline is None:
                 raise RuntimeError(
@@ -105,11 +106,11 @@ class AuthoringService:
                     automation_id, stage, percent, message
                 ),
             )
+            error_path.unlink(missing_ok=True)
         except Exception as exc:
             manifest = self.store.get_manifest(automation_id)
             manifest.status = AutomationStatus.FAILED
             self.store.save_manifest(manifest)
-            error_path = self.store.automation_root(automation_id) / "processing_error.json"
             error_path.write_text(
                 f"{json.dumps({'error': type(exc).__name__, 'message': _safe_error_message(exc)}, indent=2)}\n",
                 encoding="utf-8",
