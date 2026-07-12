@@ -647,7 +647,8 @@ class RunCoordinator:
             "3. Inspect whether the requested fields are now editable. Selection alone may only highlight a row.\n"
             "4. If the fields are not editable, double-click the selected row or activate the visible Open Record, "
             "Edit, or View Details control. Avoid controls near a screen corner.\n"
-            f'5. Verify the opened editor still belongs to "{record_name}" before changing any value.\n\n'
+            f'5. Verify the opened editor still belongs to "{record_name}" before changing any value. The editor is '
+            "the only permitted target even if another application is visible behind it.\n\n"
             f"APPROVED SKILL:\n{loaded.bundle.skill_markdown}\n\n"
             f"{action}. Requested values: {changes}."
         )

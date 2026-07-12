@@ -11,6 +11,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -64,6 +65,8 @@ class RecordDialog(QDialog):
             record_id: New deterministic identifier when creating.
         """
         super().__init__(parent)
+        self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint, True)
+        self.setWindowModality(Qt.WindowModality.ApplicationModal)
         self._record = record
         self._record_id = record.id if record is not None else record_id
         if self._record_id is None:

@@ -101,6 +101,7 @@ class HappyPathTests(MachineTestBase):
         self.assertIn("Do not invoke Mission Control", task_texts[0])
         self.assertIn("return a failure instead of interacting with another application", task_texts[0])
         self.assertIn('Verify the opened editor still belongs to "Sarah Chen"', task_texts[0])
+        self.assertIn("the only permitted target", task_texts[0])
         stage_prompt = coordinator._stage_prompt(task_specs[0])
         self.assertIn("leave the editor visibly open with the unsaved staged values", stage_prompt)
         self.assertIn("do not press Escape", stage_prompt)

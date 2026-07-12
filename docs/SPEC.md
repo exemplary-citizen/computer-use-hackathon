@@ -206,6 +206,10 @@ an exact matching result so execution does not depend on a control near a macOS 
 Mission Control or interact with the dashboard, browser, ChatGPT, or another unrelated window while operating the CRM.
 This guidance must not encode coordinates, row indices, or fixture-specific selectors.
 
+CRM B's record editor is application-modal and remains above unrelated applications while it contains unsaved staged
+values. This prevents a focus change from redirecting a correctly targeted editor action into the dashboard or ChatGPT;
+it does not persist data or bypass commit approval.
+
 Both fixtures provide test-only seed, reset, and persisted-state inspection commands. Those commands are for evaluation and must not be exposed to Holo during live execution.
 
 ## 6. Explicit non-goals

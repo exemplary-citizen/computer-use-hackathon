@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
 from desktop_fixtures.crm_a import CrmAWindow
@@ -104,6 +105,14 @@ class CrmBWindowTests(unittest.TestCase):
         self.assertEqual(dialog.commit_button.text(), "Commit Changes")
         create_dialog = RecordDialog(None, record_id="c007")
         self.assertEqual(create_dialog.commit_button.text(), "Add Record")
+
+    def test_record_dialog_stays_above_unrelated_apps_without_persisting(self) -> None:
+        dialog = RecordDialog(default_seed().records[0])
+        self.addCleanup(dialog.close)
+        self.assertTrue(dialog.windowFlags() & Qt.WindowType.WindowStaysOnTopHint)
+        self.assertEqual(dialog.windowModality(), Qt.WindowModality.ApplicationModal)
+        dialog.last_name.setText("Singh")
+        self.assertEqual(self.path.read_bytes(), self.baseline)
 
     def test_add_record_persists_only_on_apply_create(self) -> None:
         dialog = RecordDialog(None, record_id="c007")
