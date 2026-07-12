@@ -184,6 +184,22 @@ class BundleApprovalTests(unittest.TestCase):
         self.assertIsNone(manifest.approved_version)
         self.assertEqual(manifest.status, AutomationStatus.REVIEW_REQUIRED)
 
+    def test_non_persistent_draft_needs_no_commit_boundary(self) -> None:
+        draft = valid_draft()
+        draft.skill_markdown = (
+            "---\ndescription: Type text into an unsaved local draft.\n---\n\n"
+            "# Draft text\n\nOpen TextEdit and type the requested value into an unsaved document."
+        )
+        draft.steps = [
+            step.model_copy(update={"persistent_action": False, "requires_confirmation_before": False})
+            for step in draft.steps
+        ]
+
+        version, report = self.manager.create_version(self.automation.id, draft)
+
+        self.assertTrue(report.valid, report.errors)
+        self.manager.approve(self.automation.id, version.version, actor="Reviewer")
+
     def test_editing_approved_artifact_creates_unapproved_version(self) -> None:
         version, _ = self.manager.create_version(self.automation.id, valid_draft())
         self.manager.approve(self.automation.id, version.version, actor="Reviewer")

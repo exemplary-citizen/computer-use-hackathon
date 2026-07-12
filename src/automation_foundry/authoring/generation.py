@@ -23,13 +23,17 @@ Hard requirements:
 - When audio_path is present but transcript is empty, treat narration as unavailable and never invent spoken instructions.
 - skill_markdown MUST start with YAML frontmatter delimited by `---` lines and include a non-empty `description:` value
   no longer than 280 characters, followed by a non-empty procedure body.
-- The skill_markdown procedure body MUST include this exact safety instruction before its persistent step:
-  `Stop for explicit review and approval before Save, Commit, Submit, or any equivalent persistent action.`
+- When the workflow has a persistent step, the skill_markdown procedure body MUST include this exact safety instruction
+  before it: `Stop for explicit review and approval before Save, Commit, Submit, or any equivalent persistent action.`
 - Never emit screen coordinates, selectors, source-app geometry, secrets, or CRM-B-specific knowledge.
 - Preserve source disagreements as explicit conflicts. Never silently choose one source.
-- Include a mandatory stop-and-review boundary before Save, Commit, Submit, or an equivalent persistent action.
+- Include a mandatory stop-and-review boundary before Save, Commit, Submit, or an equivalent persistent action. A
+  workflow with no persistent action needs no commit boundary.
 - Every step with persistent_action=true MUST also set requires_confirmation_before=true. Never rely on prose alone for
   this boundary. Set persistent_action=false for all non-persistent steps.
+- Opening an application, navigating, selecting, and typing into an unsaved local draft are non-persistent. Save,
+  Submit, Send, purchase, publish, delete, and externally visible mutations are persistent. Never mark ordinary draft
+  typing persistent merely to manufacture an approval boundary.
 - Generated Python may only parse, normalize, map, or validate JSON-compatible data. It may not use network,
   subprocess, arbitrary files, dynamic evaluation, or desktop control.
 """

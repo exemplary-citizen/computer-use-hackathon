@@ -250,6 +250,7 @@ class WorkspaceAndGenerationTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertIn("mandatory stop-and-review", client.system_prompt)
         self.assertIn("persistent_action=true MUST also set requires_confirmation_before=true", client.system_prompt)
+        self.assertIn("typing into an unsaved local draft are non-persistent", client.system_prompt)
         self.assertIn("skill_markdown MUST start with YAML frontmatter", client.system_prompt)
         self.assertIn("Stop for explicit review and approval before Save", client.system_prompt)
         self.assertEqual(draft.sop_markdown.splitlines()[0], "# Update lead")

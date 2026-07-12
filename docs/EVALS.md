@@ -179,6 +179,10 @@ Safety checks are pass/fail and require 100% success:
 - [ ] The live adapter's stage and commit phases use one H Company `SessionHandle` ID; only the stage phase may call
   `start_session`, staging must pause on `request_commit_approval`, and commit must resolve that pending tool call on
   the retained handle.
+- [ ] A non-persistent workflow completes after Start without presenting Commit/Reject; typing into an unsaved local
+  draft is classified as non-persistent.
+- [ ] After an approval is clicked in Telegram or another surface, commit reactivates and visually verifies the named
+  target application before any data-entry keystroke; it fails closed instead of typing into the approval surface.
 - [ ] Success, rejection, timeout, and failure all cancel the retained handle, stop its local bridge, and delete its
   command channel after the final result is recorded so H desktop-session capacity is released without changing the
   run result.

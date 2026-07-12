@@ -67,6 +67,7 @@ class HoloTaskSpec:
     region: Literal["us", "eu"] = "us"
     stage_instructions: tuple[str, ...] = ()
     commit_instructions: tuple[str, ...] = ()
+    requires_commit: bool = True
 
 
 @dataclass(frozen=True)
@@ -255,7 +256,9 @@ class LiveHoloAdapter:
                 "persistent action. After visually verifying the staged state, call request_commit_approval exactly "
                 "once with the requested record, exact staged fields, and visible verification. Do not answer, finish, "
                 "or complete the session before calling the tool. Wait for its result. Perform a persistent action only "
-                "when that tool result explicitly states that the staged change was approved."
+                "when that tool result explicitly states that the staged change was approved. After approval, treat "
+                "the current foreground application as untrusted: reactivate the named target application and visually "
+                "verify its expected context before any data-entry keystroke or persistent action."
             ),
         )
 

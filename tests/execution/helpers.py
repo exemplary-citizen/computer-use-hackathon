@@ -60,11 +60,12 @@ def make_valid_bundle(target_dir: Path) -> Path:
     return bundle_path
 
 
-def make_generic_bundle(target_dir: Path) -> Path:
+def make_generic_bundle(target_dir: Path, *, persistent_text: bool = True) -> Path:
     """Create a hash-valid learned text-entry bundle for coordinator tests.
 
     Args:
         target_dir: Temp directory to copy into.
+        persistent_text: Whether text entry requires a separate commit approval.
 
     Returns:
         Path to the rewritten generic ``approved_bundle.json``.
@@ -111,8 +112,8 @@ def make_generic_bundle(target_dir: Path) -> Path:
             "id": "type_text",
             "instruction": "Type the exact greeting_text value into the document.",
             "critical": True,
-            "persistent_action": True,
-            "requires_confirmation_before": True,
+            "persistent_action": persistent_text,
+            "requires_confirmation_before": persistent_text,
             "evidence": [inference],
         },
     ]

@@ -409,6 +409,16 @@ class RunCoordinator:
                 raise fault("unsafe_stage")
             staged = self._build_staged_change(run_id, spec, pre_state, runtime.session_reference, stage_outcome)
             self._store_staged(run_id, staged)
+            if not spec.requires_commit:
+                await self._finalize(
+                    run_id,
+                    RunState.SUCCEEDED,
+                    answer=f"Completed non-persistent workflow in {staged.target_app}; no commit approval was required.",
+                    verification=staged.visible_verification,
+                    steps=stage_outcome.steps_used,
+                    from_states=(RunState.EXECUTING,),
+                )
+                return
             await self._transition(
                 run_id,
                 RunState.EXECUTING,
@@ -601,6 +611,7 @@ class RunCoordinator:
             region=self.settings.holo_region,
             stage_instructions=stage_instructions,
             commit_instructions=commit_instructions,
+            requires_commit=fixture_bundle or bool(commit_instructions),
         )
 
     def _stage_prompt_text(
@@ -613,6 +624,16 @@ class RunCoordinator:
         )
 
     def _stage_prompt(self, spec: HoloTaskSpec) -> str:
+        if spec.stage_instructions and not spec.requires_commit:
+            stage_steps = "\n".join(f"- {instruction}" for instruction in spec.stage_instructions)
+            return (
+                f"{spec.task_text}\n\nNON-PERSISTENT WORKFLOW — execute and visually verify all steps:\n"
+                f"{stage_steps}\n\nNo Save, Commit, Submit, Send, or other persistent action is part of this workflow. "
+                "After completing every step, call `request_commit_approval` exactly once as a structured completion "
+                f'report with `record` equal to {json.dumps(spec.record_name)}, `staged_fields` exactly equal to '
+                f'{json.dumps(spec.field_changes, sort_keys=True)}, and `visible_verification` describing the observed '
+                "final state. Do not interact further while waiting for the tool result."
+            )
         if spec.stage_instructions or spec.commit_instructions:
             stage_steps = "\n".join(f"- {instruction}" for instruction in spec.stage_instructions) or "- Prepare the app."
             blocked_steps = "\n".join(f"- {instruction}" for instruction in spec.commit_instructions)
@@ -633,17 +654,24 @@ class RunCoordinator:
         )
 
     def _commit_prompt(self, spec: HoloTaskSpec) -> str:
+        target_guard = (
+            f"The approval was clicked outside the target app, so the current foreground window is untrusted. Before "
+            f"any data-entry keystroke or persistent action, explicitly activate {json.dumps(spec.app)} and visually "
+            f"verify the expected {json.dumps(spec.record_name)} context. If it cannot be verified, stop without typing "
+            "or committing and report failure. Never type workflow content into the approval surface. "
+        )
         if spec.commit_instructions:
             commit_steps = "\n".join(f"- {instruction}" for instruction in spec.commit_instructions)
             return (
-                "TURN 2 OF 2 — APPROVED COMMIT. The displayed staged plan was explicitly approved. Re-check the same "
+                "TURN 2 OF 2 — APPROVED COMMIT. The displayed staged plan was explicitly approved. "
+                f"{target_guard}Re-check the same "
                 f"application and execute only these approval-gated steps once:\n{commit_steps}\n"
                 f"Use these exact approved values: {json.dumps(spec.field_changes, sort_keys=True)}. "
                 "Visually verify completion. Report `record` as the same target context, `staged_fields` as those exact "
                 "approved values, and `visible_verification` as the observed completion state."
             )
         return (
-            "TURN 2 OF 2 — COMMIT: the staged change has been approved. Re-check the staged values are still "
+            f"TURN 2 OF 2 — COMMIT: the staged change has been approved. {target_guard}Re-check the staged values are still "
             "visible, press the Save/Commit control once, and verify the application shows success. Report `record` "
             "and `staged_fields` exactly as approved plus a `visible_verification` summary."
         )

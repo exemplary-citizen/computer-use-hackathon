@@ -143,6 +143,64 @@ class GenericBundleTests(unittest.IsolatedAsyncioTestCase):
         await _wait_for_adapter_cancel(adapter)
         self.assertTrue(adapter.cancelled)
 
+    async def test_non_persistent_bundle_completes_without_commit_approval(self) -> None:
+        temporary = TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        settings = make_settings(root)
+        settings.bundle_path = make_generic_bundle(root / "generic", persistent_text=False)
+        adapter = _GenericAdapter()
+        coordinator = RunCoordinator(settings, adapter_factory=lambda _spec: adapter)
+        await coordinator.startup()
+
+        preview = await coordinator.prepare(
+            "TextEdit",
+            {"greeting_text": "Hello from Foundry"},
+            InvocationSource.TELEGRAM,
+        )
+        await coordinator.confirm_start(preview.request.id)
+
+        state = await wait_for_state(coordinator, preview.request.id, RunState.SUCCEEDED)
+
+        self.assertEqual(state, "succeeded")
+        self.assertEqual(len(adapter.messages), 1)
+        self.assertIn("NON-PERSISTENT WORKFLOW", adapter.messages[0])
+        self.assertNotIn(
+            "awaiting_commit_approval",
+            [event.state.value for event in coordinator.events.replay(preview.request.id)],
+        )
+
+    async def test_commit_prompt_reacquires_target_before_typing(self) -> None:
+        temporary = TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        settings = make_settings(root)
+        settings.bundle_path = make_generic_bundle(root / "generic")
+        adapter = _GenericAdapter()
+        coordinator = RunCoordinator(settings, adapter_factory=lambda _spec: adapter)
+        await coordinator.startup()
+        preview = await coordinator.prepare(
+            "TextEdit",
+            {"greeting_text": "Hello from Foundry"},
+            InvocationSource.TELEGRAM,
+        )
+        await coordinator.confirm_start(preview.request.id)
+        await wait_for_state(coordinator, preview.request.id, RunState.AWAITING_COMMIT_APPROVAL)
+        staged = coordinator.staged_change(preview.request.id)
+        assert staged is not None
+
+        await coordinator.approve_commit(
+            preview.request.id,
+            staged.payload_sha256,
+            InvocationSource.TELEGRAM,
+            "telegram-owner",
+        )
+        await wait_for_state(coordinator, preview.request.id, RunState.SUCCEEDED)
+
+        self.assertIn("current foreground window is untrusted", adapter.messages[1])
+        self.assertIn('explicitly activate "TextEdit"', adapter.messages[1])
+        self.assertIn("Never type workflow content into the approval surface", adapter.messages[1])
+
     async def test_generic_bundle_accepts_live_markdown_report_with_embedded_field_json(self) -> None:
         temporary = TemporaryDirectory()
         self.addCleanup(temporary.cleanup)

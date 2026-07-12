@@ -191,10 +191,20 @@ step and wall-clock limits. After every terminal run state, including success an
 the retained handle, stops its local bridge, and deletes that bridge's command channel so a finished H desktop
 environment does not continue consuming session quota.
 
-The run has two Holo turns:
+Runs containing a persistent action have two Holo phases:
 
 1. **Stage phase:** Holo opens the target app, locates the intended record, fills the requested values, visually checks the staged form, and requests commit approval without activating Save, Commit, Submit, or an equivalent persistent action.
 2. **Commit phase:** after explicit approval, the worker resolves the pending approval tool in the same Holo session, directing it to re-check the staged state, perform the final action, and verify visible success.
+
+Before the commit phase performs any data-entry keystroke or action, it must explicitly reactivate the named target
+application and visually verify the expected record or staged context. The application used to click an approval button
+is untrusted foreground state and must never receive workflow input. If the target context cannot be reacquired, the run
+fails closed.
+
+Workflows with no persistent action complete after the initial **Start** confirmation. They execute and visibly verify
+all non-persistent steps in the stage phase, then finish without showing **Commit** or **Reject** controls. Opening an
+application, navigating, selecting, and typing into an unsaved local draft are non-persistent; Save, Submit, Send,
+purchase, publish, delete, and externally visible mutations are persistent.
 
 The staged-change summary must identify the target app, record, fields, proposed values, and evidence used for the summary. Rejection, cancellation, approval timeout, or loss of the live Holo session ends the run without attempting commit. A lost session requires a fresh run; the system must not create a new session solely to click Save on an unknown screen state.
 
@@ -264,8 +274,9 @@ Running through Telegram follows this flow:
    buttons. Text messages alone do not confirm start.
 4. **Start** creates or confirms the run through the shared execution state machine. The bot posts status updates while
    Holo performs the stage turn.
-5. The bot displays the staged-change summary with **Commit** and **Reject** buttons. Only a valid **Commit** callback
-   for the current staged-change hash may resume the same live Holo session.
+5. If a persistent action remains, the bot displays the staged-change summary with **Commit** and **Reject** buttons.
+   Only a valid **Commit** callback for the current staged-change hash may resume the same live Holo session. Otherwise
+   the non-persistent run completes without a second approval prompt.
 6. The bot reports the verified terminal result. Timeout, rejection, cancellation, session loss, or callback mismatch
    ends safely without a new commit session or automatic retry.
 
