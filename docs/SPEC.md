@@ -188,6 +188,8 @@ The repository ships two native PySide6 CRM fixtures:
 
 - CRM A is the taught application shown in the source demonstration.
 - CRM B exposes equivalent records and business fields through different navigation, labels, and layout.
+- Both fixtures expose explicit text-labeled `Add Record` and `Edit Record` controls. Selecting a record alone never
+  enables mutation, and creating or editing remains in memory until the fixture's Save/Commit control is activated.
 
 The same approved bundle must run on either application. A CRM B run receives only the target app name and runtime data; it receives no CRM B demonstration, coordinates, selectors, or precomputed navigation profile.
 

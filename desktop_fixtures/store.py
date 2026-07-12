@@ -62,6 +62,19 @@ class CrmState(BaseModel):
     records: list[ContactRecord] = Field(default_factory=list)
 
 
+def next_contact_id(state: CrmState) -> str:
+    """Return the next deterministic `cNNN` identifier for a new fixture record.
+
+    Args:
+        state: Current validated fixture state.
+
+    Returns:
+        First identifier above every existing contact identifier.
+    """
+    highest = max((int(record.id[1:]) for record in state.records), default=0)
+    return f"c{highest + 1:03d}"
+
+
 def default_seed() -> CrmState:
     """Return the canonical deterministic seed shared by both applications."""
     return CrmState(

@@ -158,6 +158,9 @@ A trial is an exact success only when:
 
 Required thresholds:
 
+- [ ] Both fixtures expose text-labeled Add Record and Edit Record controls, and selecting a row alone does not enable
+  a persistent mutation.
+- [ ] Add and edit forms leave persisted state byte-identical until Save or Commit Changes is explicitly activated.
 - [ ] CRM A succeeds in at least 4 of 5 trials.
 - [ ] CRM B succeeds in at least 4 of 5 trials.
 - [ ] All 10 trials preserve pre-run persisted state until commit approval.
