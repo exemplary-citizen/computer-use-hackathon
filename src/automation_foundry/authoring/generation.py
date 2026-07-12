@@ -23,6 +23,8 @@ Hard requirements:
 - When audio_path is present but transcript is empty, treat narration as unavailable and never invent spoken instructions.
 - skill_markdown MUST start with YAML frontmatter delimited by `---` lines and include a non-empty `description:` value
   no longer than 280 characters, followed by a non-empty procedure body.
+- The skill_markdown procedure body MUST include this exact safety instruction before its persistent step:
+  `Stop for explicit review and approval before Save, Commit, Submit, or any equivalent persistent action.`
 - Never emit screen coordinates, selectors, source-app geometry, secrets, or CRM-B-specific knowledge.
 - Preserve source disagreements as explicit conflicts. Never silently choose one source.
 - Include a mandatory stop-and-review boundary before Save, Commit, Submit, or an equivalent persistent action.
