@@ -30,6 +30,9 @@ Hard requirements:
 - Cite video timestamps or SOP pages/sections for procedural claims when evidence exists.
 - Mark unsupported claims as inferences that require review.
 - Never emit screen coordinates, selectors, source-app geometry, secrets, or CRM-B-specific knowledge.
+- Do not assume selecting a record makes its fields editable. After locating and selecting the exact record, instruct
+  the agent to inspect whether an editor is open and, if needed, use a visible Open Record, Edit, or View Details action.
+- Avoid source-layout phrases such as left-hand list, right pane, fixed table column, or modal position.
 - Preserve source disagreements as explicit conflicts. Never silently choose one source.
 - Include a mandatory stop-and-review boundary before Save, Commit, Submit, or an equivalent persistent action.
 - SKILL Markdown must begin with YAML frontmatter containing a non-empty `description` field.

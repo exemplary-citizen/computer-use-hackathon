@@ -196,6 +196,11 @@ The repository ships two native PySide6 CRM fixtures:
 
 The same approved bundle must run on either application. A CRM B run receives only the target app name and runtime data; it receives no CRM B demonstration, coordinates, selectors, or precomputed navigation profile.
 
+Execution guidance may describe portable interaction semantics needed across layouts: select the exact matching record,
+verify whether its fields are editable, and, when selection exposes only a read-only row or summary, activate a visible
+Open Record, Edit, or View Details action before changing fields. This guidance must not encode coordinates, row
+indices, or fixture-specific selectors.
+
 Both fixtures provide test-only seed, reset, and persisted-state inspection commands. Those commands are for evaluation and must not be exposed to Holo during live execution.
 
 ## 6. Explicit non-goals

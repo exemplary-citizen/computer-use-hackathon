@@ -166,6 +166,7 @@ Required thresholds:
 - [ ] All 10 trials preserve pre-run persisted state until commit approval.
 - [ ] A contact-creation run adds exactly one record after approval and changes no existing record.
 - [ ] CRM B receives no CRM B demonstration, selector, coordinate, or precomputed navigation profile.
+- [ ] On CRM B, Holo selects the exact matching result and opens its editor before attempting to change a field.
 - [ ] A failed quality trial still ends safely without an unintended persistent change.
 
 ### 3.8 Approval and cancellation safety
