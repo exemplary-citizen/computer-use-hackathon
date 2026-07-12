@@ -44,8 +44,9 @@ class GenericLiveStandIn:
         if len(self.messages) == 1:
             return TurnOutcome(
                 answer=(
+                    "Stage setup completed without typing.\n```json\n"
                     '{"record":"TextEdit","staged_fields":{"greeting_text":"Hello from Telegram"},'
-                    '"visible_verification":"Blank unsaved document is ready."}'
+                    '"visible_verification":"Blank unsaved document is ready."}\n```'
                 ),
                 steps_used=3,
             )

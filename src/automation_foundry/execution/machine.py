@@ -497,8 +497,8 @@ class RunCoordinator:
 
     def _check_stage_answer(self, spec: HoloTaskSpec, outcome: TurnOutcome) -> None:
         try:
-            parsed = json.loads(outcome.answer)
-        except json.JSONDecodeError as error:
+            parsed = _parse_json_object(outcome.answer)
+        except ValueError as error:
             raise fault("malformed_stage_answer", "stage answer was not structured") from error
         if not isinstance(parsed, dict) or "staged_fields" not in parsed or "record" not in parsed:
             raise fault("malformed_stage_answer", "stage answer missing record/staged_fields")
@@ -528,8 +528,8 @@ class RunCoordinator:
         digest = hashlib.sha256(json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")).hexdigest()
         verification = ""
         try:
-            verification = str(json.loads(outcome.answer).get("visible_verification", ""))
-        except json.JSONDecodeError:  # already rejected by _check_stage_answer
+            verification = str(_parse_json_object(outcome.answer).get("visible_verification", ""))
+        except ValueError:  # already rejected by _check_stage_answer
             pass
         return StagedChange(
             run_id=run_id,
@@ -801,6 +801,22 @@ class RunCoordinator:
 def _uses_fixture_contract(loaded: LoadedBundle) -> bool:
     properties = loaded.bundle.input_schema.get("properties", {})
     return RECORD_SELECTOR_INPUT in properties and any(name in properties for name in INPUT_FIELD_MAP)
+
+
+def _parse_json_object(content: str) -> dict[str, object]:
+    candidates = [content.strip()]
+    first_brace = content.find("{")
+    last_brace = content.rfind("}")
+    if 0 <= first_brace < last_brace:
+        candidates.append(content[first_brace : last_brace + 1])
+    for candidate in candidates:
+        try:
+            parsed = json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(parsed, dict):
+            return parsed
+    raise ValueError("Stage answer contains no JSON object")
 
 
 def _now() -> str:
