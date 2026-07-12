@@ -368,14 +368,15 @@ Must-pass demo checks:
   name through Spotlight.
 - [ ] Searching or filtering the work queue selects the expected seeded case and updates the visible case details.
 - [ ] Editing the decision workbench and choosing **Save Draft** never changes the case's resolved status.
-- [ ] **Apply Resolution** persists the exact resolution, disposition, route, amount, fee, note, status, and audit event.
+- [ ] **Apply Resolution** accepts an internal note without requiring optional decision fields, persists the note and
+  audit event, and reports `Changes applied` in the status area without opening a validation or confirmation dialog.
 - [ ] Reset restores deterministic seed data, including two analogous damaged lithium-product cases.
 - [ ] The app exposes a visually dense work queue, case tabs, policy matrix, reports, customers, products, and working
   assignment, escalation, validation, preview, export, and reset controls.
 - [ ] An owner-provided Apple Mail dummy message exposes `RTN-1064` in one of the three newest inbox subjects without
   requiring the workflow to inspect or modify unrelated mail contents.
 - [ ] The recorded cross-app task checks no more than three messages, extracts `RTN-1064`, finds that Atlas case, stages
-  the exact frustration/urgency note, and stops before **Save Draft** for approval.
+  the exact frustration/urgency note, and identifies **Apply Resolution** as the approval-gated persistent action.
 
 Focused automated command: `uv run pytest tests/desktop_fixtures/test_atlas_returns.py -q`.
 

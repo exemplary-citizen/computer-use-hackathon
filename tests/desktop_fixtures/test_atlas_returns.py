@@ -53,13 +53,27 @@ class AtlasReturnsTests(unittest.TestCase):
         self.assertEqual(draft.status, "New")
         self.assertEqual(draft.disposition_code, "HAZMAT_INSPECTION")
 
-        self.assertTrue(self.window.apply_resolution(require_confirmation=False))
+        self.assertTrue(self.window.apply_resolution())
         resolved = next(case for case in load_returns_state(self.path).cases if case.case_id == "RTN-1057")
         self.assertEqual(resolved.status, "Resolved")
         self.assertEqual(resolved.resolution, "Replacement")
         self.assertEqual(resolved.warehouse_route, "WH-HAZ-02")
         self.assertEqual(resolved.restocking_fee, 0)
         self.assertEqual(resolved.timeline[-1].action, "Resolution applied")
+
+    def test_apply_resolution_accepts_note_without_optional_fields(self) -> None:
+        self.window._search.setText("RTN-1064")
+        self.window.filter_cases()
+        self.window._queue.selectRow(0)
+        self.window._internal_note.setPlainText("Customer sounds very frustrated. Initiate return ASAP.")
+
+        self.assertTrue(self.window.apply_resolution())
+
+        resolved = next(case for case in load_returns_state(self.path).cases if case.case_id == "RTN-1064")
+        self.assertEqual(resolved.internal_note, "Customer sounds very frustrated. Initiate return ASAP.")
+        self.assertEqual(resolved.status, "Resolved")
+        self.assertEqual(resolved.timeline[-1].action, "Resolution applied")
+        self.assertEqual(self.window.statusBar().currentMessage(), "Changes applied")
 
     def test_installer_creates_launchable_macos_bundle(self) -> None:
         destination = Path(self._temporary.name) / "Applications"

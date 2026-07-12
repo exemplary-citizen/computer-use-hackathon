@@ -225,9 +225,10 @@ Both fixtures provide test-only seed, reset, and persisted-state inspection comm
 
 The hackathon demo also ships **Atlas Returns Desk**, a Spotlight-launchable native PySide6 application representing a
 siloed retail return-management workstation. It is intentionally dense and legacy-styled while remaining visually
-legible to computer-use models. The primary business workflow resolves a high-value hazardous-product return correctly:
-the operator searches a case, reviews customer/product/risk context, stages a resolution and disposition, validates it,
-and activates **Apply Resolution** as the sole persistent action.
+legible to computer-use models. The primary business workflow resolves a return by searching for a case, reviewing its
+customer and intake context, entering an internal decision note, and activating **Apply Resolution** as the sole
+persistent action. For demo reliability, applying a resolution does not require the optional resolution, disposition,
+or warehouse fields and reports `Changes applied` in the application's status area without an additional dialog.
 
 The fixture includes a work queue, search and filters, case detail tabs, policy matrix, reports, customer and product
 views, decision workbench, audit timeline, assignment/escalation controls, draft save, validation, letter preview, CSV
@@ -240,7 +241,7 @@ The canonical cross-application Atlas demonstration begins in Apple Mail with an
 three newest inbox items. The operator inspects at most three subjects, identifies the message containing an `RTN-####`
 case ID, reads the customer context, launches Atlas through Spotlight, searches that exact case, and stages an internal
 decision note. For the `RTN-1064` example the note is `Customer sounds very frustrated. Initiate return ASAP.` The final
-**Save Draft** click is the only persistent action and therefore requires Telegram commit approval. The workflow must
+**Apply Resolution** click is the only persistent action and therefore requires Telegram commit approval. The workflow must
 not reply to, move, delete, or otherwise modify unrelated mail.
 
 ### 5.10 Hermes orchestration surfaces

@@ -237,32 +237,15 @@ class AtlasReturnsWindow(QMainWindow):
         )
         return errors
 
-    def apply_resolution(self, require_confirmation: bool = True) -> bool:
+    def apply_resolution(self) -> bool:
         """Persist the selected case resolution as the explicit business commit.
-
-        Args:
-            require_confirmation: Whether to display the irreversible-action confirmation.
 
         Returns:
             True when the resolution was persisted.
         """
         case = self._selected_case()
-        if case is None or self.validate_decision(show_dialog=require_confirmation):
+        if case is None:
             return False
-        if require_confirmation:
-            choice = QMessageBox.question(
-                self,
-                "Apply return resolution",
-                f"Apply this decision to {case.case_id}?\n\n"
-                f"Resolution: {self._resolution.currentText()}\n"
-                f"Disposition: {self._disposition.currentText()}\n"
-                f"Route: {self._warehouse.currentText()}\n\n"
-                "This updates the system of record and audit history.",
-                QMessageBox.StandardButton.Apply | QMessageBox.StandardButton.Cancel,
-                QMessageBox.StandardButton.Cancel,
-            )
-            if choice != QMessageBox.StandardButton.Apply:
-                return False
         self._copy_decision_fields(case)
         case.status = "Resolved"
         case.assignee = case.assignee if case.assignee != "Unassigned" else "Maya Chen"
@@ -284,7 +267,7 @@ class AtlasReturnsWindow(QMainWindow):
         self.filter_cases()
         if self._queue.rowCount():
             self._queue.selectRow(0)
-        self.statusBar().showMessage(f"Resolution applied to {case.case_id}; audit event recorded", 8_000)
+        self.statusBar().showMessage("Changes applied", 8_000)
         return True
 
     def assign_selected_case(self) -> None:
