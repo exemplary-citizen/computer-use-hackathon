@@ -7,9 +7,11 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication
 
 from desktop_fixtures.atlas_returns import AtlasReturnsWindow
+from desktop_fixtures.cursor_overlay import CROSSHAIR_SIZE, CrosshairOverlay
 from desktop_fixtures.returns_cli import BUNDLE_IDENTIFIER, install_app
 from desktop_fixtures.returns_store import default_returns_seed, load_returns_state, returns_state_path
 
@@ -74,6 +76,9 @@ class AtlasReturnsTests(unittest.TestCase):
         self.assertEqual(resolved.status, "Resolved")
         self.assertEqual(resolved.timeline[-1].action, "Resolution applied")
         self.assertEqual(self.window.statusBar().currentMessage(), "Updated!")
+        self.assertIsNotNone(self.window._update_popup)
+        self.assertEqual(self.window._update_popup.text(), "Updated!")
+        self.assertFalse(self.window._update_popup.isModal())
 
     def test_quit_restores_canonical_state_for_next_launch(self) -> None:
         self.window._search.setText("RTN-1064")
@@ -107,6 +112,15 @@ class AtlasReturnsTests(unittest.TestCase):
             plist = plistlib.load(source)
         self.assertEqual(plist["CFBundleIdentifier"], BUNDLE_IDENTIFIER)
         self.assertEqual(plist["CFBundleDisplayName"], "Atlas Returns Desk")
+
+    def test_crosshair_overlay_is_click_through_and_always_on_top(self) -> None:
+        overlay = CrosshairOverlay()
+        self.addCleanup(overlay.close)
+
+        self.assertEqual(overlay.size().width(), CROSSHAIR_SIZE)
+        self.assertTrue(overlay.testAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents))
+        self.assertTrue(overlay.windowFlags() & Qt.WindowType.WindowTransparentForInput)
+        self.assertTrue(overlay.windowFlags() & Qt.WindowType.WindowStaysOnTopHint)
 
 
 if __name__ == "__main__":

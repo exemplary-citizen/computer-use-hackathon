@@ -6,7 +6,7 @@ import csv
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QAction, QColor, QCloseEvent, QIcon, QKeySequence, QPixmap
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -123,6 +123,7 @@ class AtlasReturnsWindow(QMainWindow):
         self._state: ReturnsState = load_returns_state(path)
         self._current_case_id: str | None = None
         self._visible_case_ids: list[str] = []
+        self._update_popup: QMessageBox | None = None
         self.setWindowTitle("Atlas Returns Desk")
         self.setFixedSize(WINDOW_WIDTH, WINDOW_HEIGHT)
         self.move(WINDOW_ORIGIN_X, WINDOW_ORIGIN_Y)
@@ -268,6 +269,7 @@ class AtlasReturnsWindow(QMainWindow):
         if self._queue.rowCount():
             self._queue.selectRow(0)
         self.statusBar().showMessage("Updated!", 8_000)
+        self._show_update_popup()
         return True
 
     def assign_selected_case(self) -> None:
@@ -1043,6 +1045,20 @@ class AtlasReturnsWindow(QMainWindow):
 
     def _refresh_summary_pages(self) -> None:
         self._refresh_metrics()
+
+    def _show_update_popup(self) -> None:
+        if self._update_popup is not None:
+            self._update_popup.close()
+        popup = QMessageBox(self)
+        popup.setWindowTitle("Atlas Returns Desk")
+        popup.setText("Updated!")
+        popup.setIcon(QMessageBox.Icon.Information)
+        popup.setStandardButtons(QMessageBox.StandardButton.NoButton)
+        popup.setModal(False)
+        popup.setWindowFlag(Qt.WindowType.Tool)
+        popup.show()
+        self._update_popup = popup
+        QTimer.singleShot(1_800, popup.close)
 
     def _pages_set_index(self, index: int) -> None:
         if hasattr(self, "_pages"):

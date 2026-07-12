@@ -372,6 +372,10 @@ Must-pass demo checks:
 - [ ] Editing the decision workbench and choosing **Save Draft** never changes the case's resolved status.
 - [ ] **Apply Resolution** accepts an internal note without requiring optional decision fields, persists the note and
   audit event, and reports `Updated!` in the status area without opening a validation or confirmation dialog.
+- [ ] **Apply Resolution** immediately shows a small non-modal `Updated!` popup that auto-dismisses without requiring a
+  click.
+- [ ] The demo cursor overlay renders a red crosshair centered on the pointer, remains above Mail and Atlas, and is
+  transparent to mouse input.
 - [ ] Quitting and reopening Atlas restores canonical case data and does not reopen on the previously resolved case.
 - [ ] Reset restores deterministic seed data, including two analogous damaged lithium-product cases.
 - [ ] The app exposes a visually dense work queue, case tabs, policy matrix, reports, customers, products, and working

@@ -241,6 +241,11 @@ a clean work queue rather than the case and decision left by the prior demo. The
 `Atlas Returns Desk.app` under the user's Applications directory with LaunchServices metadata so Spotlight can find and
 launch it.
 
+The local demo environment may run a click-through, always-on-top red crosshair overlay centered on the macOS pointer so
+mouse movement remains visible in recordings across Apple Mail and Atlas. The overlay must never intercept input. When
+the operator activates the green **Apply Resolution** button, Atlas shows a small non-modal `Updated!` popup immediately;
+the popup auto-dismisses and does not add another confirmation step.
+
 The canonical cross-application Atlas demonstration begins in Apple Mail with an owner-provided dummy message among the
 three newest inbox items. The operator inspects at most three subjects, identifies the message containing an `RTN-####`
 case ID, reads the customer context, launches Atlas through Spotlight, searches that exact case, and stages an internal
