@@ -106,13 +106,19 @@ def test_live_adapter_uses_one_session_for_stage_and_commit() -> None:
 
 def test_live_adapter_cancel_terminates_retained_session() -> None:
     client = FakeClient()
-    adapter = LiveHoloAdapter(_spec(), lambda _environment: client)
+    released: list[tuple[object, str]] = []
+    adapter = LiveHoloAdapter(
+        _spec(),
+        lambda _environment: client,
+        channel_releaser=lambda release_client, session_id: released.append((release_client, session_id)),
+    )
     reference = adapter.start_session()
     adapter.send_message(reference, "stage only")
 
     adapter.cancel(reference)
 
     assert client.handle.cancelled
+    assert released == [(client, client.handle.id)]
     assert not adapter.is_alive(reference)
     with pytest.raises(ExecutionFault, match="session_lost"):
         adapter.send_message(reference, "commit")

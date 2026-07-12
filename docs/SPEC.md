@@ -188,7 +188,8 @@ verification. This leaves the same H session in `awaiting_tool_results`. Approva
 the commit instruction; rejection, cancellation, or timeout cancels the retained session. The adapter polls the same
 session ID for liveness and uses session cancellation as the host kill path. Every execution is bounded by configured
 step and wall-clock limits. After every terminal run state, including success and provider failure, the worker cancels
-the retained handle as a best-effort resource release so an idle H desktop environment does not consume session quota.
+the retained handle, stops its local bridge, and deletes that bridge's command channel so a finished H desktop
+environment does not continue consuming session quota.
 
 The run has two Holo turns:
 

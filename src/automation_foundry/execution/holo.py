@@ -11,6 +11,7 @@ real signatures (see ``spike.py``).
 from __future__ import annotations
 
 import json
+import logging
 import threading
 import time
 import uuid
@@ -19,6 +20,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Literal, Protocol, cast
 
+import httpx
 from hai_agents import Client, HaiAgentsEnvironment
 from hai_agents.polling import SessionHandle
 from hai_agents.types.agent import Agent
@@ -27,6 +29,7 @@ from hai_agents.types.session_changes_answer import SessionChangesAnswer
 from hai_agents.types.tool_definition import ToolDefinition
 from hai_agents.types.tool_request import ToolRequest
 from hai_agents.types.tool_result_event import ToolResultEvent
+from hai_agents_local.manager import stop_bridges
 
 from desktop_fixtures.store import AppKey, load_state, state_path, write_state_atomic
 
@@ -46,6 +49,8 @@ FAKE_SCRIPTS = (
 
 _APPROVAL_TOOL_NAME = "request_commit_approval"
 _TERMINAL_SESSION_STATUSES = ("completed", "failed", "idle", "interrupted", "timed_out")
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -196,20 +201,24 @@ class LiveHoloAdapter:
         self,
         spec: HoloTaskSpec,
         client_factory: Callable[[HaiAgentsEnvironment], Any] | None = None,
+        channel_releaser: Callable[[Any, str], None] | None = None,
     ):
         """Initialize a deferred live session.
 
         Args:
             spec: Resolved task for the session.
             client_factory: Injectable H client factory for deterministic tests.
+            channel_releaser: Injectable local command-channel cleanup for tests.
         """
         self.spec = spec
         self._client_factory = client_factory or (lambda environment: Client(environment=environment))
+        self._channel_releaser = channel_releaser or _release_local_channels
         self._reference = f"h-live-{uuid.uuid4().hex}"
         self._client: Any | None = None
         self._handle: SessionHandle[SessionChangesAnswer] | Any | None = None
         self._pending_approval: ToolRequest | None = None
         self._cancelled = False
+        self._channel_released = False
         self._last_steps = 0
         self._turns_completed = 0
         self._agent = Agent(
@@ -321,7 +330,13 @@ class LiveHoloAdapter:
             try:
                 self._handle.cancel()
             except Exception:
-                pass
+                logger.warning("Failed to cancel H session %s", self._handle.id, exc_info=True)
+        if self._client is not None and self._handle is not None and not self._channel_released:
+            try:
+                self._channel_releaser(self._client, self._handle.id)
+                self._channel_released = True
+            except Exception:
+                logger.warning("Failed to release local H channel for session %s", self._handle.id, exc_info=True)
 
     def _require_reference(self, session_reference: str) -> None:
         if session_reference != self._reference or self._cancelled:
@@ -406,3 +421,26 @@ def _is_rate_limit(error: BaseException) -> bool:
             return True
         current = current.__cause__ or current.__context__
     return False
+
+
+def _release_local_channels(client: Any, remote_session_id: str) -> None:
+    wrapper = getattr(client, "_client_wrapper", None)
+    if wrapper is None:
+        return
+    session = client.sessions.get_session(remote_session_id)
+    local_session_ids = tuple(
+        str(environment.session_id)
+        for environment in session.request.agent.environments
+        if getattr(environment, "host", None) == "user_device" and getattr(environment, "session_id", None)
+    )
+    if not local_session_ids:
+        return
+    stop_bridges(local_session_ids)
+    token = wrapper._get_api_key()
+    headers = {"Authorization": f"Bearer {token}"}
+    base_url = wrapper.get_base_url().rstrip("/")
+    with httpx.Client(headers=headers, timeout=20) as http_client:
+        for local_session_id in local_session_ids:
+            response = http_client.delete(f"{base_url}/api/v1/trajectories/{local_session_id}/")
+            if response.status_code not in (204, 404):
+                response.raise_for_status()
