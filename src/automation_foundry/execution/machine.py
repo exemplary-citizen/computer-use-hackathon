@@ -638,12 +638,15 @@ class RunCoordinator:
             f'The Python fixture is already running in a visible window titled "{window_title}" '
             f"for target {request.target_app}. Do not open Spotlight, Finder, the Dock, Terminal, or Applications. "
             f'Do not search for an installed app named Meridian or Northlight. Work only in the "{window_title}" '
-            "window that is already on screen.\n\n"
+            "window that is already on screen. Do not invoke Mission Control or interact with the dashboard, browser, "
+            "ChatGPT, or any other window. If the target window is no longer visible, return a failure instead of "
+            "interacting with another application.\n\n"
             "PORTABLE RECORD-OPENING RULE — DO NOT SKIP THESE STEPS:\n"
             f'1. Locate the exact visible record matching "{record_name}" using the current list, table, or search.\n'
             "2. Click the exact matching name or row so that record is visibly selected.\n"
             "3. Inspect whether the requested fields are now editable. Selection alone may only highlight a row.\n"
-            "4. If the fields are not editable, activate the visible Open Record, Edit, or View Details control.\n"
+            "4. If the fields are not editable, double-click the selected row or activate the visible Open Record, "
+            "Edit, or View Details control. Avoid controls near a screen corner.\n"
             f'5. Verify the opened editor still belongs to "{record_name}" before changing any value.\n\n'
             f"APPROVED SKILL:\n{loaded.bundle.skill_markdown}\n\n"
             f"{action}. Requested values: {changes}."

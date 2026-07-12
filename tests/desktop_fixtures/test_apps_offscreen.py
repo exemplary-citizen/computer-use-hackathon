@@ -118,6 +118,11 @@ class CrmBWindowTests(unittest.TestCase):
     def test_window_geometry_is_pinned(self) -> None:
         self.assertEqual((self.window.width(), self.window.height()), (WINDOW_WIDTH, WINDOW_HEIGHT))
 
+    def test_open_record_control_stays_away_from_screen_corner(self) -> None:
+        self.window.show()
+        QApplication.processEvents()
+        self.assertLess(self.window.open_button.geometry().center().x(), self.window.width() // 2)
+
 
 if __name__ == "__main__":
     unittest.main()

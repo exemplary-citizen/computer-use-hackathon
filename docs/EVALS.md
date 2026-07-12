@@ -167,6 +167,8 @@ Required thresholds:
 - [ ] A contact-creation run adds exactly one record after approval and changes no existing record.
 - [ ] CRM B receives no CRM B demonstration, selector, coordinate, or precomputed navigation profile.
 - [ ] On CRM B, Holo selects the exact matching result and opens its editor before attempting to change a field.
+- [ ] CRM B opens the selected record by either its visible Open Record control or a conventional row double-click without activating a macOS screen corner.
+- [ ] Holo does not invoke Mission Control or interact with the dashboard, browser, ChatGPT, or another unrelated window during CRM execution.
 - [ ] After staging, Holo leaves the unsaved editor visibly open and returns its structured result without pressing Escape, switching or minimizing applications, closing the editor, or taking another desktop action.
 - [ ] A failed quality trial still ends safely without an unintended persistent change.
 

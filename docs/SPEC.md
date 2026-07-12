@@ -198,8 +198,10 @@ The same approved bundle must run on either application. A CRM B run receives on
 
 Execution guidance may describe portable interaction semantics needed across layouts: select the exact matching record,
 verify whether its fields are editable, and, when selection exposes only a read-only row or summary, activate a visible
-Open Record, Edit, or View Details action before changing fields. This guidance must not encode coordinates, row
-indices, or fixture-specific selectors.
+Open Record, Edit, or View Details action before changing fields. CRM B also supports the conventional double-click on
+an exact matching result so execution does not depend on a control near a macOS screen corner. Execution must not invoke
+Mission Control or interact with the dashboard, browser, ChatGPT, or another unrelated window while operating the CRM.
+This guidance must not encode coordinates, row indices, or fixture-specific selectors.
 
 Both fixtures provide test-only seed, reset, and persisted-state inspection commands. Those commands are for evaluation and must not be exposed to Holo during live execution.
 
