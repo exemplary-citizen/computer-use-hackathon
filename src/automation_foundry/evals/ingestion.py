@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import re
 from pathlib import Path
 
@@ -80,14 +79,11 @@ _LOCATOR_PATTERNS = (
 def load_gold_fixtures(root: Path) -> list[GoldFixture]:
     """Load every gold.json below a fixture root in stable order."""
     return [
-        GoldFixture.model_validate_json(path.read_text(encoding="utf-8"))
-        for path in sorted(root.glob("*/gold.json"))
+        GoldFixture.model_validate_json(path.read_text(encoding="utf-8")) for path in sorted(root.glob("*/gold.json"))
     ]
 
 
-def score_ingestion(
-    fixtures: list[GoldFixture], observations: list[IngestionObservation]
-) -> IngestionScore:
+def score_ingestion(fixtures: list[GoldFixture], observations: list[IngestionObservation]) -> IngestionScore:
     """Calculate aggregate thresholds from reviewer-confirmed semantic matches."""
     fixture_by_name = {fixture.fixture_name: fixture for fixture in fixtures}
     observation_by_name = {observation.fixture_name: observation for observation in observations}

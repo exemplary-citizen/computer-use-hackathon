@@ -248,13 +248,18 @@ npm run build
 ### 5.1 Environment preflight
 
 1. Confirm supported macOS version and available disk space.
-2. Confirm Python 3.12+, `uv`, Node/npm, FFmpeg, Docker Desktop or Colima, macFUSE, and SSHFS.
-3. Confirm NemoClaw Hermes sandbox health.
-4. Confirm `/sandbox/workspace` is mounted at the expected host path.
-5. Confirm Holo login and H Company model access.
-6. Confirm macOS Accessibility, Screen Recording, Input Monitoring, and microphone permissions.
-7. Confirm Gradium STT and TTS smoke requests.
-8. Confirm no secrets are printed by health or diagnostic endpoints.
+2. Run `uv run foundry-desktop-smoke doctor --require-api-key` and confirm Python 3.12, the public H SDK, its local
+   desktop driver, and the `HAI_API_KEY` environment variable are available without printing the credential.
+3. Run `uv run foundry-desktop-smoke run --confirm-control` three times. Each run must create an unsaved TextEdit
+   document containing the expected sentence, interact with no other application, and settle successfully within its
+   configured twenty-step and three-minute budgets.
+4. Confirm Python 3.12, `uv`, Node/npm, FFmpeg, Docker Desktop or Colima, macFUSE, and SSHFS.
+5. Confirm NemoClaw Hermes sandbox health.
+6. Confirm `/sandbox/workspace` is mounted at the expected host path.
+7. Confirm Holo login and H Company model access.
+8. Confirm macOS Accessibility, Screen Recording, Input Monitoring, and microphone permissions.
+9. Confirm Gradium STT and TTS smoke requests.
+10. Confirm no secrets are printed by health or diagnostic endpoints.
 
 ### 5.2 Authoring walkthrough
 

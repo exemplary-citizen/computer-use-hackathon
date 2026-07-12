@@ -250,11 +250,13 @@ class AutomationManifest(StrictModel):
     @model_validator(mode="after")
     def validate_version_pointers(self) -> AutomationManifest:
         """Ensure approval state and version pointers are internally consistent."""
-        if self.approved_version is not None and self.current_version is None:
+        approved_version = self.approved_version
+        current_version = self.current_version
+        if approved_version is not None and current_version is None:
             raise ValueError("approved_version requires current_version")
-        if self.approved_version is not None and self.approved_version > self.current_version:
+        if approved_version is not None and current_version is not None and approved_version > current_version:
             raise ValueError("approved_version cannot exceed current_version")
-        if self.status is AutomationStatus.APPROVED and self.approved_version is None:
+        if self.status is AutomationStatus.APPROVED and approved_version is None:
             raise ValueError("approved automation requires approved_version")
         return self
 

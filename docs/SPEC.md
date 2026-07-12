@@ -391,7 +391,11 @@ The database is the query index and job coordinator. Versioned files are the can
 ## 12. Technical constraints
 
 - macOS is the only supported MVP host.
-- Python 3.12 or newer is required by the HoloDesktop client.
+- Python 3.12 is the pinned demo interpreter.
+- The day-zero desktop-control probe uses the public `hai-agents[desktop]` local-control API before any adapter,
+  dashboard, voice, or authoring integration is attempted.
+- The probe runs one bounded, non-persistent TextEdit task. It is a feasibility gate, not an alternate execution path,
+  and must not bypass the approved-bundle or commit-approval requirements.
 - Python dependencies use `uv`; frontend dependencies use npm.
 - Backend uses FastAPI, Pydantic, and SQLite.
 - Frontend uses React, Vite, and TypeScript.
@@ -453,6 +457,8 @@ The database is the query index and job coordinator. Versioned files are the can
 There are no unresolved product decisions blocking MVP implementation. The following are implementation feasibility checks, not product choices:
 
 - verify the installed NemoClaw/Hermes version can pass local image evidence to the configured Holo3 endpoint;
+- verify the public `hai-agents[desktop]` local-control example completes three consecutive bounded TextEdit runs on
+  the demo machine before wiring a live execution adapter;
 - verify the macOS shared-mount prerequisites on the demo machine;
 - verify the chosen Gradium voice ID and H Company account have sufficient credits;
 - pin compatible HoloDesktop, NemoClaw, Gradium SDK, and Python versions during the foundation phase.
