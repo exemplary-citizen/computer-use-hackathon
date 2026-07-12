@@ -36,7 +36,8 @@ class FakeSessionHandle:
         else:
             self.steps = 10
             answer = "Saved and visibly verified."
-        return SimpleNamespace(status="idle", outcome="success", answer=answer)
+        outcome = "partial" if self.wait_count == 1 else "success"
+        return SimpleNamespace(status="idle", outcome=outcome, answer=answer)
 
     def status(self):
         return SimpleNamespace(status="idle", steps=self.steps)

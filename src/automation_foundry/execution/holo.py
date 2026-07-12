@@ -202,6 +202,7 @@ class LiveHoloAdapter:
         self._handle: SessionHandle[SessionChangesAnswer] | Any | None = None
         self._cancelled = False
         self._last_steps = 0
+        self._turns_completed = 0
         self._agent = Agent(
             name="automation-foundry-live-executor",
             description="Executes one approved two-turn desktop automation on the local Mac.",
@@ -241,8 +242,9 @@ class LiveHoloAdapter:
             raise fault("holo_unreachable", type(exc).__name__) from exc
         status = str(result.status)
         outcome = str(result.outcome) if result.outcome is not None else None
-        if status not in ("idle", "completed") or outcome != "success":
-            code = "budget_exceeded" if status == "timed_out" else "session_lost"
+        allowed_outcomes = ("success", "partial") if self._turns_completed == 0 else ("success",)
+        if status not in ("idle", "completed") or outcome not in allowed_outcomes:
+            code = "budget_exceeded" if status == "timed_out" else "wrong_app_state"
             raise fault(code, f"status={status}, outcome={outcome or 'unknown'}")
         answer = result.answer
         if answer is None:
@@ -251,6 +253,7 @@ class LiveHoloAdapter:
         total_steps = int(status_snapshot.steps or self._last_steps)
         turn_steps = max(0, total_steps - self._last_steps)
         self._last_steps = total_steps
+        self._turns_completed += 1
         return TurnOutcome(
             answer=json.dumps(answer, sort_keys=True) if isinstance(answer, dict) else str(answer),
             steps_used=turn_steps,
