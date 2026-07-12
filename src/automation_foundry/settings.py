@@ -2,14 +2,14 @@
 
 from pathlib import Path
 
-from pydantic import SecretStr
+from pydantic import AliasChoices, Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class AppSettings(BaseSettings):
     """Runtime paths and provider credentials; no dotenv file is loaded implicitly."""
 
-    model_config = SettingsConfigDict(env_prefix="FOUNDRY_", extra="ignore")
+    model_config = SettingsConfigDict(env_prefix="FOUNDRY_", extra="ignore", populate_by_name=True)
 
     data_root: Path = Path("data/automations")
     database_path: Path = Path("data/automation_foundry.sqlite3")
@@ -22,7 +22,10 @@ class AppSettings(BaseSettings):
     telegram_bot_token: SecretStr | None = None
     telegram_owner_id: int | None = None
     telegram_inbox_root: Path = Path("data/telegram-inbox")
-    gradium_api_key: SecretStr | None = None
+    gradium_api_key: SecretStr | None = Field(
+        default=None,
+        validation_alias=AliasChoices("FOUNDRY_GRADIUM_API_KEY", "GRADIUM_API_KEY"),
+    )
     allow_untranscribed_audio: bool = False
     hermes_api_key: SecretStr | None = None
     hermes_base_url: str = "http://127.0.0.1:8642/v1"

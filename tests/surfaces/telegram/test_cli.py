@@ -7,6 +7,16 @@ from automation_foundry.settings import AppSettings
 from automation_foundry.surfaces.telegram import cli
 
 
+def test_settings_accept_common_gradium_environment_name(monkeypatch) -> None:
+    monkeypatch.delenv("FOUNDRY_GRADIUM_API_KEY", raising=False)
+    monkeypatch.setenv("GRADIUM_API_KEY", "test-gradium-key")
+
+    settings = AppSettings()
+
+    assert settings.gradium_api_key is not None
+    assert settings.gradium_api_key.get_secret_value() == "test-gradium-key"
+
+
 def test_resolve_settings_discovers_masked_local_gateway_token(monkeypatch, tmp_path: Path) -> None:
     captured_command: tuple[str, ...] | None = None
 
