@@ -133,6 +133,57 @@ class NemoClawWorkspaceTransport:
         self._exec("test", "-s", str(job.evidence_path))
         self._exec("test", "-s", str(job.schema_path))
 
+    def publish_tool_test(self, host_root: Path, sandbox_root: PurePosixPath) -> None:
+        """Upload one validated tool-test job into the sandbox.
+
+        Args:
+            host_root: Host-side staged job directory.
+            sandbox_root: Matching sandbox destination.
+        """
+        if self.sandbox_root is None:
+            raise RuntimeError("NemoClaw workspace transport is not initialized")
+        expected_parent = self.sandbox_root / "automation-foundry/tool-tests"
+        if sandbox_root.parent != expected_parent or not host_root.is_dir():
+            raise RuntimeError("NemoClaw tool test path is invalid")
+        self._exec("mkdir", "-p", str(expected_parent))
+        self._run(
+            (
+                self.config.binary,
+                self.config.sandbox_name,
+                "upload",
+                str(host_root),
+                f"{expected_parent}/",
+            ),
+            "tool test upload",
+        )
+        self._exec("test", "-s", str(sandbox_root / "request.json"))
+        self._exec("test", "-s", str(sandbox_root / "input/run_tool_tests.py"))
+
+    def download_tool_test_result(self, sandbox_path: PurePosixPath, host_path: Path) -> None:
+        """Download one bounded tool-test result from the sandbox.
+
+        Args:
+            sandbox_path: Validated sandbox result path.
+            host_path: Matching host result destination.
+        """
+        if self.sandbox_root is None:
+            raise RuntimeError("NemoClaw workspace transport is not initialized")
+        expected_parent = self.sandbox_root / "automation-foundry/tool-tests"
+        if not sandbox_path.is_relative_to(expected_parent) or sandbox_path.name != "result.json":
+            raise RuntimeError("NemoClaw tool test result path is invalid")
+        self._run(
+            (
+                self.config.binary,
+                self.config.sandbox_name,
+                "download",
+                str(sandbox_path),
+                str(host_path),
+            ),
+            "tool test download",
+        )
+        if not host_path.is_file():
+            raise RuntimeError("NemoClaw tool test download failed")
+
     def _exec(self, *command: str) -> None:
         self._run(
             (
@@ -282,6 +333,36 @@ class WorkspaceBridge:
         if output.stat().st_size > self.config.max_result_bytes:
             raise ValueError("Generation result exceeds configured size limit")
         return output.read_text(encoding="utf-8")
+
+    def publish_tool_test(self, host_root: Path, sandbox_root: PurePosixPath) -> None:
+        """Publish a tool-test job when authenticated upload transport is configured.
+
+        Args:
+            host_root: Host-side staged job directory.
+            sandbox_root: Matching sandbox destination.
+        """
+        expected_host_root = self.config.host_mount / Path(
+            sandbox_root.relative_to(self.config.sandbox_root).as_posix()
+        )
+        if host_root.resolve() != expected_host_root.resolve():
+            raise RuntimeError("Tool test host and sandbox paths do not match")
+        if self.transport is not None:
+            self.transport.publish_tool_test(host_root, sandbox_root)
+
+    def download_tool_test_result(self, sandbox_path: PurePosixPath, host_path: Path) -> None:
+        """Retrieve a tool-test result when authenticated upload transport is configured.
+
+        Args:
+            sandbox_path: Validated sandbox result path.
+            host_path: Matching host result destination.
+        """
+        expected_host_path = self.config.host_mount / Path(
+            sandbox_path.relative_to(self.config.sandbox_root).as_posix()
+        )
+        if host_path.resolve() != expected_host_path.resolve():
+            raise RuntimeError("Tool test result host and sandbox paths do not match")
+        if self.transport is not None:
+            self.transport.download_tool_test_result(sandbox_path, host_path)
 
     def _assert_ready(self) -> None:
         marker = self.config.host_mount / "automation-foundry" / ".workspace-version"

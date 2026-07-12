@@ -277,7 +277,7 @@ def build_authoring_service(settings: AppSettings) -> AuthoringService:
             model=settings.hermes_model,
         ).make()
         pipeline = IngestionPipeline(preprocessor, BundleGenerator(workspace, client), bundles)
-        tool_test_runner = SandboxToolTestRunner(workspace, HermesToolTestExecutor(client))
+        tool_test_runner = SandboxToolTestRunner(workspace, HermesToolTestExecutor(client, workspace))
     service = AuthoringService(
         store,
         UploadPolicyConfig().make(store),
