@@ -6,20 +6,27 @@ the two-turn run state machine remain in Member 2's lane.
 ## Prerequisites
 
 - macOS with Python 3.12 or newer, `uv`, Node/npm, and FFmpeg/FFprobe;
-- a mounted NemoClaw workspace corresponding to `/sandbox/workspace`;
-- a Hermes API forward available at `http://127.0.0.1:8642/v1` by default;
-- a Hermes bearer token and, for narrated video, a Gradium API key.
+- an OpenRouter API key with access to `google/gemini-3.5-flash`;
+- HoloDesktop credentials only for the later execution phase.
 
-The backend reads configuration from the process environment only. It does not load a `.env` file automatically.
+The default hackathon path needs an OpenRouter API key and sends the accepted original video directly to Gemini. The
+backend reads configuration from the process environment only. It does not load a `.env` file automatically.
+
+For the hackathon OpenRouter/Gemini path, set:
 
 ```bash
-export FOUNDRY_WORKSPACE_MOUNT=/absolute/host/path/to/sandbox-workspace
-export FOUNDRY_HERMES_API_KEY=replace-with-local-secret
-export FOUNDRY_GRADIUM_API_KEY=replace-with-local-secret
+export FOUNDRY_GENERATION_PROVIDER=openrouter_video
+export FOUNDRY_OPENROUTER_API_KEY="$OPENROUTER_API_KEY"
+export FOUNDRY_OPENROUTER_MODEL=google/gemini-3.5-flash
+export FOUNDRY_WORKSPACE_REQUIRE_MOUNT=false
 ```
 
-Optional settings include `FOUNDRY_HERMES_BASE_URL`, `FOUNDRY_HERMES_MODEL`, `FOUNDRY_DATA_ROOT`,
-`FOUNDRY_DATABASE_PATH`, `FOUNDRY_PUBLISHED_SKILL_ROOT`, and `FOUNDRY_WORKSPACE_REQUIRE_MOUNT`.
+This mode sends the uploaded video as a base64 `video_url` plus normalized SOP metadata to Gemini. HoloDesktop is
+reserved for executing the approved skill on the desktop.
+
+The legacy `hermes_workspace` provider additionally requires a mounted NemoClaw workspace, a Hermes API forward and
+bearer token, and a Gradium key for narrated-video transcription. Optional path settings include `FOUNDRY_DATA_ROOT`,
+`FOUNDRY_DATABASE_PATH`, and `FOUNDRY_PUBLISHED_SKILL_ROOT`.
 
 ## Run locally
 
@@ -44,7 +51,7 @@ Both servers bind to loopback. Vite proxies `/api` to the backend on port 8000.
 
 1. Create an automation and accept the provider disclosure.
 2. Upload one supported video, one supported SOP, or one of each.
-3. Wait for preprocessing and Hermes/Holo3 generation.
+3. Wait for preprocessing and OpenRouter/Gemini generation.
 4. Review the semantic procedure, Holo skill, schemas, evidence, conflicts, generated code, and tests.
 5. Resolve blocking conflicts and fix validation findings.
 6. For bundles with generated tools, run the sandbox tool tests.
@@ -52,6 +59,17 @@ Both servers bind to loopback. Vite proxies `/api` to the backend on port 8000.
 
 Approval binds to hashes for every runnable artifact. Editing an approved artifact forks a new unapproved version.
 Startup reconciliation removes published skills when approved bytes are missing or changed.
+
+Approval also atomically writes the execution handoff at
+`data/automations/<automation-id>/approved_bundle.json`. Point execution at the selected approved result before a
+smoke or live run:
+
+```bash
+export FOUNDRY_BUNDLE_PATH=/absolute/path/to/data/automations/<automation-id>/approved_bundle.json
+uv run python -m automation_foundry.execution.smoke run --app a
+```
+
+Editing, deactivating, or failing reconciliation removes this handoff so execution cannot use stale approval bytes.
 
 ## Verification
 

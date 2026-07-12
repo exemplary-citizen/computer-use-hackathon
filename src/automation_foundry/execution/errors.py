@@ -128,8 +128,8 @@ FAULTS: dict[str, FaultSpec] = {
         FaultSpec(
             code="wrong_app_state",
             message="The target application was not visible or not in a usable state.",
-            cause="The stage turn could not find the requested CRM window.",
-            remediation="Launch the target CRM (crm-fixture launch --app a|b), keep it frontmost, and start a new run.",
+            cause="The requested CRM app bundle was missing, failed to launch, or exited during startup.",
+            remediation=("Rebuild the CRM bundles if needed, restart ./scripts/run_demo.sh, and start a new run."),
             docs_anchor="evals#3.7-holo-execution-reliability",
         ),
         FaultSpec(

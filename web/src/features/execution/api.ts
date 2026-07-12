@@ -2,23 +2,38 @@ import type { RunState } from "../../contracts";
 
 const ROOT = "/api/execution";
 
-/** The three inputs declared by the approved bundle. */
-export interface RunInputs {
-  lead_name: string;
-  lifecycle_status: string;
-  owner_name: string;
-}
+/** Runtime values declared by the currently approved bundle. */
+export type RunInputs = Record<string, string>;
 
 export const TARGET_APPS = [
   { value: "crm_a", label: "CRM A — Northlight" },
   { value: "crm_b", label: "CRM B — Meridian" },
 ] as const;
 
+export const DEFAULT_TARGET_APP = "crm_b";
+
 export const RUN_INPUT_FIELDS = [
-  { name: "lead_name", label: "Lead name", placeholder: "Ada Lovelace" },
-  { name: "lifecycle_status", label: "Lifecycle status", placeholder: "Qualified" },
-  { name: "owner_name", label: "Owner", placeholder: "Sam Chen" },
+  { name: "lead_name", label: "Lead name", placeholder: "Ada Lovelace", required: true },
+  { name: "lifecycle_status", label: "Lifecycle status", placeholder: "Qualified", required: true },
+  { name: "owner_name", label: "Owner", placeholder: "Sam Chen", required: true },
 ] as const;
+
+export interface RuntimeInputDefinition {
+  name: string;
+  json_type: string;
+  description: string;
+  required: boolean;
+  default: unknown;
+  examples: unknown[];
+}
+
+export interface ExecutionAutomation {
+  name: string;
+  version: number;
+  operation: "update" | "create";
+  inputs: RuntimeInputDefinition[];
+  input_schema: Record<string, unknown>;
+}
 
 /** Short label used in headlines and button copy. */
 export function targetAppLabel(targetApp: string): string {
@@ -31,7 +46,10 @@ export function targetAppFullLabel(targetApp: string): string {
 }
 
 export function inputLabel(name: string): string {
-  return RUN_INPUT_FIELDS.find((field) => field.name === name)?.label ?? name.replaceAll("_", " ");
+  const known = RUN_INPUT_FIELDS.find((field) => field.name === name)?.label;
+  if (known) return known;
+  const words = name.replace(/^new_/, "").replaceAll("_", " ");
+  return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
 export interface ExecutionFaultPayload {
@@ -217,6 +235,7 @@ export function eventStreamUrl(runId: string, sinceSeq: number): string {
 }
 
 export const executionApi = {
+  getAutomation: () => get<ExecutionAutomation>("/automation"),
   prepareRun: (targetApp: string, inputs: RunInputs) =>
     post<RunPreview>("/runs", { target_app: targetApp, inputs }),
   confirmStart: (runId: string) => post<{ status: string }>(`/runs/${runId}/confirm-start`),

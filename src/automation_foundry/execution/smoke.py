@@ -74,10 +74,22 @@ def run(
         if prepared.status_code != 201:
             print(f"prepare FAILED ({prepared.status_code}): {json.dumps(prepared.json(), indent=2)}")
             raise SystemExit(1)
-        run_id = prepared.json()["request"]["id"]
+        prepared_request = prepared.json()["request"]
+        run_id = prepared_request["id"]
+        # The adapter's turn deadline adds 30 seconds to the runtime budget, then
+        # performs fail-closed cancellation/transport cleanup. Keep the smoke
+        # harness outside that envelope so it can observe the terminal result.
+        live_turn_timeout = float(prepared_request["max_time_seconds"]) + 90.0
         print(f"prepared run {run_id}")
         client.post(f"/api/execution/runs/{run_id}/confirm-start", headers=headers)
-        status = _wait_for(client, run_id, "awaiting_commit_approval", "failed", "cancelled")
+        status = _wait_for(
+            client,
+            run_id,
+            "awaiting_commit_approval",
+            "failed",
+            "cancelled",
+            timeout=live_turn_timeout if live else 60.0,
+        )
         if status["state"] != "awaiting_commit_approval":
             _print_terminal(status, fixture_path, baseline)
             raise SystemExit(1)
@@ -103,7 +115,14 @@ def run(
         else:
             print(f"  waiting out the approval window ({os.environ['FOUNDRY_APPROVAL_TIMEOUT_SECONDS']}s)…")
 
-        status = _wait_for(client, run_id, "succeeded", "failed", "cancelled", timeout=120)
+        status = _wait_for(
+            client,
+            run_id,
+            "succeeded",
+            "failed",
+            "cancelled",
+            timeout=live_turn_timeout if live and decision == "approve" else 120.0,
+        )
         _print_terminal(status, fixture_path, baseline)
         expected_state = {"approve": "succeeded", "reject": "cancelled", "timeout": "cancelled"}[decision]
         if status["state"] != expected_state:

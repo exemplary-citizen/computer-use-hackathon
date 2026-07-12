@@ -10,7 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Literal
 
-from pydantic import SecretStr
+from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 HoloMode = Literal["mock", "live"]
@@ -27,6 +27,10 @@ class ExecutionSettings(BaseSettings):
     """Behavior of the fake adapter (see execution.holo.FAKE_SCRIPTS)."""
     approval_timeout_seconds: float = 120.0
     """Commit-approval window; expiry cancels the run without saving."""
+    auto_approve: bool = False
+    """Demo-only: immediately approve a verified staged change without waiting for UI input."""
+    one_shot_demo: bool = False
+    """Demo-only: run one plain Holo task, commit in that turn, then verify persisted state."""
     heartbeat_seconds: float = 10.0
     """Max silent interval on the event stream while a Holo turn is in flight."""
     hard_max_steps: int = 60
@@ -51,6 +55,12 @@ class ExecutionSettings(BaseSettings):
     """SQLite index for run rows and the single-active-run guard."""
     fixture_data_root: Path | None = None
     """Override for desktop-fixture state files (tests point this at a temp dir)."""
+    launch_fixture_on_run: bool = True
+    """In live mode, launch the selected bundled CRM before creating the Holo session."""
+    fixture_launch_wait_seconds: float = Field(default=5.0, ge=0.1, le=10)
+    """Window for the native fixture process to become ready."""
+    holo_overlay_path: Path | None = None
+    """Optional shared state file for the click-through CRM visualization overlay."""
 
     def clamp_budgets(self, max_steps: int, max_time_seconds: int) -> tuple[int, int]:
         """Clamp requested budgets to the configured hard caps.

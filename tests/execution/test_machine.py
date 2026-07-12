@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
 import unittest
 from pathlib import Path
@@ -13,6 +14,7 @@ from desktop_fixtures.store import load_state, state_path
 from automation_foundry.contracts import InvocationSource, RunState
 from automation_foundry.contracts.transitions import require_run_transition
 from automation_foundry.execution.errors import ExecutionFault
+from automation_foundry.execution.holo import HoloDiagnostic, HoloTaskSpec, ScriptedFakeHolo
 from automation_foundry.execution.machine import InputValidationError, RunCoordinator
 
 from tests.execution.helpers import CANONICAL_INPUTS, make_settings, wait_for_state
@@ -61,6 +63,73 @@ class MachineTestBase(unittest.IsolatedAsyncioTestCase):
 
 
 class HappyPathTests(MachineTestBase):
+    async def test_live_run_ensures_target_fixture_is_running_before_holo(self) -> None:
+        calls: list[tuple[str, Path | None, float]] = []
+        task_texts: list[str] = []
+        task_specs: list[HoloTaskSpec] = []
+        progress: list[HoloDiagnostic] = []
+        settings = self.settings.model_copy(update={"holo_mode": "live"})
+
+        class DiagnosticFake(ScriptedFakeHolo):
+            def send_message(self, session_reference: str, message: str):
+                progress.append(
+                    HoloDiagnostic(
+                        event_type="runtime_policy_event",
+                        message="Holo action: click_desktop — Sarah Chen row.",
+                        payload={"x": 0.25, "y": 0.325},
+                    )
+                )
+                return super().send_message(session_reference, message)
+
+            def drain_diagnostics(self) -> list[HoloDiagnostic]:
+                captured = list(progress)
+                progress.clear()
+                return captured
+
+        def launch(app, data_root, wait_seconds):
+            calls.append((app, data_root, wait_seconds))
+            return True
+
+        def adapter(spec):
+            task_texts.append(spec.task_text)
+            task_specs.append(spec)
+            return DiagnosticFake(
+                spec=spec,
+                script="stage-ok",
+                data_root=settings.fixture_data_root,
+            )
+
+        coordinator = RunCoordinator(
+            settings,
+            adapter_factory=adapter,
+            fixture_launcher=launch,
+        )
+        await coordinator.startup()
+        preview = await coordinator.prepare("CRM A", dict(CANONICAL_INPUTS), InvocationSource.DASHBOARD)
+        await coordinator.confirm_start(preview.request.id)
+        await wait_for_state(coordinator, preview.request.id, RunState.AWAITING_COMMIT_APPROVAL)
+
+        self.assertEqual(calls, [("a", settings.fixture_data_root, settings.fixture_launch_wait_seconds)])
+        self.assertIn('visible window titled "Northlight CRM"', task_texts[0])
+        self.assertIn("Do not open Spotlight", task_texts[0])
+        self.assertIn("Click the exact matching name or row", task_texts[0])
+        self.assertIn("Open Record, Edit, or View Details", task_texts[0])
+        self.assertIn("double-click the selected row", task_texts[0])
+        self.assertIn("Do not invoke Mission Control", task_texts[0])
+        self.assertIn("return a failure instead of interacting with another application", task_texts[0])
+        self.assertIn('Verify the opened editor still belongs to "Sarah Chen"', task_texts[0])
+        self.assertIn("the only permitted target", task_texts[0])
+        stage_prompt = coordinator._stage_prompt(task_specs[0])
+        self.assertIn("leave the editor visibly open with the unsaved staged values", stage_prompt)
+        self.assertIn("do not press Escape", stage_prompt)
+        self.assertIn("switch or minimize applications", stage_prompt)
+        self.assertIn("Immediately return control", stage_prompt)
+        events = coordinator.events.replay(preview.request.id)
+        self.assertTrue(any(event.event_type == "target_app_ready" for event in events))
+        self.assertTrue(any(event.event_type == "holo_progress" for event in events))
+        self.assertTrue(any("Sarah Chen row" in event.message for event in events))
+        await coordinator.cancel(preview.request.id)
+
     async def test_full_stage_approve_commit_flow(self) -> None:
         run_id = await self.staged_run()
         self.assert_fixture_unchanged()  # nothing persisted before approval
@@ -97,6 +166,60 @@ class HappyPathTests(MachineTestBase):
         state = load_state(self.fixture_a)
         sarah = next(record for record in state.records if record.full_name == "Sarah Chen")
         self.assertEqual(sarah.status, "Qualified")
+
+    async def test_create_contact_stages_then_adds_exactly_one_record_after_approval(self) -> None:
+        bundle_path = self.settings.bundle_path
+        bundle = json.loads(bundle_path.read_text(encoding="utf-8"))
+        bundle["input_schema"] = {
+            "type": "object",
+            "properties": {
+                "first_name": {"type": "string"},
+                "last_name": {"type": "string"},
+                "company": {"type": "string"},
+                "lifecycle_status": {"type": "string"},
+                "owner_name": {"type": "string"},
+            },
+            "required": ["first_name", "last_name"],
+            "additionalProperties": False,
+        }
+        bundle["version"]["inputs"] = [
+            {
+                "name": name,
+                "json_type": "string",
+                "description": name.replace("_", " "),
+                "required": name in {"first_name", "last_name"},
+                "default": None,
+                "examples": [],
+            }
+            for name in ("first_name", "last_name", "company", "lifecycle_status", "owner_name")
+        ]
+        bundle_path.write_text(json.dumps(bundle, indent=2) + "\n", encoding="utf-8")
+        inputs = {
+            "first_name": "Amina",
+            "last_name": "Diallo",
+            "company": "Sunbird Labs",
+            "lifecycle_status": "Qualified",
+            "owner_name": "Priya Shah",
+        }
+        preview = await self.coordinator.prepare("CRM A", inputs, InvocationSource.DASHBOARD)
+        baseline = load_state(self.fixture_a)
+        await self.coordinator.confirm_start(preview.request.id)
+        await wait_for_state(self.coordinator, preview.request.id, RunState.AWAITING_COMMIT_APPROVAL)
+        self.assertEqual(load_state(self.fixture_a), baseline)
+        staged = self.coordinator.staged_change(preview.request.id)
+        assert staged is not None
+        self.assertTrue(all(change.before is None for change in staged.changes))
+        await self.coordinator.approve_commit(
+            preview.request.id,
+            staged.payload_sha256,
+            InvocationSource.DASHBOARD,
+            "tester",
+        )
+        self.assertEqual(await self.finish(preview.request.id), "succeeded")
+        state = load_state(self.fixture_a)
+        self.assertEqual(state.records[:-1], baseline.records)
+        self.assertEqual(state.records[-1].full_name, "Amina Diallo")
+        self.assertEqual(state.records[-1].company, "Sunbird Labs")
 
 
 class ApprovalSafetyTests(MachineTestBase):

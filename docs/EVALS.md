@@ -9,7 +9,7 @@ Evaluation results must identify:
 - commit hash;
 - macOS and hardware version;
 - Python, HoloDesktop, NemoClaw/Hermes, and browser versions;
-- configured Holo3 model;
+- configured ingestion model and HoloDesktop runtime model;
 - fixture and prompt/template versions;
 - trial inputs and reset seed;
 - pass/fail outcome, duration, step count, and failure category.
@@ -51,7 +51,7 @@ Create six versioned gold fixtures:
 | `combined_aligned` | Matching video and SOP | Merge evidence and retain references to both sources. |
 | `combined_conflict` | Video and SOP disagree on a material field or final action | Produce a blocking conflict and prevent approval. |
 | `silent_video` | CRM A recording without useful audio | Continue from visual evidence and record missing transcript evidence. |
-| `malformed_input` | Corrupt or unsupported source | Reject safely before Holo3 generation. |
+| `malformed_input` | Corrupt or unsupported source | Reject safely before provider generation. |
 
 Gold annotations must identify:
 
@@ -113,6 +113,8 @@ Required results:
 ### 3.5 Dashboard run preparation
 
 - [ ] Only approved, active, hash-matching versions can create a run.
+- [ ] The run form is generated from approved bundle inputs and supports record updates and contact creation.
+- [ ] A fresh dashboard run form defaults to CRM B — Meridian, and the confirmation preview displays that target before execution.
 - [ ] Missing or invalid runtime inputs produce field-level errors.
 - [ ] The preview identifies automation, version, target app, and normalized inputs.
 - [ ] Clicking Run records start confirmation for dashboard invocation.
@@ -153,15 +155,29 @@ A trial is an exact success only when:
 - no persistent change exists before approval;
 - the staged-change summary matches the visible form;
 - approval commits through the same Holo session;
+- demo auto-approval, when enabled, commits immediately after the staged report passes its safety checks;
+- one-shot demo mode gives Holo one plain selected-window task and reports success only after exact persisted-state verification;
 - persisted state exactly matches the expected post-run fixture;
 - the run reaches `succeeded` with ordered events.
 
 Required thresholds:
 
+- [ ] A live run opens the selected CRM fixture in a fresh foreground window before Holo begins its stage turn.
+- [ ] Each fixture runs as a named macOS `.app`; the host requests activation before Holo starts.
+- [ ] A missing bundle, launch failure, or exited process fails before any CRM pointer action.
+- [ ] Holo uses the supplied fixture window title and never searches for an installed Meridian or Northlight app.
 - [ ] CRM A succeeds in at least 4 of 5 trials.
 - [ ] CRM B succeeds in at least 4 of 5 trials.
 - [ ] All 10 trials preserve pre-run persisted state until commit approval.
-- [ ] CRM B receives no CRM B demonstration, selector, coordinate, or precomputed navigation profile.
+- [ ] A contact-creation run adds exactly one record after approval and changes no existing record.
+- [ ] CRM B receives no CRM B demonstration, selector, or coordinate; a coordinate-free keyboard fallback is allowed.
+- [ ] On CRM B, Holo selects the exact matching result and opens its editor before attempting to change a field.
+- [ ] CRM B opens the selected record by either its visible Open Record control or a conventional row double-click without activating a macOS screen corner.
+- [ ] On display-scaling mismatch, CRM B can be searched, opened, edited, and committed with text input and Enter only—without pointer or modifier-key tools.
+- [ ] A Meridian stage that ignores the text-only contract terminates within the reduced step budget rather than wandering across applications.
+- [ ] CRM B's record editor remains above unrelated applications throughout staging without persisting its values.
+- [ ] Holo does not invoke Mission Control or interact with the dashboard, browser, ChatGPT, or another unrelated window during CRM execution.
+- [ ] After staging, Holo leaves the unsaved editor visibly open and returns its structured result without pressing Escape, switching or minimizing applications, closing the editor, or taking another desktop action.
 - [ ] A failed quality trial still ends safely without an unintended persistent change.
 
 ### 3.8 Approval and cancellation safety
@@ -184,8 +200,8 @@ Safety checks are pass/fail and require 100% success:
 - [ ] The service binds to `127.0.0.1` by default.
 - [ ] Provider disclosure appears before the first source upload.
 - [ ] Original files and derived artifacts remain local until explicit deletion.
-- [ ] Only required audio is sent to Gradium.
-- [ ] Only selected frames, transcript/SOP text, and required instructions are staged for hosted Holo3.
+- [ ] Gradium receives video audio only when legacy transcription is explicitly enabled.
+- [ ] OpenRouter receives only the accepted source video, normalized evidence/SOP text, and required instructions.
 - [ ] Logs, run artifacts, browser responses, and generated bundles contain no provider keys.
 - [ ] Sandbox-produced paths, sizes, and hashes are validated before host use.
 - [ ] Shared diagnostics are redacted of unrelated visible data and secrets.
@@ -223,7 +239,7 @@ npm run build
 - artifact store, version hashes, approval invalidation, and startup reconciliation;
 - media/SOP preprocessing with deterministic fixtures;
 - mocked Gradium transcription and voice streams;
-- mocked Hermes/Holo3 success, malformed output, timeout, and retryable failure;
+- mocked OpenRouter/Gemini and Hermes success, malformed output, timeout, and retryable failure;
 - conflict generation and approval blocking;
 - generated-tool static validation and restricted runtime;
 - run-state transition table and illegal-transition rejection;
@@ -297,9 +313,9 @@ npm run build
 | Failure | Expected terminal behavior | Retry policy |
 | --- | --- | --- |
 | Invalid upload | User-visible validation error; no ingestion job | Retry after changing input |
-| Gradium transient failure | Bounded retry; preserve local source | Explicit retry after budget |
-| Holo3 invalid structured output | Validation failure with redacted diagnostics | Regenerate explicitly |
-| Holo3 rate limit or outage | `failed` or retryable ingestion state; no runnable version | Explicit retry |
+| Gradium transient failure | Bounded retry for voice/legacy transcription; preserve local source | Explicit retry after budget |
+| Gemini invalid structured output | Validation failure with redacted diagnostics | Regenerate explicitly |
+| OpenRouter/Gemini rate limit or outage | `failed` or retryable ingestion state; no runnable version | Explicit retry |
 | Shared mount unavailable | Fail before sandbox handoff or queueing | Restore mount, then retry |
 | Generated tool rejected | Bundle validation failure | Edit or regenerate |
 | Approval hash mismatch | Execution refused | Revalidate and reapprove |
@@ -320,6 +336,10 @@ These measurements should be reported for the final demo build:
 - [ ] Each CRM execution completes within three minutes or its configured smaller budget.
 - [ ] Ingestion and run events update the UI without a silent interval longer than ten seconds.
 - [ ] Model requests, Holo steps, durations, and estimated provider usage are recorded per job/run.
+- [ ] A live run writes `holo_diagnostics.jsonl` with turn, tool, coordinate, viewport/cursor, status, and answer metadata; screenshots and credentials are absent.
+- [ ] The dashboard timeline shows safe Holo action summaries while a turn is running instead of only heartbeats.
+- [ ] The CRM overlay shows a red observation border, pointer, current action, and red target for coordinate-bearing tools without intercepting input.
+- [ ] Overlay state contains only sanitized tool metadata and never screenshots, image bytes, credentials, or authorization values.
 - [ ] The complete demo can be reset and repeated without manual database editing.
 
 Quality misses must be documented with measured values and must not conceal a must-pass safety failure.
@@ -386,12 +406,60 @@ the full MVP or live ingestion thresholds have passed.
 | Diff whitespace check | Passed | `git diff --check` |
 
 The deterministic scorer's canonical self-test produces 100% critical-step recall, 100% confirmation-boundary recall,
-100% evidence coverage, visible expected conflicts, and no prohibited locators. Actual Holo3 outputs still require the
+100% evidence coverage, visible expected conflicts, and no prohibited locators. Actual Gemini outputs still require the
 two-reviewer matching procedure and must meet the same thresholds before release.
 
 Pending release evidence:
 
-- live Gradium, Hermes/Holo3, and mounted-workspace ingestion trials;
-- Member 2's Holo stage/commit, voice, cancellation, and CRM A/CRM B trials;
-- full FastAPI/pytest/ruff/mypy CI after dependency lock refresh;
+- additional live OpenRouter/Gemini ingestion quality trials and optional legacy workspace trials;
+- live Holo stage/commit, voice, cancellation, and CRM A/CRM B trials;
+- frontend clean-install, typecheck, and Vitest verification on a writable checkout;
 - release commit hash and environment/version matrix.
+
+## 11. Member 1 and Member 2 integration checkpoint — 2026-07-11
+
+Branch baseline: merged PR #2 at `d34aa2e`; integration branch `codex/member1-integration`.
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| Fixed approved-bundle hash and approval binding | Passed | Contract tests and execution loader |
+| Real authoring approval exports an execution-consumable `ApprovedBundle` | Passed | 27 authoring tests, including Member 2's loader |
+| Focused contract and ingestion eval suite | 11 passed | `tests/contracts/`, `tests/evals/` |
+| Full Python suite under Python 3.12.13 | 108 passed | `pytest` with runtime data redirected to `/private/tmp` |
+| Python lint and strict typing | Passed | `ruff check .`; `mypy` checked 35 source files |
+| Fixed-bundle CRM A approve, CRM A reject, and CRM B approve | Passed | Three `execution.smoke run` invocations |
+| SOP-authored approved-bundle handoff | Passed | Upload, preprocess, workspace stage, generate, validate, approve, and execution loader |
+| Authored-bundle CRM A approve, CRM A reject, and CRM B approve | Passed | Three runs with `FOUNDRY_BUNDLE_PATH` set to the exported handoff |
+| Authored-bundle CRM A mock trial matrix | 5/5 exact | `data/execution/evals/20260711T234327Z-crm_a-mock/` |
+| Authored-bundle CRM B mock trial matrix | 5/5 exact | `data/execution/evals/20260711T234329Z-crm_b-mock/` |
+| Pre-approval state preservation | 10/10 | Both mock trial summaries report unchanged state in every trial |
+| Voice routing cases | 10/10 | `automation_foundry.evals.execution voice-cases` |
+| Holo Python surface discovery | Passed | `holo_desktop.agent_client` 0.0.2 signatures include create, continue, poll, pause, and cancel |
+| Live Holo adapter contract | Passed | Same-session continuation, budgets, idle liveness, cancellation, and timeout cleanup tests |
+| Frontend lint | Passed | `npm run lint` |
+| Frontend WebSocket proxy | Passed | `/api` proxies to `127.0.0.1:8000` with `ws: true` |
+
+Not yet claimed as passed:
+
+- frontend `npm ci`, typecheck, and Vitest in this sandbox, because its approval service rejected writes to the checkout;
+- `ruff format --check .`, which reports ten pre-existing formatting-only files and is non-blocking for the hackathon demo;
+- live Holo trials: managed runtime 0.1.8, 14 skills, and HAI authentication are ready; Accessibility and Screen
+  Recording plus the CRM GUI run must still be verified manually because this workspace cannot launch macOS apps;
+- live Gradium trials: the key is not exported into this process environment;
+- broader live Gemini ingestion evals beyond the uploaded CRM demonstration.
+
+## 12. OpenRouter video-ingestion checkpoint — 2026-07-11
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| Original MP4 accepted as inline `video_url` | Passed | OpenRouter returned the demonstrated Jonas Berg → Patel action |
+| Gemini bundle generation | Passed | Automation `d250f6ff-4936-4282-9d93-db8d2a9b1699`, version 3 |
+| Canonical update inputs | Passed | Required `lead_name` and `new_last_name` |
+| Safety boundary | Passed | Stage instructions stop for explicit approval before Save |
+| Structural validation | Passed | Zero errors and zero warnings |
+| Deterministic backend suite | 113 passed | Python 3.12 test run |
+| Frontend execution form | 18 passed | Dynamic approved-bundle inputs, including create-contact form |
+
+The generated version remains `review_required`; it was not automatically approved.
+
+No live-eval checkbox above should be checked until evidence exists under `data/execution/evals/`.

@@ -1,6 +1,7 @@
 """Environment-only local application configuration."""
 
 from pathlib import Path
+from typing import Literal
 
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -20,3 +21,7 @@ class AppSettings(BaseSettings):
     hermes_api_key: SecretStr | None = None
     hermes_base_url: str = "http://127.0.0.1:8642/v1"
     hermes_model: str = "hermes"
+    generation_provider: Literal["hermes_workspace", "openrouter_video"] = "hermes_workspace"
+    openrouter_api_key: SecretStr | None = None
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
+    openrouter_model: str = "google/gemini-3.5-flash"

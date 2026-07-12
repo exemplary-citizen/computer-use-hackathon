@@ -32,7 +32,14 @@ from types import ModuleType
 
 import tyro
 
-_HOLO_MODULE_CANDIDATES = ("holo_desktop", "holodesktop", "holo", "hdesktop", "hcompany_holo")
+_HOLO_MODULE_CANDIDATES = (
+    "holo_desktop.agent_client",
+    "holo_desktop",
+    "holodesktop",
+    "holo",
+    "hdesktop",
+    "hcompany_holo",
+)
 _HOLO_BINARY_CANDIDATES = ("holo", "holodesktop", "holo-desktop")
 _GRADIUM_KEY_ENV_VARS = ("FOUNDRY_GRADIUM_API_KEY", "GRADIUM_API_KEY")
 

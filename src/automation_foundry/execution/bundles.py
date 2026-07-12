@@ -11,6 +11,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 from automation_foundry.contracts import ApprovedBundle
 
@@ -20,10 +21,26 @@ RECORD_SELECTOR_INPUT = "lead_name"
 """Input naming the record to operate on (not itself a field change)."""
 
 INPUT_FIELD_MAP: dict[str, str] = {
+    "first_name": "first_name",
+    "last_name": "last_name",
+    "company": "company",
+    "phone": "phone",
+    "email": "email",
     "lifecycle_status": "status",
     "owner_name": "owner",
+    "notes": "notes",
+    "new_first_name": "first_name",
+    "new_last_name": "last_name",
+    "new_company": "company",
+    "new_phone": "phone",
+    "new_email": "email",
+    "new_lifecycle_status": "status",
+    "new_owner_name": "owner",
+    "new_notes": "notes",
 }
 """Bundle input name -> canonical fixture field, for the staged-change diff."""
+
+ExecutionOperation = Literal["update", "create"]
 
 
 @dataclass(frozen=True)
@@ -95,6 +112,26 @@ def validate_inputs(bundle: ApprovedBundle, inputs: dict[str, object]) -> dict[s
         elif properties[name].get("type") == "string" and not isinstance(value, str):
             errors[name] = "Must be a string."
     return errors
+
+
+def execution_operation(bundle: ApprovedBundle) -> ExecutionOperation:
+    """Resolve the supported desktop operation from canonical bundle inputs.
+
+    Args:
+        bundle: Verified approved bundle.
+
+    Returns:
+        ``update`` for record-selector workflows or ``create`` for new-contact workflows.
+
+    Raises:
+        ValueError: When the generated input contract does not identify a supported operation.
+    """
+    properties = bundle.input_schema.get("properties", {})
+    if RECORD_SELECTOR_INPUT in properties:
+        return "update"
+    if "first_name" in properties and "last_name" in properties:
+        return "create"
+    raise ValueError("Approved bundle must use lead_name for updates or first_name and last_name for contact creation")
 
 
 def _approval_payload_hash(bundle: ApprovedBundle) -> str:

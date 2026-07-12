@@ -8,10 +8,12 @@ dependencies = [
     "fastapi>=0.116",
     "gradium>=0.6,<0.7",
     "hai-agents>=0.1.7",   # 0.1.7 ships custom tools (@tool + run_session tools=...)
+    "holo-desktop-cli>=0.0.2",
     "fastmcp>=2.0",
     "pydantic>=2.7",
     "pydantic-settings>=2.10",
     "pymupdf>=1.28,<2",
+    "pyside6-essentials>=6.11",
     "python-multipart>=0.0.20",
     "uvicorn>=0.35",
     "tyro>=0.9",
@@ -36,6 +38,7 @@ dev = [
     "mypy>=1.10",
     "pytest>=8.4",
     "pytest-asyncio>=1.0",
+    "nuitka==4.0",
 ]
 
 [build-system]

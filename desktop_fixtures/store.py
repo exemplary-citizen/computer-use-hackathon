@@ -40,9 +40,9 @@ class ContactRecord(BaseModel):
     id: str = Field(pattern=r"^c[0-9]{3}$")
     first_name: str = Field(min_length=1, max_length=80)
     last_name: str = Field(min_length=1, max_length=80)
-    company: str = Field(min_length=1, max_length=120)
-    phone: str = Field(min_length=1, max_length=40)
-    email: str = Field(min_length=1, max_length=120)
+    company: str = Field(default="Not provided", min_length=1, max_length=120)
+    phone: str = Field(default="Not provided", min_length=1, max_length=40)
+    email: str = Field(default="Not provided", min_length=1, max_length=120)
     status: str = Field(pattern=r"^(Lead|Qualified|Active|Churned)$")
     owner: str = Field(default="Unassigned", min_length=1, max_length=80)
     notes: str = Field(default="", max_length=2_000)
@@ -60,6 +60,12 @@ class CrmState(BaseModel):
 
     schema_version: str = "1.0"
     records: list[ContactRecord] = Field(default_factory=list)
+
+
+def next_contact_id(state: CrmState) -> str:
+    """Return the next deterministic ``cNNN`` identifier for a new fixture record."""
+    highest = max((int(record.id[1:]) for record in state.records), default=0)
+    return f"c{highest + 1:03d}"
 
 
 def default_seed() -> CrmState:

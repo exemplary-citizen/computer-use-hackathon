@@ -18,13 +18,28 @@ from automation_foundry.authoring.validation import BundleValidationReport, Bund
 from automation_foundry.contracts import (
     ApprovalDecision,
     ApprovalRecord,
+    ApprovedBundle,
     ArtifactReference,
+    AutomationManifest,
     AutomationStatus,
     AutomationVersion,
     GeneratedTool,
     InvocationSource,
 )
 from automation_foundry.storage import ArtifactStore
+
+_HANDOFF_ARTIFACT_NAMES = {
+    "SOP.md": "sop",
+    "SKILL.md": "skill",
+    "checks.json": "checks",
+    "inputs.schema.json": "input_schema",
+    "procedure.json": "procedure",
+    "tools.py": "tools",
+    "tool_manifest.json": "tool_manifest",
+    "eval_cases.json": "eval_cases",
+    "review.json": "review",
+    "test_tools.py": "tool_tests",
+}
 
 _MEDIA_TYPES = {
     "SOP.md": "text/markdown",
@@ -120,6 +135,7 @@ class BundleManager:
         manifest.approved_version = None
         manifest.status = AutomationStatus.REVIEW_REQUIRED
         self.unpublish(manifest.slug)
+        self.remove_approved_bundle(automation_id)
         self.store.save_manifest(manifest)
         return version, report
 
@@ -175,6 +191,7 @@ class BundleManager:
         manifest.approved_version = None
         manifest.status = AutomationStatus.REVIEW_REQUIRED
         self.unpublish(manifest.slug)
+        self.remove_approved_bundle(automation_id)
         self.store.save_manifest(manifest)
         return version, report
 
@@ -209,6 +226,7 @@ class BundleManager:
         manifest.status = AutomationStatus.APPROVED
         self._publish_skill(manifest.slug, version_root / "SKILL.md")
         self.store.save_manifest(manifest)
+        self._publish_approved_bundle(manifest, version)
         return approval
 
     def reconcile(self, automation_id: UUID) -> bool:
@@ -232,12 +250,21 @@ class BundleManager:
         manifest.status = AutomationStatus.REVIEW_REQUIRED
         self.store.save_manifest(manifest)
         self.unpublish(manifest.slug)
+        self.remove_approved_bundle(automation_id)
         return False
 
     def unpublish(self, slug: str) -> None:
         """Remove a formerly approved skill when its runnable approval is invalidated."""
         published = self.published_skill_root / slug / "SKILL.md"
         published.unlink(missing_ok=True)
+
+    def approved_bundle_path(self, automation_id: UUID) -> Path:
+        """Return the execution handoff path for one authored automation."""
+        return self.store.automation_root(automation_id) / "approved_bundle.json"
+
+    def remove_approved_bundle(self, automation_id: UUID) -> None:
+        """Remove the execution handoff whenever its authoring approval is invalidated."""
+        self.approved_bundle_path(automation_id).unlink(missing_ok=True)
 
     def _artifact_references(self, automation_id: UUID, version_number: int) -> list[ArtifactReference]:
         version_root = self._version_root(automation_id, version_number)
@@ -272,6 +299,44 @@ class BundleManager:
     def _publish_skill(self, slug: str, source: Path) -> None:
         destination = self.published_skill_root / slug / "SKILL.md"
         _atomic_write_text(destination, source.read_text(encoding="utf-8"))
+
+    def _publish_approved_bundle(
+        self, manifest: AutomationManifest, version: AutomationVersion
+    ) -> None:
+        """Atomically export the approved authoring version for the execution lane."""
+        version_root = self._version_root(manifest.id, version.version)
+        handoff_version = version.model_copy(deep=True)
+        handoff_version.artifacts = [
+            ArtifactReference(
+                name=_HANDOFF_ARTIFACT_NAMES[artifact.name],
+                relative_path=artifact.relative_path,
+                sha256=artifact.sha256,
+                media_type=artifact.media_type,
+            )
+            for artifact in version.artifacts
+        ]
+        if handoff_version.approval is None:
+            raise ValueError("Approved bundle export requires an approval record")
+        handoff_version.approval.payload_sha256 = _approval_payload_hash(
+            handoff_version.artifacts
+        )
+        bundle = ApprovedBundle(
+            manifest=manifest,
+            version=handoff_version,
+            sop_markdown=(version_root / "SOP.md").read_text(encoding="utf-8"),
+            skill_markdown=(version_root / "SKILL.md").read_text(encoding="utf-8"),
+            input_schema=json.loads(
+                (version_root / "inputs.schema.json").read_text(encoding="utf-8")
+            ),
+            tools_code=(version_root / "tools.py").read_text(encoding="utf-8"),
+            eval_cases=json.loads(
+                (version_root / "eval_cases.json").read_text(encoding="utf-8")
+            ),
+        )
+        _atomic_write_text(
+            self.approved_bundle_path(manifest.id),
+            f"{bundle.model_dump_json(indent=2)}\n",
+        )
 
 
 def _approval_payload_hash(artifacts: list[ArtifactReference]) -> str:

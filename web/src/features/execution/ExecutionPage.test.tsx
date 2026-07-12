@@ -134,6 +134,45 @@ afterEach(() => {
 });
 
 describe("ExecutionPage run configuration", () => {
+  it("renders the approved bundle's create-contact inputs", async () => {
+    installFetch((method, url) => {
+      if (method === "GET" && url.endsWith("/api/execution/automation")) {
+        return {
+          name: "Create a CRM contact",
+          version: 1,
+          operation: "create",
+          inputs: [
+            {
+              name: "first_name",
+              json_type: "string",
+              description: "Given name for the new contact.",
+              required: true,
+              default: null,
+              examples: ["Amina"],
+            },
+            {
+              name: "last_name",
+              json_type: "string",
+              description: "Family name for the new contact.",
+              required: true,
+              default: null,
+              examples: ["Diallo"],
+            },
+          ],
+          input_schema: { type: "object" },
+        };
+      }
+      if (method === "GET" && url.endsWith("/api/execution/runs")) return { runs: [] };
+      return undefined;
+    });
+
+    render(<ExecutionPage />);
+
+    expect(await screen.findByLabelText(/First name/)).toHaveAttribute("placeholder", "Amina");
+    expect(screen.getByLabelText(/Last name/)).toHaveAttribute("placeholder", "Diallo");
+    expect(screen.queryByLabelText("Lead name")).not.toBeInTheDocument();
+  });
+
   it("renders field-level errors from a 422 and an empty-state that points at the form", async () => {
     installFetch((method, url) => {
       if (url.endsWith("/csrf-token")) return { token: "test-token" };
@@ -151,6 +190,7 @@ describe("ExecutionPage run configuration", () => {
     expect(await screen.findByText("No runs yet")).toBeInTheDocument();
     expect(screen.getByText("Use the form above to configure and prepare the first run.")).toBeInTheDocument();
     expect(screen.getByLabelText("Target app")).toBeInTheDocument();
+    expect(screen.getByLabelText("Target app")).toHaveValue("crm_b");
     expect(screen.getByText("CRM A — Northlight")).toBeInTheDocument();
     expect(screen.getByText("CRM B — Meridian")).toBeInTheDocument();
 
@@ -219,10 +259,10 @@ describe("ExecutionPage executing surface", () => {
               run_id: RUN_ID,
               sequence: 1,
               state: "executing",
-              event_type: "heartbeat",
-              message: "Still working; the session is active.",
-              payload: {},
-              created_at: "2026-07-11T12:00:11Z",
+              event_type: "holo_progress",
+              message: "Holo action: click_desktop — Diego Patel row.",
+              payload: { x: 0.25, y: 0.325 },
+              created_at: "2026-07-11T12:00:06Z",
             },
             {
               run_id: RUN_ID,
@@ -231,11 +271,20 @@ describe("ExecutionPage executing surface", () => {
               event_type: "heartbeat",
               message: "Still working; the session is active.",
               payload: {},
-              created_at: "2026-07-11T12:00:21Z",
+              created_at: "2026-07-11T12:00:11Z",
             },
             {
               run_id: RUN_ID,
               sequence: 3,
+              state: "executing",
+              event_type: "heartbeat",
+              message: "Still working; the session is active.",
+              payload: {},
+              created_at: "2026-07-11T12:00:21Z",
+            },
+            {
+              run_id: RUN_ID,
+              sequence: 4,
               state: "executing",
               event_type: "heartbeat",
               message: "Still working; the session is active.",
@@ -253,6 +302,7 @@ describe("ExecutionPage executing surface", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Ada Lovelace/ }));
 
     expect(await screen.findByText("Holo session started.")).toBeInTheDocument();
+    expect(screen.getByText("Holo action: click_desktop — Diego Patel row.")).toBeInTheDocument();
     expect(screen.getAllByText("Still working…")).toHaveLength(1);
     expect(screen.getByText("Kill switch: press Esc twice on the desktop.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cancel run" })).toBeEnabled();

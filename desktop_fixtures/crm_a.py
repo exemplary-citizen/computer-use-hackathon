@@ -25,13 +25,16 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from desktop_fixtures.holo_overlay import HoloOverlay
 from desktop_fixtures.qt_common import apply_light_fusion_style, fix_window_geometry
 from desktop_fixtures.store import (
     FIELD_LABELS,
     STATUS_VALUES,
     AppKey,
+    ContactRecord,
     CrmState,
     load_state,
+    next_contact_id,
     state_path,
     write_state_atomic,
 )
@@ -52,6 +55,7 @@ class CrmAWindow(QMainWindow):
         self._path = path
         self._state: CrmState = load_state(path)
         self._current_index: int | None = None
+        self._creating_new = False
         self.setWindowTitle("Northlight CRM")
         fix_window_geometry(self)
         self._build_ui()
@@ -60,6 +64,30 @@ class CrmAWindow(QMainWindow):
 
     def save_current_record(self) -> None:
         """Apply form edits to the selected record and persist the whole store."""
+        if self._creating_new:
+            first_name = self._first_name.text().strip()
+            last_name = self._last_name.text().strip()
+            if not first_name or not last_name:
+                self.statusBar().showMessage("First Name and Last Name are required", 5_000)
+                return
+            record = ContactRecord(
+                id=next_contact_id(self._state),
+                first_name=first_name,
+                last_name=last_name,
+                company=self._company.text().strip() or "Not provided",
+                phone=self._phone.text().strip() or "Not provided",
+                email=self._email.text().strip() or "Not provided",
+                status=self._status.currentText(),
+                owner=self._owner.text().strip() or "Unassigned",
+                notes=self._notes.toPlainText().strip(),
+            )
+            self._state.records.append(record)
+            write_state_atomic(self._path, self._state)
+            self._contact_list.addItem(record.full_name)
+            self._creating_new = False
+            self._contact_list.setCurrentRow(len(self._state.records) - 1)
+            self.statusBar().showMessage(f"Added {record.full_name}", 5_000)
+            return
         if self._current_index is None:
             return
         record = self._state.records[self._current_index]
@@ -80,6 +108,26 @@ class CrmAWindow(QMainWindow):
         self._contact_list.item(self._current_index).setText(updated.full_name)
         self.statusBar().showMessage(f"Saved {updated.full_name}", 5_000)
 
+    def begin_add_record(self) -> None:
+        """Clear the form for a new record without touching persisted state."""
+        self._contact_list.setCurrentRow(-1)
+        self._current_index = None
+        self._creating_new = True
+        for field in (
+            self._first_name,
+            self._last_name,
+            self._company,
+            self._phone,
+            self._email,
+            self._owner,
+        ):
+            field.clear()
+        self._status.setCurrentText("Lead")
+        self._notes.clear()
+        self.save_button.setText("Add Record")
+        self._first_name.setFocus()
+        self.statusBar().showMessage("Enter the new contact details, then choose Add Record")
+
     def _build_ui(self) -> None:
         labels = {field: per_app[_APP_KEY] for field, per_app in FIELD_LABELS.items()}
         root = QWidget()
@@ -92,6 +140,9 @@ class CrmAWindow(QMainWindow):
             self._contact_list.addItem(record.full_name)
         self._contact_list.currentRowChanged.connect(self._load_record)
         left.addWidget(self._contact_list)
+        self.add_button = QPushButton("Add Record")
+        self.add_button.clicked.connect(self.begin_add_record)
+        left.addWidget(self.add_button)
         layout.addLayout(left, 1)
 
         right = QVBoxLayout()
@@ -133,12 +184,15 @@ class CrmAWindow(QMainWindow):
 
         self.setCentralWidget(root)
         self.statusBar().showMessage("Ready")
+        self._holo_overlay = HoloOverlay(self, _APP_KEY)
 
     def _load_record(self, row: int) -> None:
         if row < 0 or row >= len(self._state.records):
             self._current_index = None
             return
         self._current_index = row
+        self._creating_new = False
+        self.save_button.setText("Save")
         record = self._state.records[row]
         self._first_name.setText(record.first_name)
         self._last_name.setText(record.last_name)
@@ -156,6 +210,8 @@ def main() -> None:
     apply_light_fusion_style(app)
     window = CrmAWindow(state_path(_APP_KEY))
     window.show()
+    window.raise_()
+    window.activateWindow()
     raise SystemExit(app.exec())
 
 

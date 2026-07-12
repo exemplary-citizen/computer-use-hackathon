@@ -116,6 +116,16 @@ class GuardTests(RouterTestBase):
 
 
 class LifecycleTests(RouterTestBase):
+    def test_automation_metadata_drives_the_run_form(self) -> None:
+        response = self.client.get("/api/execution/automation")
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["operation"], "update")
+        self.assertEqual(
+            [definition["name"] for definition in payload["inputs"]],
+            ["lead_name", "lifecycle_status", "owner_name"],
+        )
+
     def test_validation_errors_are_field_level(self) -> None:
         response = self.mutate("/api/execution/runs", {"target_app": "CRM Z", "inputs": {"lead_name": ""}})
         self.assertEqual(response.status_code, 422)

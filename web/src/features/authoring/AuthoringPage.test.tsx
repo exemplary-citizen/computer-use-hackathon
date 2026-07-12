@@ -79,6 +79,6 @@ describe("AuthoringPage", () => {
     fireEvent.click(screen.getByRole("button", { name: "New automation" }));
 
     expect(screen.getByRole("checkbox")).toBeRequired();
-    expect(screen.getByText(/selected frames and transcript\/SOP text/)).toBeInTheDocument();
+    expect(screen.getByText(/uploaded video and normalized evidence\/SOP text/)).toBeInTheDocument();
   });
 });

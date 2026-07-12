@@ -1,9 +1,17 @@
-import type { FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
-import { RUN_INPUT_FIELDS, TARGET_APPS, type RunInputs } from "./api";
+import {
+  DEFAULT_TARGET_APP,
+  RUN_INPUT_FIELDS,
+  TARGET_APPS,
+  executionApi,
+  inputLabel,
+  type RunInputs,
+  type RuntimeInputDefinition,
+} from "./api";
 
 /**
- * Run configuration surface: target app plus the bundle's three inputs.
+ * Run configuration surface: target app plus the approved bundle's inputs.
  * Field-level 422 errors render under the matching input.
  */
 export function RunConfigForm({
@@ -15,17 +23,41 @@ export function RunConfigForm({
   fieldErrors: Record<string, string>;
   onSubmit: (targetApp: string, inputs: RunInputs) => void;
 }) {
+  const [inputFields, setInputFields] = useState<RuntimeInputDefinition[]>(
+    RUN_INPUT_FIELDS.map((field) => ({
+      ...field,
+      json_type: "string",
+      description: "",
+      default: null,
+      examples: [field.placeholder],
+    })),
+  );
+
+  useEffect(() => {
+    let active = true;
+    executionApi
+      .getAutomation()
+      .then((automation) => {
+        if (active && automation.inputs.length) setInputFields(automation.inputs);
+      })
+      .catch(() => undefined);
+    return () => {
+      active = false;
+    };
+  }, []);
+
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const data = new FormData(event.currentTarget);
-    onSubmit(String(data.get("target_app") ?? "crm_a"), {
-      lead_name: String(data.get("lead_name") ?? "").trim(),
-      lifecycle_status: String(data.get("lifecycle_status") ?? "").trim(),
-      owner_name: String(data.get("owner_name") ?? "").trim(),
-    });
+    const inputs: RunInputs = {};
+    for (const field of inputFields) {
+      const value = String(data.get(field.name) ?? "").trim();
+      if (field.required || value) inputs[field.name] = value;
+    }
+    onSubmit(String(data.get("target_app") ?? DEFAULT_TARGET_APP), inputs);
   }
 
-  const knownFields = new Set<string>(["target_app", ...RUN_INPUT_FIELDS.map((field) => field.name)]);
+  const knownFields = new Set<string>(["target_app", ...inputFields.map((field) => field.name)]);
   const otherErrors = Object.entries(fieldErrors).filter(([name]) => !knownFields.has(name));
 
   return (
@@ -33,7 +65,7 @@ export function RunConfigForm({
       <h3>Configure a run</h3>
       <label>
         Target app
-        <select defaultValue={TARGET_APPS[0].value} name="target_app">
+        <select defaultValue={DEFAULT_TARGET_APP} name="target_app">
           {TARGET_APPS.map((app) => (
             <option key={app.value} value={app.value}>
               {app.label}
@@ -46,10 +78,16 @@ export function RunConfigForm({
           </small>
         ) : null}
       </label>
-      {RUN_INPUT_FIELDS.map((field) => (
+      {inputFields.map((field) => (
         <label key={field.name}>
-          {field.label}
-          <input name={field.name} placeholder={field.placeholder} />
+          {inputLabel(field.name)}
+          <input
+            defaultValue={typeof field.default === "string" ? field.default : ""}
+            name={field.name}
+            placeholder={typeof field.examples[0] === "string" ? field.examples[0] : undefined}
+            aria-required={field.required}
+          />
+          {field.description ? <small>{field.description}</small> : null}
           {fieldErrors[field.name] ? (
             <small className="field-error" role="alert">
               {fieldErrors[field.name]}

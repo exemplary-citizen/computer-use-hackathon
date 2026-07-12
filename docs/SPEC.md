@@ -87,17 +87,17 @@ The host backend must:
 
 - validate extension, MIME type, size, duration, and page limits;
 - sanitize filenames and store uploads under a generated automation ID;
-- extract timestamped audio and visual evidence from video;
-- transcribe audio through Gradium with segment timestamps;
+- extract timestamped visual evidence and source metadata from video;
+- optionally transcribe audio through Gradium when using the legacy workspace ingestion path;
 - extract normalized SOP text and stable page/section references;
 - retain source hashes and preprocessing metadata;
 - expose processing progress and actionable failures.
 
-The implementation may reduce redundant video frames, but must preserve enough timestamped evidence to recover all gold critical steps. Frame selection parameters must be recorded with the ingestion job.
+The implementation may reduce redundant video frames for local review, but the hosted video-ingestion path sends the original accepted video so the model can interpret motion and audio in temporal order. Frame selection parameters must still be recorded with the ingestion job.
 
 ### 5.3 Agentic bundle generation
 
-The backend stages the derived evidence in the NemoClaw shared workspace. Hermes, routed to hosted `holo3-122b-a10b`, analyzes evidence in bounded batches and generates a structured bundle.
+The default hosted ingestion path sends the accepted original video plus normalized source metadata to `google/gemini-3.5-flash` through OpenRouter and requests a schema-constrained bundle. SOP-only and legacy workspace generation may still use the NemoClaw/Hermes adapter. Holo models and HoloDesktop are reserved for approved desktop execution, not video ingestion.
 
 For combined video and SOP inputs:
 
@@ -156,7 +156,10 @@ All desktop interaction belongs to HoloDesktop.
 
 ### 5.6 Dashboard invocation
 
-The user selects an approved automation, target app, and runtime inputs. Clicking Run is the start confirmation for dashboard invocation. The system validates inputs and creates a run before Holo gains control.
+The user selects an approved automation, target app, and runtime inputs. The hackathon demo form defaults to CRM B —
+Meridian so the zero-shot target is not accidentally replaced by CRM A — Northlight; Northlight remains available only
+when the user deliberately selects it. Clicking Run is the start confirmation for dashboard invocation. The system
+validates inputs and creates a run before Holo gains control.
 
 ### 5.7 Voice invocation
 
@@ -175,12 +178,44 @@ Partial transcripts, silence, or ambiguous commands must never start a run. Voic
 
 The trusted host worker invokes HoloDesktop through its Python client. Every execution is bounded by configured step and wall-clock limits and supports cancellation and the Holo kill switch.
 
+For the bundled CRM fixtures, a live run shall restart or launch the selected CRM as a named macOS application bundle
+with a stable application identity before creating the Holo session. The host requests activation through macOS
+LaunchServices, uses the configured fixture data root, and supplies Holo the exact application and window names. Holo
+observes the full desktop and may use the normal macOS app switcher to bring that exact window forward, but must not
+search Spotlight, Finder, the Dock, Terminal, or Applications for the CRM.
+
 The run has two Holo turns:
 
-1. **Stage turn:** Holo opens the target app, locates the intended record, fills the requested values, visually checks the staged form, and ends the turn without activating Save, Commit, Submit, or an equivalent persistent action.
+1. **Stage turn:** Holo opens the target app, locates the intended record, fills the requested values, visually checks the staged form, and returns its structured result without activating Save, Commit, Submit, or an equivalent persistent action. The editor remains visibly open with the unsaved staged values. After verification, Holo must not press Escape, switch or minimize applications, close the editor, or perform any other desktop action while returning control to the host.
 2. **Commit turn:** after explicit approval, the worker sends a second message in the same Holo session directing it to re-check the staged state, perform the final action, and verify visible success.
 
+The local hackathon demo may set `FOUNDRY_AUTO_APPROVE=true`. In that mode, the initial start confirmation authorizes
+the host to create an approval record immediately after the staged report passes structural and persisted-state checks;
+the host then dispatches the commit turn without waiting for another dashboard or voice action. The approved payload
+hash remains bound to the commit, and the same live Holo session must be used.
+
+The demo launcher additionally sets `FOUNDRY_ONE_SHOT_DEMO=true`. This follows H Company's minimal examples pattern:
+one selected window, one plain natural-language Holo task, and one final answer. Holo performs the requested edit and
+persistent action in a single bounded turn; the host then verifies the exact persisted fixture state before reporting
+success. The overlay and staged-answer parser are not involved in this demo path.
+
 The staged-change summary must identify the target app, record, fields, proposed values, and evidence used for the summary. Rejection, cancellation, approval timeout, or loss of the live Holo session ends the run without attempting commit. A lost session requires a fresh run; the system must not create a new session solely to click Save on an unknown screen state.
+
+Every live Holo turn writes a per-run `holo_diagnostics.jsonl` beside the canonical run artifacts. Diagnostics include
+turn boundaries, runtime event kinds, tool requests and coordinates, viewport/cursor metadata, state changes, timing,
+and the final answer. Raw screenshots, image payloads, authorization headers, tokens, and API keys are excluded. Safe
+action summaries are also published as ordered run events so the dashboard shows actual Holo progress between
+heartbeats.
+
+For demo visibility, the CRM may render a click-through Holo overlay from sanitized diagnostic metadata. The overlay
+draws a red border around the CRM observation surface, the current system pointer, a red crosshair for normalized
+pointer targets, and the current tool/element label. It must never consume input, expose screenshots or credentials, or
+become a separate focusable macOS application. Keyboard-only actions display their tool label without inventing a
+pointer target. The action overlay disappears as soon as the corresponding tool completes so it does not obstruct or
+mislead the agent's next observation.
+
+The live launcher must fail before staging when the fixture app bundle is missing, cannot be launched, or its process
+exits during startup. Resizing or full-screening a fixture is not required.
 
 ### 5.9 Cross-app transfer
 
@@ -189,7 +224,26 @@ The repository ships two native PySide6 CRM fixtures:
 - CRM A is the taught application shown in the source demonstration.
 - CRM B exposes equivalent records and business fields through different navigation, labels, and layout.
 
-The same approved bundle must run on either application. A CRM B run receives only the target app name and runtime data; it receives no CRM B demonstration, coordinates, selectors, or precomputed navigation profile.
+The same approved bundle must run on either application. A CRM B run receives no CRM B demonstration, coordinates, or
+selectors. On a demo machine where screen-capture and pointer-event coordinate spaces do not align, the host may supply
+the fixture's standard keyboard shortcuts as a coordinate-free navigation fallback.
+
+Execution guidance may describe portable interaction semantics needed across layouts: select the exact matching record,
+verify whether its fields are editable, and, when selection exposes only a read-only row or summary, activate a visible
+Open Record, Edit, or View Details action before changing fields. CRM B also supports the conventional double-click on
+an exact matching result so execution does not depend on a control near a macOS screen corner. Execution must not invoke
+Mission Control or interact with the dashboard, browser, ChatGPT, or another unrelated window while operating the CRM.
+This guidance must not encode coordinates, row indices, or fixture-specific selectors.
+
+For the live demo, CRM B starts with its exact-search field focused. Submitting one exact name opens that record and
+focuses its Family name field with the existing value selected; Enter activates the editor's default commit button.
+This lets Holo complete the visible workflow using text input and Enter only, avoiding unreliable pointer coordinates
+and the runtime's sticky modifier-key behavior. The Meridian prompt omits conflicting pointer-oriented skill
+instructions and uses a reduced step budget so an agent that ignores the text-only contract fails quickly.
+
+CRM B's record editor is application-modal and remains above unrelated applications while it contains unsaved staged
+values. This prevents a focus change from redirecting a correctly targeted editor action into the dashboard or ChatGPT;
+it does not persist data or bypass commit approval.
 
 Both fixtures provide test-only seed, reset, and persisted-state inspection commands. Those commands are for evaluation and must not be exposed to Holo during live execution.
 
@@ -220,8 +274,8 @@ The MVP does not include:
 3. User accepts the provider-disclosure notice.
 4. Backend validates and stores sources.
 5. Backend derives transcript, frames, and SOP text.
-6. Evidence is staged in the NemoClaw workspace.
-7. Hermes/Holo3 generates version 1 of the bundle.
+6. The backend prepares normalized evidence and attaches the original video when present.
+7. Gemini through OpenRouter generates version 1 of the bundle.
 8. Structural and generated-tool validation runs.
 9. Automation moves to `review_required` or `failed` with remediation details.
 
@@ -286,6 +340,7 @@ The MVP does not include:
 - **FR-E06:** Commit shall continue the same live Holo session used for staging.
 - **FR-E07:** Cancellation and session loss shall fail closed.
 - **FR-E08:** The system shall preserve ordered run events and the terminal result.
+- **FR-E09:** Live fixture execution shall activate and verify the selected named macOS app before Holo begins.
 
 ### Voice
 
@@ -298,8 +353,10 @@ The MVP does not include:
 ### Cross-app evaluation
 
 - **FR-X01:** Both desktop fixtures shall represent the same CRM operation with different UI structure.
-- **FR-X02:** CRM B execution shall not use CRM B-specific demonstration artifacts.
-- **FR-X03:** Persisted state shall be inspectable by the test harness but not by Holo.
+- **FR-X02:** Both desktop fixtures shall expose a visible Add Record flow that remains unpersisted until its final
+  Add Record, Save, or Commit control is activated.
+- **FR-X03:** CRM B execution shall not use CRM B-specific demonstration artifacts.
+- **FR-X04:** Persisted state shall be inspectable by the test harness but not by Holo.
 
 ## 9. Architecture and data flow
 
@@ -307,7 +364,7 @@ The MVP does not include:
 
 - **React/Vite frontend:** dashboard, authoring editors, microphone capture, previews, approvals, and live events.
 - **FastAPI backend:** REST/WebSocket API, source validation, job orchestration, metadata persistence, provider proxies, and run coordination.
-- **Media processor:** frame/audio extraction, transcript coordination, and SOP normalization.
+- **Media processor:** frame extraction, optional transcript coordination, and SOP normalization.
 - **Artifact store:** repo-local gitignored source, evidence, bundle, and run directories.
 - **SQLite database:** automation index, versions, jobs, approvals, and run metadata.
 - **Trusted Holo worker:** the only component allowed to invoke HoloDesktop and publish approved Holo skills.
@@ -315,16 +372,15 @@ The MVP does not include:
 ### Sandboxed components
 
 - **NemoClaw/OpenShell:** filesystem and network policy boundary.
-- **Hermes:** orchestration agent and conversational intent resolver.
-- **Holo3-122B-A10B:** hosted multimodal model used by Hermes for evidence interpretation.
+- **Hermes:** optional workspace generation adapter and conversational intent resolver.
 - **Automation MCP server:** bounded access to staged evidence, bundle submission, generated-tool validation, and file-based run queues.
 - **Generated-tool runner:** restricted subprocess for approved pure-data functions.
 
 ### External services
 
-- **H Company Models API:** hosted Holo3 inference.
+- **OpenRouter API:** hosted Gemini video understanding and schema-constrained bundle generation.
 - **HoloDesktop CLI/runtime:** visible desktop observation and control on macOS.
-- **Gradium API:** video transcription, push-to-talk STT, and response TTS.
+- **Gradium API:** optional legacy video transcription, push-to-talk STT, and response TTS.
 
 ### Trust boundary
 
@@ -407,9 +463,9 @@ The database is the query index and job coordinator. Versioned files are the can
 - Bind the application to `127.0.0.1` by default.
 - Show provider disclosure before the first upload and retain the user's acknowledgement.
 - Keep original uploads and derived artifacts local until explicit deletion.
-- Send only audio required for transcription to Gradium.
-- Send only selected frames, transcripts, SOP text, and instructions required for generation to hosted Holo3.
-- Never expose H Company or Gradium credentials to frontend code, logs, generated bundles, or Holo task text.
+- Send audio to Gradium only when the selected ingestion path explicitly requires transcription.
+- Send only the accepted source video, normalized evidence/SOP text, and required instructions to OpenRouter.
+- Never expose H Company, OpenRouter, or Gradium credentials to frontend code, logs, generated bundles, or Holo task text.
 - Reject unsafe filenames, symlinks, path traversal, oversized files, and unsupported content.
 - Validate every sandbox-produced path before reading or copying it on the host.
 - Redact secrets and unrelated visible content from shared diagnostics.
@@ -425,8 +481,8 @@ The database is the query index and job coordinator. Versioned files are the can
 | Unsupported, corrupt, oversized, or over-duration source | Reject before agent invocation and preserve no partial runnable version. |
 | Video has no audio | Continue with visual evidence and mark the missing transcript. |
 | SOP and video conflict | Create blocking review conflicts; do not choose silently. |
-| Gradium unavailable | Retry only bounded transient failures; otherwise fail ingestion or voice turn with remediation. |
-| Holo3 unavailable or rate-limited | Preserve staged evidence, mark job failed/retryable, and create no approved bundle. |
+| Gradium unavailable | Retry only bounded transient failures for voice or legacy transcription; otherwise fail with remediation. |
+| OpenRouter or Gemini unavailable/rate-limited | Preserve local evidence, mark the job failed/retryable, and create no approved bundle. |
 | NemoClaw sandbox or shared mount unavailable | Fail closed before generation or run queuing. |
 | Generated output violates schema | Reject it, preserve diagnostics, and allow regeneration. |
 | Generated tool violates restrictions or times out | Mark validation failed and block approval. |
@@ -452,7 +508,7 @@ The database is the query index and job coordinator. Versioned files are the can
 
 There are no unresolved product decisions blocking MVP implementation. The following are implementation feasibility checks, not product choices:
 
-- verify the installed NemoClaw/Hermes version can pass local image evidence to the configured Holo3 endpoint;
+- verify the configured OpenRouter account can invoke `google/gemini-3.5-flash` with inline video and structured output;
 - verify the macOS shared-mount prerequisites on the demo machine;
 - verify the chosen Gradium voice ID and H Company account have sufficient credits;
 - pin compatible HoloDesktop, NemoClaw, Gradium SDK, and Python versions during the foundation phase.
