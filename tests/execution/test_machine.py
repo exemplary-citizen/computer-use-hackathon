@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import sqlite3
 import unittest
 from pathlib import Path
@@ -97,6 +98,60 @@ class HappyPathTests(MachineTestBase):
         state = load_state(self.fixture_a)
         sarah = next(record for record in state.records if record.full_name == "Sarah Chen")
         self.assertEqual(sarah.status, "Qualified")
+
+    async def test_create_contact_stages_then_adds_exactly_one_record_after_approval(self) -> None:
+        bundle_path = self.settings.bundle_path
+        bundle = json.loads(bundle_path.read_text(encoding="utf-8"))
+        bundle["input_schema"] = {
+            "type": "object",
+            "properties": {
+                "first_name": {"type": "string"},
+                "last_name": {"type": "string"},
+                "company": {"type": "string"},
+                "lifecycle_status": {"type": "string"},
+                "owner_name": {"type": "string"},
+            },
+            "required": ["first_name", "last_name"],
+            "additionalProperties": False,
+        }
+        bundle["version"]["inputs"] = [
+            {
+                "name": name,
+                "json_type": "string",
+                "description": name.replace("_", " "),
+                "required": name in {"first_name", "last_name"},
+                "default": None,
+                "examples": [],
+            }
+            for name in ("first_name", "last_name", "company", "lifecycle_status", "owner_name")
+        ]
+        bundle_path.write_text(json.dumps(bundle, indent=2) + "\n", encoding="utf-8")
+        inputs = {
+            "first_name": "Amina",
+            "last_name": "Diallo",
+            "company": "Sunbird Labs",
+            "lifecycle_status": "Qualified",
+            "owner_name": "Priya Shah",
+        }
+        preview = await self.coordinator.prepare("CRM A", inputs, InvocationSource.DASHBOARD)
+        baseline = load_state(self.fixture_a)
+        await self.coordinator.confirm_start(preview.request.id)
+        await wait_for_state(self.coordinator, preview.request.id, RunState.AWAITING_COMMIT_APPROVAL)
+        self.assertEqual(load_state(self.fixture_a), baseline)
+        staged = self.coordinator.staged_change(preview.request.id)
+        assert staged is not None
+        self.assertTrue(all(change.before is None for change in staged.changes))
+        await self.coordinator.approve_commit(
+            preview.request.id,
+            staged.payload_sha256,
+            InvocationSource.DASHBOARD,
+            "tester",
+        )
+        self.assertEqual(await self.finish(preview.request.id), "succeeded")
+        state = load_state(self.fixture_a)
+        self.assertEqual(state.records[:-1], baseline.records)
+        self.assertEqual(state.records[-1].full_name, "Amina Diallo")
+        self.assertEqual(state.records[-1].company, "Sunbird Labs")
 
 
 class ApprovalSafetyTests(MachineTestBase):

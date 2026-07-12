@@ -62,6 +62,7 @@ from automation_foundry.execution.bundles import (
     INPUT_FIELD_MAP,
     RECORD_SELECTOR_INPUT,
     LoadedBundle,
+    execution_operation,
     load_verified_bundle,
     validate_inputs,
 )
@@ -167,11 +168,20 @@ class RunCoordinator:
         """
         loaded = self._verified_bundle()
         field_errors = validate_inputs(loaded.bundle, inputs)
+        try:
+            operation = execution_operation(loaded.bundle)
+        except ValueError as error:
+            operation = None
+            field_errors["inputs"] = str(error)
         app = _APP_ALIASES.get(target_app.strip().lower())
         if app is None:
             field_errors["target_app"] = "Unknown application; use CRM A or CRM B."
         record_name = str(inputs.get(RECORD_SELECTOR_INPUT, "")).strip()
-        if app is not None and record_name and RECORD_SELECTOR_INPUT not in field_errors:
+        if operation == "create":
+            for name in ("first_name", "last_name"):
+                if not str(inputs.get(name, "")).strip():
+                    field_errors[name] = "This field is required to create a contact."
+        if operation == "update" and app is not None and record_name and RECORD_SELECTOR_INPUT not in field_errors:
             state = load_state(self._fixture_path(app))
             if not any(record.full_name.lower() == record_name.lower() for record in state.records):
                 field_errors[RECORD_SELECTOR_INPUT] = f"No record named '{record_name}' in the target CRM."
@@ -362,6 +372,17 @@ class RunCoordinator:
             return None
         return StagedChange.model_validate_json(row[0])
 
+    def automation_metadata(self) -> dict[str, object]:
+        """Return the approved automation and its runtime input definitions."""
+        loaded = self._verified_bundle()
+        return {
+            "name": loaded.bundle.manifest.name,
+            "version": loaded.bundle.version.version,
+            "operation": execution_operation(loaded.bundle),
+            "inputs": [definition.model_dump(mode="json") for definition in loaded.bundle.version.inputs],
+            "input_schema": loaded.bundle.input_schema,
+        }
+
     async def _execute(self, run_id: UUID) -> None:
         runtime = self._runtimes[run_id]
         request = self._request(run_id)
@@ -487,6 +508,8 @@ class RunCoordinator:
             raise fault("malformed_stage_answer", "stage answer was not structured") from error
         if not isinstance(parsed, dict) or "staged_fields" not in parsed or "record" not in parsed:
             raise fault("malformed_stage_answer", "stage answer missing record/staged_fields")
+        if parsed["record"] != spec.record_name:
+            raise fault("malformed_stage_answer", "agent-reported record differs from the requested record")
         if parsed["staged_fields"] != spec.field_changes:
             raise fault("malformed_stage_answer", "agent-reported fields differ from the requested change")
 
@@ -498,11 +521,17 @@ class RunCoordinator:
         session_reference: str,
         outcome: TurnOutcome,
     ) -> StagedChange:
-        record = next(item for item in pre_state.records if item.full_name == spec.record_name)
-        changes = [
-            FieldChange(field=field_name, before=getattr(record, field_name), after=after)
-            for field_name, after in sorted(spec.field_changes.items())
-        ]
+        if spec.operation == "create":
+            changes = [
+                FieldChange(field=field_name, before=None, after=after)
+                for field_name, after in sorted(spec.field_changes.items())
+            ]
+        else:
+            record = next(item for item in pre_state.records if item.full_name == spec.record_name)
+            changes = [
+                FieldChange(field=field_name, before=getattr(record, field_name), after=after)
+                for field_name, after in sorted(spec.field_changes.items())
+            ]
         payload = [{"field": change.field, "before": change.before, "after": change.after} for change in changes]
         digest = hashlib.sha256(json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")).hexdigest()
         verification = ""
@@ -522,6 +551,17 @@ class RunCoordinator:
 
     def _verify_commit(self, spec: HoloTaskSpec, pre_state: CrmState, staged: StagedChange) -> str:
         post_state = load_state(self._fixture_path(spec.app))
+        if spec.operation == "create":
+            if post_state.records[: len(pre_state.records)] != pre_state.records:
+                raise fault("commit_verify_failed", "an existing record changed while creating a contact")
+            created_records = post_state.records[len(pre_state.records) :]
+            if len(created_records) != 1:
+                raise fault("commit_verify_failed", "contact creation did not add exactly one record")
+            created = created_records[0]
+            if any(getattr(created, field) != value for field, value in spec.field_changes.items()):
+                raise fault("commit_verify_failed", "the created contact does not match the approved values")
+            summary = ", ".join(f"{change.field}: {change.after!r}" for change in staged.changes)
+            return f"Persisted state contains exactly one approved new contact ({summary})."
         expected_records = []
         for record in pre_state.records:
             if record.full_name == spec.record_name:
@@ -535,11 +575,17 @@ class RunCoordinator:
         return f"Persisted state matches the approved change exactly ({summary})."
 
     def _task_spec(self, loaded: LoadedBundle, request: RunRequest, app: AppKey) -> HoloTaskSpec:
-        record_name = str(request.inputs[RECORD_SELECTOR_INPUT])
+        operation = execution_operation(loaded.bundle)
+        if operation == "create":
+            record_name = f"{request.inputs['first_name']} {request.inputs['last_name']}"
+        else:
+            record_name = str(request.inputs[RECORD_SELECTOR_INPUT])
         field_changes = {
-            INPUT_FIELD_MAP[name]: str(value) for name, value in request.inputs.items() if name in INPUT_FIELD_MAP
+            INPUT_FIELD_MAP[name]: str(value)
+            for name, value in request.inputs.items()
+            if name in INPUT_FIELD_MAP and str(value).strip()
         }
-        task_text = self._stage_prompt_text(loaded, request, record_name, field_changes)
+        task_text = self._stage_prompt_text(loaded, request, operation, record_name, field_changes)
         return HoloTaskSpec(
             app=app,
             record_name=record_name,
@@ -548,29 +594,41 @@ class RunCoordinator:
             task_text=task_text,
             max_steps=request.max_steps,
             max_time_seconds=request.max_time_seconds,
+            operation=operation,
         )
 
     def _stage_prompt_text(
-        self, loaded: LoadedBundle, request: RunRequest, record_name: str, field_changes: dict[str, str]
+        self,
+        loaded: LoadedBundle,
+        request: RunRequest,
+        operation: Literal["update", "create"],
+        record_name: str,
+        field_changes: dict[str, str],
     ) -> str:
         changes = "; ".join(f"{name} -> {value}" for name, value in sorted(field_changes.items()))
+        action = "Create a new contact record" if operation == "create" else f"Update record {record_name}"
         return (
             f"{loaded.bundle.skill_markdown}\n\n"
-            f"Target application: {request.target_app}. Record: {record_name}. Requested changes: {changes}."
+            f"Target application: {request.target_app}. {action}. Requested values: {changes}."
         )
 
     def _stage_prompt(self, spec: HoloTaskSpec) -> str:
+        interaction = (
+            "open the Add Record form and fill the requested values"
+            if spec.operation == "create"
+            else "find the requested record and fill the requested values in its form"
+        )
         return (
-            f"{spec.task_text}\n\nTURN 1 OF 2 — STAGE ONLY: fill the requested values in the form, visually "
+            f"{spec.task_text}\n\nTURN 1 OF 2 — STAGE ONLY: {interaction}, visually "
             "verify them, then END YOUR TURN. Do NOT press Save, Commit, Submit, or any equivalent. "
             'Answer with JSON: {"record": ..., "staged_fields": {...}, "visible_verification": ...}.'
         )
 
     def _commit_prompt(self, spec: HoloTaskSpec) -> str:
-        del spec
+        persistent_control = "Add Record" if spec.operation == "create" else "Save/Commit"
         return (
             "TURN 2 OF 2 — COMMIT: the staged change has been approved. Re-check the staged values are still "
-            "visible, press the Save/Commit control once, and verify the application shows success."
+            f"visible, press the {persistent_control} control once, and verify the application shows success."
         )
 
     def _default_adapter_factory(self, spec: HoloTaskSpec) -> HoloAdapter:

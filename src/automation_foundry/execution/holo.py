@@ -19,7 +19,7 @@ from collections.abc import Coroutine
 from concurrent.futures import TimeoutError as FutureTimeoutError
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Protocol, TypeVar
+from typing import Any, Literal, Protocol, TypeVar
 
 from agp_types import TrajectoryStatus
 from holo_desktop.agent_client import AgentApiClient, AgentDaemon, SpawnConfig, ensure_running
@@ -27,7 +27,7 @@ from holo_desktop.agent_client.session_runner import Session, run_turn
 from holo_desktop.cli.bootstrap import load_holo_env
 from holo_desktop.settings import load_holo_settings
 
-from desktop_fixtures.store import AppKey, load_state, state_path, write_state_atomic
+from desktop_fixtures.store import ContactRecord, AppKey, load_state, next_contact_id, state_path, write_state_atomic
 
 from automation_foundry.execution.errors import ExecutionFault, fault
 
@@ -58,6 +58,7 @@ class HoloTaskSpec:
     task_text: str
     max_steps: int
     max_time_seconds: int
+    operation: Literal["update", "create"] = "update"
 
 
 @dataclass(frozen=True)
@@ -175,6 +176,22 @@ class ScriptedFakeHolo:
     def _apply_changes(self, changes: dict[str, str]) -> None:
         path = state_path(self.spec.app, self.data_root)
         state = load_state(path)
+        if self.spec.operation == "create":
+            state.records.append(
+                ContactRecord(
+                    id=next_contact_id(state),
+                    first_name=changes.get("first_name", ""),
+                    last_name=changes.get("last_name", ""),
+                    company=changes.get("company", "Not provided"),
+                    phone=changes.get("phone", "Not provided"),
+                    email=changes.get("email", "Not provided"),
+                    status=changes.get("status", "Lead"),
+                    owner=changes.get("owner", "Unassigned"),
+                    notes=changes.get("notes", ""),
+                )
+            )
+            write_state_atomic(path, state)
+            return
         for index, record in enumerate(state.records):
             if record.full_name == self.spec.record_name:
                 state.records[index] = record.model_copy(update=dict(changes))

@@ -134,6 +134,45 @@ afterEach(() => {
 });
 
 describe("ExecutionPage run configuration", () => {
+  it("renders the approved bundle's create-contact inputs", async () => {
+    installFetch((method, url) => {
+      if (method === "GET" && url.endsWith("/api/execution/automation")) {
+        return {
+          name: "Create a CRM contact",
+          version: 1,
+          operation: "create",
+          inputs: [
+            {
+              name: "first_name",
+              json_type: "string",
+              description: "Given name for the new contact.",
+              required: true,
+              default: null,
+              examples: ["Amina"],
+            },
+            {
+              name: "last_name",
+              json_type: "string",
+              description: "Family name for the new contact.",
+              required: true,
+              default: null,
+              examples: ["Diallo"],
+            },
+          ],
+          input_schema: { type: "object" },
+        };
+      }
+      if (method === "GET" && url.endsWith("/api/execution/runs")) return { runs: [] };
+      return undefined;
+    });
+
+    render(<ExecutionPage />);
+
+    expect(await screen.findByLabelText(/First name/)).toHaveAttribute("placeholder", "Amina");
+    expect(screen.getByLabelText(/Last name/)).toHaveAttribute("placeholder", "Diallo");
+    expect(screen.queryByLabelText("Lead name")).not.toBeInTheDocument();
+  });
+
   it("renders field-level errors from a 422 and an empty-state that points at the form", async () => {
     installFetch((method, url) => {
       if (url.endsWith("/csrf-token")) return { token: "test-token" };

@@ -75,6 +75,16 @@ def execution_health() -> dict[str, str]:
     return {"status": "ok", "subsystem": "execution"}
 
 
+@router.get("/automation")
+async def execution_automation(request: Request) -> JSONResponse:
+    """Return approved automation metadata for the dynamic run form."""
+    state = await _state(request)
+    try:
+        return JSONResponse(state.coordinator.automation_metadata())
+    except ExecutionFault as error:
+        return _fault_response(error)
+
+
 @router.get("/csrf-token")
 async def csrf_token(request: Request) -> JSONResponse:
     """Mint-once per-boot token required on every mutating endpoint."""

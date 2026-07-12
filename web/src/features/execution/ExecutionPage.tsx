@@ -318,5 +318,8 @@ function RunList({ onResume }: { onResume: (runId: string) => void }) {
 
 function formatLead(inputs: Record<string, unknown>): string {
   const lead = inputs.lead_name;
-  return typeof lead === "string" && lead ? lead : "Run";
+  if (typeof lead === "string" && lead) return lead;
+  const firstName = typeof inputs.first_name === "string" ? inputs.first_name : "";
+  const lastName = typeof inputs.last_name === "string" ? inputs.last_name : "";
+  return `${firstName} ${lastName}`.trim() || "Run";
 }
