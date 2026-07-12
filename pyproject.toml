@@ -24,6 +24,8 @@ dependencies = [
 
 [project.scripts]
 automation-foundry-api = "automation_foundry.cli:main"
+automation-foundry-capability-worker = "automation_foundry.orchestration.worker:main"
+automation-foundry-mcp = "automation_foundry.orchestration.mcp_server:main"
 foundry-desktop-smoke = "automation_foundry.desktop_smoke:main"
 hai-agents-demos-qa = "examples.qa.mcp.server:main"
 hai-agents-demos-extract-anything = "examples.extract_anything.server:main"

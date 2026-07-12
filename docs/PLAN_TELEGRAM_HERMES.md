@@ -61,6 +61,10 @@ Relevant gates: authoring sections 3.2–3.4, sandbox/privacy sections 3.8–3.1
 
 ## Phase 2 — Typed Hermes host capabilities
 
+Status: first read-only slice complete. `foundry_health` and `get_authoring_status` passed deterministic tests and a live
+Gemini 3.5 Flash → Hermes → MCP mailbox → trusted host worker round trip on 2026-07-12. Mutating capabilities remain
+unimplemented.
+
 ### Objective
 
 Expose the smallest capability-limited interface that lets Hermes request deterministic host operations without gaining

@@ -270,6 +270,7 @@ npm run build
 - mocked Gradium transcription and voice streams;
 - mocked Telegram inbound media, progress delivery, conversational input collection, and callback handling;
 - Telegram sender policy, disclosure gating, update deduplication, callback expiry/replay, and hash-binding tests;
+- Hermes capability mailbox schema, expiry, replay, path confinement, redaction, and authenticated CLI transport tests;
 - mocked Hermes/Holo3 success, malformed output, timeout, and retryable failure;
 - conflict generation and approval blocking;
 - generated-tool static validation and restricted runtime;
