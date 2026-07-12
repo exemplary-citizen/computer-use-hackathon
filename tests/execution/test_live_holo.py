@@ -37,7 +37,11 @@ class FakeSessionHandle:
             }
         else:
             self.steps = 10
-            answer = {"completion_summary": "Saved and visibly verified."}
+            answer = {
+                "record": "Sarah Chen",
+                "staged_fields": {"owner": "Priya Shah"},
+                "visible_verification": "Saved and visibly verified.",
+            }
         if self.answer_schema is not None:
             answer = self.answer_schema(**answer)
         outcome = self.first_outcome if self.wait_count == 1 else "success"

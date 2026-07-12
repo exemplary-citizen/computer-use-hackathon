@@ -300,16 +300,10 @@ class _LiveTurnAnswer(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    record: str | None = Field(default=None, description="Stage target record or application context.")
-    staged_fields: dict[str, str] | None = Field(
-        default=None,
-        description="Exact proposed runtime input values; required for the stage turn.",
+    record: str = Field(description="Target record or application context.")
+    staged_fields: dict[str, str] = Field(
+        description="Exact approved runtime input values for this turn.",
     )
-    visible_verification: str | None = Field(
-        default=None,
-        description="Visible evidence that the stage is ready or commit completed.",
-    )
-    completion_summary: str | None = Field(
-        default=None,
-        description="Commit-turn completion summary; omit during staging.",
+    visible_verification: str = Field(
+        description="Visible evidence that staging is ready or commit completed.",
     )

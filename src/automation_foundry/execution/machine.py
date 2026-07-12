@@ -627,11 +627,13 @@ class RunCoordinator:
                 "TURN 2 OF 2 — APPROVED COMMIT. The displayed staged plan was explicitly approved. Re-check the same "
                 f"application and execute only these approval-gated steps once:\n{commit_steps}\n"
                 f"Use these exact approved values: {json.dumps(spec.field_changes, sort_keys=True)}. "
-                "Visually verify completion and report what changed."
+                "Visually verify completion. Report `record` as the same target context, `staged_fields` as those exact "
+                "approved values, and `visible_verification` as the observed completion state."
             )
         return (
             "TURN 2 OF 2 — COMMIT: the staged change has been approved. Re-check the staged values are still "
-            "visible, press the Save/Commit control once, and verify the application shows success."
+            "visible, press the Save/Commit control once, and verify the application shows success. Report `record` "
+            "and `staged_fields` exactly as approved plus a `visible_verification` summary."
         )
 
     def _default_adapter_factory(self, spec: HoloTaskSpec) -> HoloAdapter:
