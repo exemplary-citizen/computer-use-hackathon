@@ -23,7 +23,7 @@
       "type": "text",
       "id": "title",
       "x": 80,
-      "y": 70,
+      "y": 85,
       "width": 900,
       "height": 42,
       "text": "Computer-Use Automation Foundry",
@@ -35,7 +35,7 @@
       "type": "text",
       "id": "subtitle",
       "x": 82,
-      "y": 118,
+      "y": 133,
       "width": 1100,
       "height": 24,
       "text": "Teach a workflow from video, approve it on Telegram, then run it safely on the Mac.",
@@ -47,7 +47,7 @@
       "type": "arrow",
       "id": "header_divider",
       "x": 80,
-      "y": 165,
+      "y": 175,
       "width": 1440,
       "height": 0,
       "points": [
@@ -245,8 +245,8 @@
       "y": 405,
       "width": 160,
       "height": 155,
-      "text": "Operations expert\nphone",
-      "fontSize": 22,
+      "text": "Ops expert\nphone",
+      "fontSize": 20,
       "fontFamily": 1,
       "textAlign": "center",
       "verticalAlign": "middle",
@@ -617,7 +617,7 @@
       "y": 830,
       "width": 230,
       "height": 65,
-      "text": "Apple Mail  →  Atlas Returns Desk",
+      "text": "Apple Mail\nAtlas Returns Desk",
       "fontSize": 17,
       "fontFamily": 1,
       "textAlign": "center",
@@ -659,27 +659,19 @@
           0,
           0.5
         ]
-      },
-      "boundElements": [
-        {
-          "id": "owner_to_telegram_label",
-          "type": "text"
-        }
-      ]
+      }
     },
     {
       "type": "text",
-      "id": "owner_to_telegram_label",
-      "x": 285,
-      "y": 460,
-      "width": 70,
-      "height": -75,
-      "text": "video / commands",
-      "fontSize": 16,
-      "fontFamily": 1,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "owner_to_telegram"
+      "id": "owner_input_label",
+      "x": 282,
+      "y": 408,
+      "width": 80,
+      "height": 20,
+      "text": "video + text",
+      "fontSize": 14,
+      "strokeColor": "#1864ab",
+      "fontFamily": 1
     },
     {
       "type": "arrow",
@@ -750,14 +742,6 @@
           0
         ],
         [
-          55,
-          0
-        ],
-        [
-          55,
-          -150
-        ],
-        [
           115,
           -150
         ]
@@ -779,27 +763,19 @@
           0,
           0.8
         ]
-      },
-      "boundElements": [
-        {
-          "id": "gradium_to_authoring_label",
-          "type": "text"
-        }
-      ]
+      }
     },
     {
       "type": "text",
-      "id": "gradium_to_authoring_label",
+      "id": "transcript_label",
       "x": 585,
-      "y": 575,
-      "width": 95,
-      "height": -170,
+      "y": 478,
+      "width": 80,
+      "height": 20,
       "text": "transcript",
-      "fontSize": 16,
-      "fontFamily": 1,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "gradium_to_authoring"
+      "fontSize": 14,
+      "strokeColor": "#6741d9",
+      "fontFamily": 1
     },
     {
       "type": "arrow",
@@ -947,27 +923,19 @@
           0.5,
           0
         ]
-      },
-      "boundElements": [
-        {
-          "id": "nemo_to_gemini_label",
-          "type": "text"
-        }
-      ]
+      }
     },
     {
       "type": "text",
-      "id": "nemo_to_gemini_label",
-      "x": 1360,
-      "y": 450,
+      "id": "inference_label",
+      "x": 1365,
+      "y": 458,
       "width": 80,
-      "height": 40,
+      "height": 20,
       "text": "inference",
-      "fontSize": 16,
-      "fontFamily": 1,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "nemo_to_gemini"
+      "fontSize": 14,
+      "strokeColor": "#7c4700",
+      "fontFamily": 1
     },
     {
       "type": "arrow",
@@ -1003,27 +971,19 @@
           0.5,
           0
         ]
-      },
-      "boundElements": [
-        {
-          "id": "authoring_to_store_label",
-          "type": "text"
-        }
-      ]
+      }
     },
     {
       "type": "text",
-      "id": "authoring_to_store_label",
-      "x": 895,
-      "y": 450,
-      "width": 80,
-      "height": 50,
+      "id": "validated_label",
+      "x": 905,
+      "y": 466,
+      "width": 130,
+      "height": 20,
       "text": "validated version",
-      "fontSize": 16,
-      "fontFamily": 1,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "authoring_to_store"
+      "fontSize": 14,
+      "strokeColor": "#087f5b",
+      "fontFamily": 1
     },
     {
       "type": "arrow",
@@ -1059,27 +1019,19 @@
           0.5,
           0
         ]
-      },
-      "boundElements": [
-        {
-          "id": "store_to_execution_label",
-          "type": "text"
-        }
-      ]
+      }
     },
     {
       "type": "text",
-      "id": "store_to_execution_label",
-      "x": 895,
-      "y": 630,
-      "width": 80,
-      "height": 50,
+      "id": "approved_label",
+      "x": 905,
+      "y": 646,
+      "width": 110,
+      "height": 20,
       "text": "approved hash",
-      "fontSize": 16,
-      "fontFamily": 1,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "store_to_execution"
+      "fontSize": 14,
+      "strokeColor": "#2b8a3e",
+      "fontFamily": 1
     },
     {
       "type": "arrow",
@@ -1179,27 +1131,19 @@
           0,
           0.35
         ]
-      },
-      "boundElements": [
-        {
-          "id": "execution_to_holo_label",
-          "type": "text"
-        }
-      ]
+      }
     },
     {
       "type": "text",
-      "id": "execution_to_holo_label",
-      "x": 1090,
-      "y": 740,
-      "width": 125,
-      "height": -30,
-      "text": "task + limits",
-      "fontSize": 16,
-      "fontFamily": 1,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "execution_to_holo"
+      "id": "approved_task_label",
+      "x": 1095,
+      "y": 696,
+      "width": 100,
+      "height": 20,
+      "text": "approved task",
+      "fontSize": 14,
+      "strokeColor": "#2b8a3e",
+      "fontFamily": 1
     },
     {
       "type": "arrow",
@@ -1235,27 +1179,19 @@
           1,
           0.75
         ]
-      },
-      "boundElements": [
-        {
-          "id": "holo_to_execution_label",
-          "type": "text"
-        }
-      ]
+      }
     },
     {
       "type": "text",
-      "id": "holo_to_execution_label",
-      "x": 1235,
-      "y": 770,
-      "width": -165,
-      "height": 0,
-      "text": "staged report + result",
-      "fontSize": 16,
-      "fontFamily": 1,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "holo_to_execution"
+      "id": "result_label",
+      "x": 1130,
+      "y": 790,
+      "width": 50,
+      "height": 20,
+      "text": "result",
+      "fontSize": 14,
+      "strokeColor": "#2b8a3e",
+      "fontFamily": 1
     },
     {
       "type": "arrow",
@@ -1291,27 +1227,19 @@
           0.5,
           0
         ]
-      },
-      "boundElements": [
-        {
-          "id": "holo_to_apps_label",
-          "type": "text"
-        }
-      ]
+      }
     },
     {
       "type": "text",
-      "id": "holo_to_apps_label",
-      "x": 1360,
-      "y": 785,
-      "width": 80,
-      "height": 25,
+      "id": "computer_use_label",
+      "x": 1365,
+      "y": 787,
+      "width": 100,
+      "height": 20,
       "text": "computer use",
-      "fontSize": 16,
-      "fontFamily": 1,
-      "textAlign": "center",
-      "verticalAlign": "middle",
-      "containerId": "holo_to_apps"
+      "fontSize": 14,
+      "strokeColor": "#1864ab",
+      "fontFamily": 1
     },
     {
       "type": "rectangle",
@@ -1341,7 +1269,7 @@
       "y": 980,
       "width": 1170,
       "height": 80,
-      "text": "Safety boundary: Telegram and NemoClaw have no macOS control. Only the trusted host can invoke HoloDesktop, and only an approved, hash-matching automation can run.",
+      "text": "Telegram and NemoClaw have no macOS control.\nOnly the trusted host invokes HoloDesktop • approved hash required.",
       "fontSize": 19,
       "fontFamily": 1,
       "textAlign": "center",
