@@ -23,6 +23,7 @@ from automation_foundry.surfaces.telegram.media import (
     TelegramMediaInbox,
     TelegramMediaInboxConfig,
 )
+from automation_foundry.surfaces.telegram.transport import TelegramBotRuntime, TelegramTransportConfig
 
 __all__ = [
     "IssuedTelegramCallback",
@@ -33,6 +34,7 @@ __all__ = [
     "TelegramCallbackStore",
     "TelegramCallbackStoreConfig",
     "TelegramButton",
+    "TelegramBotRuntime",
     "TelegramChatType",
     "TelegramInboundUpdate",
     "TelegramInteractionService",
@@ -41,5 +43,6 @@ __all__ = [
     "TelegramMediaInboxConfig",
     "TelegramSurfaceConfig",
     "TelegramSurfaceResponse",
+    "TelegramTransportConfig",
     "TelegramUpdateKind",
 ]
