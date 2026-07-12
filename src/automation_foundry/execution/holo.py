@@ -67,7 +67,6 @@ class HoloTaskSpec:
     region: Literal["us", "eu"] = "us"
     stage_instructions: tuple[str, ...] = ()
     commit_instructions: tuple[str, ...] = ()
-    excluded_record_ids: tuple[str, ...] = ()
     requires_commit: bool = True
 
 

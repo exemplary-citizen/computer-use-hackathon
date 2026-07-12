@@ -382,20 +382,18 @@ Must-pass demo checks:
   requiring the workflow to inspect or modify unrelated mail contents.
 - [ ] The recorded cross-app task checks no more than three messages, extracts `RTN-1064`, finds that Atlas case, stages
   the exact frustration/urgency note, and identifies **Apply Resolution** as the approval-gated persistent action.
-- [ ] When more than one of the three newest Inbox messages contains a case ID, the workflow chooses the newest match;
-  after leaving Mail it does not return before the Atlas workflow ends.
+- [ ] Every run snapshots exactly the three newest Inbox messages and ignores all prior-run processed-case history.
+- [ ] Every unique `RTN-####` message in that snapshot is processed newest-to-oldest in one Start-authorized loop; regular
+  mail is skipped, nothing beyond the snapshot is read, and no snapshot message is processed twice.
 - [ ] For target `Atlas Returns Desk`, Telegram **Start** stages, verifies, and commits in the retained Holo session
   without rendering a second Commit/Reject prompt; a non-Atlas target still requires the separate commit button.
 - [ ] The Atlas review summary labels its persistent step **Start-authorized action** and does not instruct the owner to
   stop for a second approval.
-- [ ] The Atlas commit turn clicks the green **Apply Resolution** button once, observes red `UPDATED!`, then selects the
-  next-newest different return email without reopening the processed message or committing a second case.
-- [ ] If no different return email exists among the three newest items, the workflow reports none and never falls back
-  to the processed message; an Atlas terminal failure remains locally inspectable but produces no Telegram failure reply.
-- [ ] Successful Atlas case IDs persist in the local execution ledger and are injected as exclusions on later runs.
-- [ ] With no unprocessed case among the three newest messages, an Atlas run succeeds without launching Atlas or
-  attempting a persistent action.
-- [ ] Telegram prepares Atlas runs with 60 steps and 360 seconds while preserving default budgets for non-Atlas targets.
+- [ ] Each queued case must visibly complete **Run Search**, exact-row verification, note staging, **Apply Resolution**,
+  and red `UPDATED!` before the loop advances.
+- [ ] With no return case in the three-message snapshot, the run succeeds without launching Atlas or attempting a
+  persistent action; an Atlas terminal failure remains locally inspectable but produces no Telegram failure reply.
+- [ ] Telegram prepares Atlas runs with 120 steps and 900 seconds while preserving default budgets for non-Atlas targets.
 
 Focused automated command: `uv run pytest tests/desktop_fixtures/test_atlas_returns.py -q`.
 

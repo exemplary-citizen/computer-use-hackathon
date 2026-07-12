@@ -51,14 +51,15 @@ class GenericLiveStandIn:
                     answer=(
                         '{"record":"NO_MATCHING_EMAIL","staged_fields":'
                         '{"workflow_status":"no_matching_email"},'
-                        '"visible_verification":"No unprocessed RTN email exists among the three newest."}'
+                        '"visible_verification":"No RTN email exists in the three-message snapshot."}'
                     ),
                     steps_used=1,
                 )
             if "Atlas Returns Desk" in message:
                 return TurnOutcome(
                     answer=(
-                        '{"record":"RTN-1064","staged_fields":{"internal_decision_note":'
+                        '{"record":"RTN-1064","staged_fields":{"case_queue":"RTN-1064,RTN-1061,RTN-1068",'
+                        '"case_id":"RTN-1064","internal_decision_note":'
                         '"Customer sounds very frustrated. Initiate return ASAP."},'
                         '"visible_verification":"Atlas shows the staged internal note and Apply Resolution is ready."}'
                     ),
@@ -71,9 +72,12 @@ class GenericLiveStandIn:
                 ),
                 steps_used=3,
             )
-        if "APPROVED ATLAS COMMIT" in message:
+        if "START-AUTHORIZED ATLAS QUEUE COMMIT" in message:
             return TurnOutcome(
-                answer="Clicked Apply Resolution, observed red UPDATED!, and selected next case RTN-1068 in Mail.",
+                answer=(
+                    "Completed RTN-1064, RTN-1061, and RTN-1068 in order; each showed red UPDATED! after Apply "
+                    "Resolution."
+                ),
                 steps_used=2,
             )
         return TurnOutcome(answer="Typed exact approved greeting and verified it.", steps_used=2)
@@ -215,8 +219,8 @@ class TestTelegramExecutionCoordinator:
         assert "complete the Atlas change" in started.response.text
         coordinator = self.execution._run_coordinators[started.watch_run_id]
         request = coordinator.get_status(started.watch_run_id)["request"]
-        assert request["max_steps"] == 60
-        assert request["max_time_seconds"] == 360
+        assert request["max_steps"] == 120
+        assert request["max_time_seconds"] == 900
 
         terminal = await self.execution.wait_for_run(started.watch_run_id)
 
@@ -224,26 +228,26 @@ class TestTelegramExecutionCoordinator:
         assert not terminal.silent
         assert terminal.buttons == ()
         assert len(self.adapter.messages) == 2
-        assert "choose the newest matching RTN case" in self.adapter.messages[0]
-        assert "Once the chosen email context is captured" in self.adapter.messages[0]
-        assert "do not return to Mail" in self.adapter.messages[0]
+        assert "Ignore every prior run" in self.adapter.messages[0]
+        assert "exactly the three newest messages" in self.adapter.messages[0]
+        assert "never inspect a fourth message" in self.adapter.messages[0]
+        assert "`case_queue`" in self.adapter.messages[0]
         assert "click `Run Search`" in self.adapter.messages[0]
-        assert "confirm the case heading matches that ID" in self.adapter.messages[0]
+        assert "visually confirm the case heading" in self.adapter.messages[0]
         assert "Do not call the approval tool before" in self.adapter.messages[0]
-        assert "Apply Resolution` exactly once" in self.adapter.messages[1]
-        assert "red `UPDATED!` directly beneath the button" in self.adapter.messages[1]
-        assert 'verify return case "RTN-1064"' in self.adapter.messages[1]
-        assert "Do not quit Atlas" in self.adapter.messages[1]
-        assert "exclude the exact message used in Turn 1" in self.adapter.messages[1]
-        assert "processed cases: RTN-1064" in self.adapter.messages[1]
-        assert "Leave that next message selected" in self.adapter.messages[1]
-        assert "never reopen the processed message" in self.adapter.messages[1]
-        assert coordinator._processed_record_ids(manifest.id, "Atlas Returns Desk") == ("RTN-1064",)
+        assert "`Apply Resolution` button exactly once" in self.adapter.messages[1]
+        assert "red `UPDATED!` appears directly beneath it" in self.adapter.messages[1]
+        assert '"RTN-1064,RTN-1061,RTN-1068"' in self.adapter.messages[1]
+        assert "For each remaining queued ID, in order" in self.adapter.messages[1]
+        assert "click `Run Search`" in self.adapter.messages[1]
+        assert "never inspect a fourth Inbox message" in self.adapter.messages[1]
+        assert "never process one queued ID twice" in self.adapter.messages[1]
+        assert "When the captured queue is exhausted" in self.adapter.messages[1]
         approved = self.authoring.load_version(manifest.id, version.version)
         assert approved.approval is not None
 
     @pytest.mark.asyncio
-    async def test_atlas_with_no_unprocessed_email_terminates_without_commit(self) -> None:
+    async def test_atlas_with_no_return_email_terminates_without_commit(self) -> None:
         manifest = self.authoring.store.create_automation("Atlas Empty Queue Automation")
         _, report = self.authoring.bundles.create_version(manifest.id, valid_draft())
         assert report.valid
@@ -265,7 +269,7 @@ class TestTelegramExecutionCoordinator:
 
         terminal = await self.execution.wait_for_run(started.watch_run_id)
 
-        assert "No unprocessed return email" in terminal.text
+        assert "No return email is present in the three-message Inbox snapshot" in terminal.text
         assert len(self.adapter.messages) == 1
 
     @pytest.mark.asyncio

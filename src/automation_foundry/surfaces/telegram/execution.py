@@ -180,7 +180,7 @@ class TelegramExecutionCoordinator:
                 runtime_inputs,
                 InvocationSource.TELEGRAM,
                 max_steps=self.execution_settings.hard_max_steps if auto_commit else None,
-                max_time_seconds=min(360, self.execution_settings.hard_max_time_seconds) if auto_commit else None,
+                max_time_seconds=self.execution_settings.hard_max_time_seconds if auto_commit else None,
             )
         except InputValidationError as exc:
             problems = "; ".join(f"{name}: {message}" for name, message in sorted(exc.field_errors.items()))

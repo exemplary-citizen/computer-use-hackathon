@@ -413,7 +413,7 @@ class RunCoordinator:
                 await self._finalize(
                     run_id,
                     RunState.SUCCEEDED,
-                    answer="No unprocessed return email is present among the three newest Inbox messages.",
+                    answer="No return email is present in the three-message Inbox snapshot.",
                     verification=staged.visible_verification,
                     steps=stage_outcome.steps_used,
                     from_states=(RunState.EXECUTING,),
@@ -489,8 +489,6 @@ class RunCoordinator:
                 ),
             )
             verification = self._verify_commit(spec, pre_state, staged, commit_outcome)
-            if spec.app.strip().casefold() == "atlas returns desk":
-                self._store_processed_record(request, staged)
             await self._finalize(
                 run_id,
                 RunState.SUCCEEDED,
@@ -549,6 +547,8 @@ class RunCoordinator:
             raise fault("malformed_stage_answer", "staged fields must contain named string values")
         if spec.field_changes and staged_fields != spec.field_changes:
             raise fault("malformed_stage_answer", "agent-reported fields differ from the requested change")
+        if spec.app.strip().casefold() == "atlas returns desk":
+            _validate_atlas_stage_report(parsed["record"], staged_fields)
 
     def _build_staged_change(
         self,
@@ -630,11 +630,6 @@ class RunCoordinator:
         )
         stage_instructions = tuple(step.instruction for step in loaded.bundle.version.steps[:persistent_index])
         commit_instructions = tuple(step.instruction for step in loaded.bundle.version.steps[persistent_index:])
-        excluded_record_ids = (
-            self._processed_record_ids(request.automation_id, request.target_app)
-            if request.target_app.strip().casefold() == "atlas returns desk"
-            else ()
-        )
         task_text = self._stage_prompt_text(loaded, request, record_name, field_changes)
         return HoloTaskSpec(
             app=app or request.target_app,
@@ -647,7 +642,6 @@ class RunCoordinator:
             region=self.settings.holo_region,
             stage_instructions=stage_instructions,
             commit_instructions=commit_instructions,
-            excluded_record_ids=excluded_record_ids,
             requires_commit=fixture_bundle or bool(commit_instructions),
         )
 
@@ -681,31 +675,38 @@ class RunCoordinator:
             stage_steps = (
                 "\n".join(f"- {instruction}" for instruction in spec.stage_instructions) or "- Prepare the app."
             )
-            if spec.app.strip().casefold() == "atlas returns desk":
-                exclusions = ", ".join(spec.excluded_record_ids) or "none"
+            atlas_workflow = spec.app.strip().casefold() == "atlas returns desk"
+            if atlas_workflow:
                 stage_steps += (
-                    "\n\nATLAS CONTINUITY RULE: Read the current Apple Mail Inbox order fresh on this run and choose the "
-                    "newest matching RTN case among at most the three newest messages. Never reuse a prior case ID. "
-                    f"Already processed case IDs: {exclusions}. Treat every listed ID as forbidden even if its email "
-                    "is newest or currently selected. If no unprocessed RTN case exists among the three newest "
-                    "messages, do not open Atlas. Call `request_commit_approval` with record `NO_MATCHING_EMAIL`, "
+                    "\n\nATLAS THREE-MESSAGE LOOP: Ignore every prior run, processed-case history, and the message "
+                    "currently selected in Mail. Activate Apple Mail Inbox and take one immutable, ordered snapshot "
+                    "of exactly the three newest messages, newest to oldest. Inspect all three snapshot subjects. "
+                    "Build `case_queue` from every snapshot subject containing an `RTN-####` case ID, preserving that "
+                    "exact newest-to-oldest order. Skip regular mail, deduplicate repeated case IDs only within this "
+                    "snapshot, and never inspect a fourth message. If `case_queue` is empty, do not open Atlas. Call "
+                    "`request_commit_approval` with record `NO_MATCHING_EMAIL`, "
                     'staged_fields exactly {"workflow_status":"no_matching_email"}, and visible verification '
-                    "that no unprocessed match exists. "
-                    "Once the chosen email context is captured and Atlas is opened, do not return to Mail. Remain in "
-                    "Atlas through search, note entry, visual staging verification, and the approval tool call. In "
-                    "Atlas, perform these checkpoints in order with no shortcut: clear the search field, enter the "
-                    "chosen unprocessed case ID, click `Run Search`, wait for the filtered result, select the exact "
-                    "matching row, visually confirm the case heading matches that ID, read the Return Intake Narrative, "
-                    "then enter and visually verify the internal decision note. Do not call the approval tool before "
-                    "all checkpoints are visibly complete."
+                    "that none of the three snapshot subjects contains a return case. Otherwise, read the first "
+                    "queued message's customer context and stage only that first case in Atlas. Clear the search "
+                    "field, enter its exact case ID, click `Run Search`, wait for the filtered result, select the exact "
+                    "matching row, visually confirm the case heading, read the Return Intake Narrative, then enter "
+                    "and visually verify the internal decision note. Do not call the approval tool before all of "
+                    "those checkpoints are complete. The approval report's `staged_fields` must contain `case_queue` "
+                    "as one comma-separated string of every queued ID, `case_id` as the first queued ID, and "
+                    "`internal_decision_note` as the exact staged note."
                 )
             blocked_steps = "\n".join(f"- {instruction}" for instruction in spec.commit_instructions)
+            record_instruction = (
+                "`record` equal to the first queued `case_id` (or `NO_MATCHING_EMAIL` for an empty queue)"
+                if atlas_workflow
+                else f"`record` equal to {json.dumps(spec.record_name)}"
+            )
             return (
                 f"{spec.task_text}\n\nTURN 1 OF 2 — STAGE ONLY. Execute only these non-persistent setup steps:\n"
                 f"{stage_steps}\n\nDo not execute these approval-gated steps yet:\n{blocked_steps}\n"
                 "Do not Save, Commit, Submit, type approval-gated content, or perform any equivalent persistent action. "
                 "Visually verify the app is ready, then call `request_commit_approval` exactly once with "
-                f"`record` equal to {json.dumps(spec.record_name)}, {staged_fields_instruction}, and "
+                f"{record_instruction}, {staged_fields_instruction}, and "
                 "`visible_verification` describing readiness. "
                 "Do not answer or end the session; wait for the approval tool result."
             )
@@ -725,23 +726,26 @@ class RunCoordinator:
         )
         approved_fields = {change.field: change.after for change in staged.changes}
         if spec.app.strip().casefold() == "atlas returns desk":
-            excluded_ids = tuple(dict.fromkeys((*spec.excluded_record_ids, staged.record_identity)))
-            exclusion_text = ", ".join(excluded_ids)
+            case_queue = str(approved_fields.get("case_queue", approved_fields.get("case_id", "")))
             return (
-                "TURN 2 OF 2 — APPROVED ATLAS COMMIT. "
-                f"{target_guard}Reactivate Atlas Returns Desk and verify return case "
-                f"{json.dumps(staged.record_identity)} and the staged internal note. "
-                "Click the green button labeled `Apply Resolution` exactly once. Wait until the Atlas status area "
-                "visibly displays red `UPDATED!` directly beneath the button. Do not quit Atlas; it resets its queue "
-                "automatically in the background. Then activate Apple Mail and read the current Inbox order fresh. "
-                f"Explicitly exclude the exact message used in Turn 1 and every message for these processed cases: "
-                f"{exclusion_text}. Inspect at most the three newest messages from newest to oldest "
-                "and select the first message whose subject contains a different `RTN-####` case ID. Leave that next "
-                "message selected and end without processing it. If no different matching message exists, leave the "
-                "Inbox unchanged, report that no next case is available, and never reopen the processed message. "
-                "Report `record` as the processed case, `staged_fields` as these exact approved "
-                f"values: {json.dumps(approved_fields, sort_keys=True)}, and `visible_verification` confirming that "
-                "red `UPDATED!` appeared plus the different next case ID selected, or that no different case exists."
+                "TURN 2 OF 2 — START-AUTHORIZED ATLAS QUEUE COMMIT. This one retained turn must finish the immutable "
+                f"queue captured in Turn 1, exactly in this order: {json.dumps(case_queue)}. Do not rebuild, reorder, "
+                "or extend that queue; ignore prior-run history, never inspect a fourth Inbox message, and never "
+                "process one queued ID twice. "
+                f"{target_guard}The first queued case is already staged. Reactivate Atlas Returns Desk, verify the "
+                "visible case heading equals the first queued ID and the internal note is staged, click the green "
+                "`Apply Resolution` button exactly once, and wait until red `UPDATED!` appears directly beneath it. "
+                "For each remaining queued ID, in order: activate Apple Mail and select that exact queued snapshot "
+                "message; read its customer context; reactivate Atlas Returns Desk and wait for its canonical queue "
+                "reset if necessary; clear the search field; enter the exact queued ID; click `Run Search`; wait for "
+                "the filtered result; select the exact matching row; verify the case heading equals that ID; read the "
+                "Return Intake Narrative; enter and visually verify the exact approved internal decision note; click "
+                "the green `Apply Resolution` button exactly once; and wait for red `UPDATED!` before advancing. "
+                "Do not return to an already completed queued message. When the captured queue is exhausted, end the "
+                "workflow immediately without another Mail or Atlas action. Report `record` as the comma-separated "
+                "completed queue, `staged_fields` as these exact approved values: "
+                f"{json.dumps(approved_fields, sort_keys=True)}, and `visible_verification` confirming `UPDATED!` for "
+                "every queued ID."
             )
         if spec.commit_instructions:
             commit_steps = "\n".join(f"- {instruction}" for instruction in spec.commit_instructions)
@@ -879,39 +883,6 @@ class RunCoordinator:
             )
         self._write_run_file(run_id, "staged_change.json", staged.model_dump_json(indent=2))
 
-    def _store_processed_record(self, request: RunRequest, staged: StagedChange) -> None:
-        record_identity = _processed_case_id(staged)
-        if record_identity is None:
-            return
-        with self._connect() as connection:
-            connection.execute(
-                """
-                INSERT OR IGNORE INTO processed_records (
-                    automation_id, target_app, record_identity, run_id, processed_at
-                ) VALUES (?, ?, ?, ?, ?)
-                """,
-                (
-                    str(request.automation_id),
-                    request.target_app.casefold(),
-                    record_identity,
-                    str(request.id),
-                    _now(),
-                ),
-            )
-
-    def _processed_record_ids(self, automation_id: UUID, target_app: str) -> tuple[str, ...]:
-        with self._connect() as connection:
-            rows = connection.execute(
-                """
-                SELECT record_identity
-                FROM processed_records
-                WHERE automation_id = ? AND target_app = ?
-                ORDER BY processed_at DESC
-                """,
-                (str(automation_id), target_app.casefold()),
-            ).fetchall()
-        return tuple(str(row[0]) for row in rows)
-
     def _store_approval(self, run_id: UUID, approval: ApprovalRecord | None) -> None:
         if approval is not None:
             self._write_run_file(run_id, "approval.json", approval.model_dump_json(indent=2))
@@ -954,48 +925,6 @@ class RunCoordinator:
             connection.execute(
                 "CREATE UNIQUE INDEX IF NOT EXISTS ux_runs_one_active ON runs (is_active) WHERE is_active = 1"
             )
-            connection.execute(
-                """
-                CREATE TABLE IF NOT EXISTS processed_records (
-                    automation_id TEXT NOT NULL,
-                    target_app TEXT NOT NULL,
-                    record_identity TEXT NOT NULL,
-                    run_id TEXT NOT NULL,
-                    processed_at TEXT NOT NULL,
-                    PRIMARY KEY (automation_id, target_app, record_identity)
-                )
-                """
-            )
-            rows = connection.execute(
-                """
-                SELECT id, request_json, staged_json, updated_at
-                FROM runs
-                WHERE state = ? AND staged_json IS NOT NULL
-                """,
-                (RunState.SUCCEEDED.value,),
-            ).fetchall()
-            for run_id, request_json, staged_json, processed_at in rows:
-                request = RunRequest.model_validate_json(request_json)
-                if request.target_app.casefold() != "atlas returns desk":
-                    continue
-                staged = StagedChange.model_validate_json(staged_json)
-                record_identity = _processed_case_id(staged)
-                if record_identity is None:
-                    continue
-                connection.execute(
-                    """
-                    INSERT OR IGNORE INTO processed_records (
-                        automation_id, target_app, record_identity, run_id, processed_at
-                    ) VALUES (?, ?, ?, ?, ?)
-                    """,
-                    (
-                        str(request.automation_id),
-                        request.target_app.casefold(),
-                        record_identity,
-                        str(run_id),
-                        str(processed_at),
-                    ),
-                )
 
 
 def _uses_fixture_contract(loaded: LoadedBundle) -> bool:
@@ -1003,23 +932,36 @@ def _uses_fixture_contract(loaded: LoadedBundle) -> bool:
     return RECORD_SELECTOR_INPUT in properties and any(name in properties for name in INPUT_FIELD_MAP)
 
 
-def _processed_case_id(staged: StagedChange) -> str | None:
-    for change in staged.changes:
-        if change.field.casefold() != "case_id" or not isinstance(change.after, str):
-            continue
-        value = change.after.strip().upper()
-        if value.startswith("RTN-") and len(value) == 8 and value[4:].isdigit():
-            return value
-    record_identity = staged.record_identity.strip().upper()
-    if record_identity.startswith("RTN-") and len(record_identity) == 8 and record_identity[4:].isdigit():
-        return record_identity
-    return None
-
-
 def _is_no_matching_email(staged: StagedChange) -> bool:
     if staged.record_identity == "NO_MATCHING_EMAIL":
         return True
     return any(change.field == "workflow_status" and change.after == "no_matching_email" for change in staged.changes)
+
+
+def _validate_atlas_stage_report(record: object, staged_fields: dict[object, object]) -> None:
+    if staged_fields == {"workflow_status": "no_matching_email"}:
+        if record != "NO_MATCHING_EMAIL":
+            raise fault("malformed_stage_answer", "empty Atlas queue has an invalid record sentinel")
+        return
+    required_fields = {"case_queue", "case_id", "internal_decision_note"}
+    if set(staged_fields) != required_fields:
+        raise fault("malformed_stage_answer", "Atlas stage report has an invalid field set")
+    raw_queue = staged_fields["case_queue"]
+    if not isinstance(raw_queue, str):
+        raise fault("malformed_stage_answer", "Atlas case queue is not a string")
+    case_queue = tuple(case_id.strip().upper() for case_id in raw_queue.split(",") if case_id.strip())
+    if not 1 <= len(case_queue) <= 3:
+        raise fault("malformed_stage_answer", "Atlas case queue must contain one to three case IDs")
+    if len(case_queue) != len(set(case_queue)) or not all(_is_atlas_case_id(case_id) for case_id in case_queue):
+        raise fault("malformed_stage_answer", "Atlas case queue contains invalid or duplicate case IDs")
+    if staged_fields["case_id"] != case_queue[0] or record != case_queue[0]:
+        raise fault("malformed_stage_answer", "Atlas staged case does not match the first queued case")
+    if not str(staged_fields["internal_decision_note"]).strip():
+        raise fault("malformed_stage_answer", "Atlas internal decision note is empty")
+
+
+def _is_atlas_case_id(value: str) -> bool:
+    return value.startswith("RTN-") and len(value) == 8 and value[4:].isdigit()
 
 
 def _parse_json_object(content: str) -> dict[str, object]:

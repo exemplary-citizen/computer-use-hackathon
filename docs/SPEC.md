@@ -245,34 +245,27 @@ When the operator activates the green **Apply Resolution** button, Atlas reveals
 button without a popup, dialog, or additional confirmation step. After a brief visible interval, Atlas restores its
 canonical queue in the background while remaining open, so a later activation never resumes on the processed case.
 
-The canonical cross-application Atlas demonstration begins in Apple Mail with an owner-provided dummy message among the
-three newest inbox items. On every run, the operator re-reads the current Inbox order newest-to-oldest and selects the
-newest matching message containing an `RTN-####` case ID; a remembered case ID or an older matching message must never
-win over a newer match. After reading that message's customer context, the workflow leaves Mail once, launches Atlas
-through Spotlight, searches that exact case, and remains in Atlas through note staging and commit without returning to
-Mail. For the `RTN-1064` example the note is `Customer sounds very frustrated. Initiate return ASAP.` The final
-**Apply Resolution** click is the only persistent action and therefore requires Telegram commit approval. The workflow must
-not reply to, move, delete, or otherwise modify unrelated mail.
+The canonical cross-application Atlas demonstration begins by taking a fresh, ordered snapshot of exactly the three newest
+Apple Mail Inbox messages. Prior runs and previously processed case IDs never affect this snapshot. The workflow builds a
+newest-to-oldest queue from snapshot messages whose subjects contain an `RTN-####` case ID, skipping non-return messages
+and deduplicating only repeated messages within the current run. It never reads beyond the snapshot.
 
-After the committed Atlas update visibly reports `UPDATED!`, the workflow returns to Apple Mail and re-reads the current
-Inbox order. It excludes both the exact processed message and its processed case ID, then selects the next-newest message
-within the three newest items whose subject contains a different `RTN-####` case ID. It leaves that next message selected
-and ends without processing or committing it; the next run starts from a fresh authorization. If no different match is
-present, it leaves the Inbox unchanged and reports that no next case is available. It must never reopen the just-processed
-message as the next item.
-
-The trusted execution host records successfully committed Atlas case IDs in its local execution database. Every later
-Atlas run injects those IDs as hard exclusions before Holo scans Mail. If none of the three newest messages contains an
-unprocessed return case, the stage completes successfully as `no matching email` without opening Atlas or attempting a
-commit. Atlas Telegram runs receive the configured 60-step and 360-second demo budget because the cross-application
-workflow spans Mail, Spotlight, Atlas staging, commit verification, and the next-email handoff.
+One Telegram **Start** authorizes the complete queue loop. For each queued message in order, the workflow reads that
+message's context, launches or reactivates Atlas, clears and enters the exact case ID, clicks **Run Search**, waits for the
+filtered result, selects and verifies the exact case row, reads the Return Intake Narrative, enters and verifies the
+internal decision note, clicks the green **Apply Resolution** button exactly once, and observes red `UPDATED!`. Atlas
+restores its canonical queue between cases. The workflow then returns to the next queued snapshot message and repeats.
+For the `RTN-1064` example the note is `Customer sounds very frustrated. Initiate return ASAP.` It must not reply to,
+move, delete, or otherwise modify mail. If the snapshot contains no return case, the run terminates successfully without
+opening Atlas or attempting a commit. Atlas Telegram runs receive a 120-step and 900-second demo budget; non-Atlas runs
+retain their normal defaults.
 
 For the owner-only Atlas hackathon demo, the hash-bound Telegram **Start** button also authorizes the staged Atlas commit.
 The trusted host still stages and verifies the proposed change in the retained Holo session, then automatically resolves
 that session's commit tool and waits for terminal verification. Telegram does not render a second Commit/Reject prompt
 for this target. Telegram review describes this as a **Start-authorized action**, and the visible action summary must not
-tell the owner to stop for another approval. The Atlas commit turn must click the green **Apply Resolution** button
-exactly once, observe red `UPDATED!` directly beneath it, then perform the non-persistent next-email handoff above.
+tell the owner to stop for another approval. The Atlas commit turn must process the entire three-message snapshot queue
+exactly once in order and terminate after the queue is exhausted.
 Atlas-only terminal failures are retained in local run records but
 are not posted back to Telegram. All non-Atlas automations retain the separate commit approval and failure-report flow.
 

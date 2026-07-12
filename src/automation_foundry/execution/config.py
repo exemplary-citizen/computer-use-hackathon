@@ -31,9 +31,9 @@ class ExecutionSettings(BaseSettings):
     """Commit-approval window; expiry cancels the run without saving."""
     heartbeat_seconds: float = 10.0
     """Max silent interval on the event stream while a Holo turn is in flight."""
-    hard_max_steps: int = 60
+    hard_max_steps: int = 120
     """Ceiling a RunRequest.max_steps may never exceed."""
-    hard_max_time_seconds: int = 600
+    hard_max_time_seconds: int = 900
     """Ceiling a RunRequest.max_time_seconds may never exceed."""
     voice_enabled: bool = True
     """Off hides voice UI and skips Gradium init; dashboard flow unaffected."""
