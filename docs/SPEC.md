@@ -2,16 +2,17 @@
 
 ## 1. Project overview
 
-Computer-Use Automation Foundry is a local macOS application that learns repeatable desktop workflows from demonstration videos and standard operating procedures (SOPs). It converts those sources into reviewable automation bundles, then delegates execution to H Company's HoloDesktop agent under NemoClaw/Hermes orchestration.
+Computer-Use Automation Foundry is a local macOS application that learns repeatable desktop workflows from demonstration videos and standard operating procedures (SOPs). It converts those sources into reviewable automation bundles, then delegates execution to H Company's HoloDesktop agent under NemoClaw/Hermes orchestration. Telegram and Gradium are thin input surfaces for the same Hermes orchestrator: Telegram lets the owner submit videos, review and approve generated bundles, provide runtime inputs, and supervise runs from a phone; Gradium provides voice transcription and playback.
 
-The product replaces the usual engineering-heavy automation discovery process with an authoring workflow designed for domain experts. An operations expert demonstrates what to do, reviews the generated procedure and tools, approves a version, and can later invoke it from the dashboard or by voice.
+The product replaces the usual engineering-heavy automation discovery process with an authoring workflow designed for domain experts. An operations expert demonstrates what to do, reviews the generated procedure and tools, approves a version, and can later invoke it from the dashboard, by voice, or through an allowlisted Telegram direct message.
 
-The MVP proves four capabilities together:
+The MVP proves five capabilities together:
 
 1. Extract a reliable semantic procedure from video and/or written SOP evidence.
 2. Produce a reusable, versioned Holo skill and constrained data-processing tools.
 3. Execute the learned operation safely in a native desktop application.
 4. Transfer the same business operation zero-shot to a second CRM with a different interface.
+5. Teach and supervise the same reusable workflow remotely through a private Telegram bot conversation.
 
 `docs/EVALS.md` defines the checks that determine whether this specification is satisfied.
 
@@ -30,8 +31,10 @@ An automation engineer who diagnoses failed generations or runs, inspects eviden
 - One local user on macOS.
 - One browser session connected to a FastAPI service bound to `127.0.0.1`.
 - One configured NemoClaw Hermes sandbox.
+- One local Telegram surface process with one bot and one paired or allowlisted operator account.
 - One active HoloDesktop execution at a time.
-- No application-level authentication because the service is loopback-only.
+- No dashboard application-level authentication because the service is loopback-only; Telegram requests are authenticated
+  by sender policy and short-lived, action-bound callback tokens.
 
 ## 3. Problem statement
 
@@ -49,6 +52,7 @@ The MVP must let an operations expert teach a task directly while retaining the 
 - Require human approval before a bundle becomes runnable.
 - Require a second human approval before a run performs its final persistent side effect.
 - Support dashboard and push-to-talk invocation through the same execution state machine.
+- Support reusable automation authoring and schema-driven runtime input collection through Telegram.
 - Demonstrate zero-shot transfer from CRM A to CRM B.
 
 ### MVP success bar
@@ -58,6 +62,7 @@ The MVP must let an operations expert teach a task directly while retaining the 
 - At least 4 exact successful runs out of 5 on each mock CRM.
 - No persistent CRM mutation before approval in all 10 live execution trials.
 - At least 9 correct automation-and-input interpretations out of 10 voice trials.
+- All Telegram sender, disclosure, deduplication, and button-approval safety cases pass.
 - All structural, generated-code, security, and failure-handling checks in `docs/EVALS.md` pass.
 
 ## 5. MVP scope
@@ -195,13 +200,70 @@ The same approved bundle must run on either application. A CRM B run receives on
 
 Both fixtures provide test-only seed, reset, and persisted-state inspection commands. Those commands are for evaluation and must not be exposed to Holo during live execution.
 
+### 5.10 Hermes orchestration surfaces
+
+NemoClaw/Hermes is the sole agentic orchestrator for dashboard, Telegram, and Gradium interactions. Telegram and Gradium
+are unprivileged surfaces: they may deliver media or transcripts and render deterministic responses, but they may not
+interpret evidence into instructions, generate automation artifacts, invoke HoloDesktop directly, publish skills,
+bypass validation, or mutate run state outside shared host capabilities.
+
+The Foundry host capability layer exposes typed operations to Hermes for upload ingestion, authoring status, skill
+approval, run preparation, run start, and staged-change commit. This layer is local infrastructure rather than a second
+orchestrator. It owns deterministic authorization, storage, schema validation, callback consumption, and privileged Holo
+dispatch. Hermes may request these operations, but the host independently enforces every precondition and approval.
+
+After deterministic host validation and preprocessing, the existing `WorkspaceBridge` stages bounded evidence in the
+NemoClaw workspace. Hermes running inside the NemoClaw sandbox performs evidence analysis and bundle generation, and its
+output is treated as untrusted until host validation. The host may expose the workspace through a verified SSHFS mount
+or publish each bounded job through NemoClaw's authenticated upload transport. If NemoClaw, its workspace transport,
+Hermes, or the configured Holo3 route is unavailable, authoring fails closed with a retryable status and produces no
+runnable bundle. No surface or host model substitutes for Hermes.
+
+The Telegram MVP uses direct messages only. Group handling is disabled. A thin local adapter accepts messages only from
+the owner's paired or numerically allowlisted Telegram user ID and forwards accepted events to Hermes through the typed
+host boundary. The bot token remains in a user-managed environment value or token file outside the repository and is
+never passed to browser code, generated artifacts, NemoClaw, or Holo.
+
+Authoring through Telegram follows this flow:
+
+1. Before the first provider-backed ingestion, the bot presents the provider disclosure and records acceptance through
+   an inline button. A video received before acceptance may be quarantined locally but is not processed by providers.
+2. The owner sends `/learn <automation name>` with one supported video attachment.
+3. The Telegram adapter copies the attachment into the Foundry upload boundary; the backend revalidates type, size,
+   duration, name, and content instead of trusting Telegram metadata.
+4. The bot acknowledges the accepted upload without waiting for generation and reports background progress and terminal
+   failure using the stable automation ID.
+5. When generation and validation finish, the bot sends a compact review summary and bot-native **Review details**
+   controls. It includes an **Approve automation** button only when no blocking conflict or validation error remains.
+   Editing artifacts or resolving conflicts still happens in the loopback dashboard on the Mac, after which the bot
+   refreshes the review against the new version.
+6. Pressing the button approves the exact displayed version and artifact hashes. Stale, replayed, mismatched, expired,
+   or unauthorized callbacks fail closed.
+
+Running through Telegram follows this flow:
+
+1. The owner sends `/run <automation name>` or selects a runnable automation from bot-provided buttons.
+2. The bot asks for the target application and each missing required field from the approved input schema. It validates
+   every response through the same normalization and validation path used by the dashboard.
+3. The bot shows the complete automation, version, target, and normalized-input preview with **Start** and **Cancel**
+   buttons. Text messages alone do not confirm start.
+4. **Start** creates or confirms the run through the shared execution state machine. The bot posts status updates while
+   Holo performs the stage turn.
+5. The bot displays the staged-change summary with **Commit** and **Reject** buttons. Only a valid **Commit** callback
+   for the current staged-change hash may resume the same live Holo session.
+6. The bot reports the verified terminal result. Timeout, rejection, cancellation, session loss, or callback mismatch
+   ends safely without a new commit session or automatic retry.
+
+Telegram button payloads must be opaque references rather than trusted state. Server-side records bind each callback to
+the Telegram user, chat, action, automation/version or run, payload hash, expiry, and one-time-use status.
+
 ## 6. Explicit non-goals
 
 The MVP does not include:
 
 - cloud or multi-user deployment;
 - authentication, organizations, or role-based access;
-- scheduling, recurring runs, or unattended background automation;
+- scheduling, recurring runs, or unattended desktop execution;
 - Windows or Linux host support;
 - mobile automation;
 - always-listening voice interaction;
@@ -211,6 +273,7 @@ The MVP does not include:
 - cross-domain transfer between unrelated business processes;
 - automatic approval or automatic final submission;
 - automatic self-modification from failed runs;
+- Telegram groups, public bots, and messaging channels other than Telegram;
 - production compliance certification, enterprise retention controls, or high availability.
 
 ## 7. End-to-end user flows
@@ -266,6 +329,18 @@ The MVP does not include:
 4. No automatic commit or automatic retry occurs.
 5. The user may start a fresh run after the cause is addressed.
 
+### Flow F: Teach and run through Telegram
+
+1. The paired owner accepts the provider disclosure, then sends `/learn <name>` with a demonstration video.
+2. The bot acknowledges the durable local upload and returns an automation ID while ingestion continues in the background.
+3. The bot reports progress, then presents a validated, bot-native review summary and details.
+4. The owner presses **Approve automation** for the exact generated version.
+5. Later, the owner sends `/run <name>` and answers the schema-derived target and runtime-input prompts.
+6. The owner presses **Start** on the complete preview.
+7. Holo stages the operation and the bot presents the staged-change summary.
+8. The owner presses **Commit** or **Reject**; commit continues only the same live Holo session.
+9. The bot reports the verified result and retains no authority to start another run automatically.
+
 ## 8. Functional requirements
 
 ### Authoring
@@ -297,6 +372,20 @@ The MVP does not include:
 - **FR-V04:** The interpreted automation, target app, and inputs shall be previewed before start.
 - **FR-V05:** Voice and dashboard invocation shall use the same run contracts and state machine.
 
+### Telegram
+
+- **FR-T01:** Only a paired or numerically allowlisted Telegram owner in a direct message shall be accepted.
+- **FR-T02:** The bot shall require provider-disclosure acceptance before provider-backed ingestion.
+- **FR-T03:** A `/learn` video shall create a reusable automation and return its stable ID without blocking on generation.
+- **FR-T04:** Telegram media shall pass through the same upload validation and local retention rules as dashboard media.
+- **FR-T05:** Bundle approval shall require an inline-button callback bound to the displayed version and artifact hashes.
+- **FR-T06:** The bot shall collect target application and missing runtime inputs from the approved input schema.
+- **FR-T07:** Start shall require an inline-button callback bound to the complete normalized preview.
+- **FR-T08:** Commit shall require a separate inline-button callback bound to the current staged-change hash and live session.
+- **FR-T09:** Text, media captions, reactions, duplicate updates, and expired or stale callbacks shall never imply approval.
+- **FR-T10:** Telegram and dashboard invocation shall use the same authoring services, run contracts, and state machine.
+- **FR-T11:** The bot shall expose safe progress, clarification, cancellation, timeout, and terminal-failure responses.
+
 ### Cross-app evaluation
 
 - **FR-X01:** Both desktop fixtures shall represent the same CRM operation with different UI structure.
@@ -313,6 +402,10 @@ The MVP does not include:
 - **Artifact store:** repo-local gitignored source, evidence, bundle, and run directories.
 - **SQLite database:** automation index, versions, jobs, approvals, and run metadata.
 - **Trusted Holo worker:** the only component allowed to invoke HoloDesktop and publish approved Holo skills.
+- **Foundry host capability layer:** typed, loopback-only operations used by Hermes to ingest sources, query authoring
+  status, prepare runs, and request approved state transitions. It owns validation and privileged dispatch, not reasoning.
+- **Telegram and Gradium surface adapters:** receive allowlisted direct messages or voice, copy inbound media through the
+  upload boundary, and render progress, review, and deterministic approval controls. They do not generate instructions.
 
 ### Sandboxed components
 
@@ -327,10 +420,21 @@ The MVP does not include:
 - **H Company Models API:** hosted Holo3 inference.
 - **HoloDesktop CLI/runtime:** visible desktop observation and control on macOS.
 - **Gradium API:** video transcription, push-to-talk STT, and response TTS.
+- **Telegram Bot API:** inbound direct messages, video downloads, progress messages, and inline-button callbacks routed
+  through the thin local surface adapter. Telegram necessarily receives and retains messages and media according to its
+  own service behavior before the adapter downloads them.
 
 ### Trust boundary
 
-The NemoClaw sandbox must not receive macOS Accessibility privileges or direct control of HoloDesktop. The host and sandbox exchange files and queue records through the mounted `/sandbox/workspace`. The host treats sandbox-produced files as untrusted until schema, size, path, and hash validation succeeds.
+The NemoClaw sandbox and surface adapters must not receive macOS Accessibility privileges or direct control of
+HoloDesktop. The host stages bounded jobs below `/sandbox/workspace` through either a verified SSHFS mount or NemoClaw's
+authenticated upload transport. Hermes uses authenticated, capability-limited host tools rather than privileged internal
+objects. The host treats sandbox output, Telegram content, Gradium transcripts, callback payloads, and surface-provided
+media paths as untrusted until their authorization, schema, size, path, and hash checks succeed.
+
+The trusted host coordinates the privilege boundaries: surfaces handle transport, NemoClaw/Hermes owns agentic evidence
+reasoning and orchestration, and the Holo worker owns visible desktop execution. No component may silently take over
+another component's responsibility when that component is unavailable.
 
 ## 10. Public contracts
 
@@ -348,6 +452,8 @@ The initial shared models are:
 - `StagedChange`: app, record identity, proposed field changes, visible verification, and Holo session ID reference.
 - `ApprovalRecord`: run ID, approval type, source, timestamp, approved payload hash, and decision.
 - `RunResult`: terminal state, answer, verification summary, timings, and redacted error.
+- `ChannelInteraction`: channel, sender/chat identity, interaction kind, referenced automation/run, expiry, payload hash,
+  one-time-use status, and redacted delivery metadata.
 
 Run states are:
 
@@ -403,8 +509,17 @@ The database is the query index and job coordinator. Versioned files are the can
 - Frontend uses React, Vite, and TypeScript.
 - Desktop fixtures use PySide6.
 - NemoClaw/Hermes requires Docker Desktop or Colima.
-- Bidirectional workspace sharing requires macFUSE/SSHFS and `nemohermes <sandbox> share mount`.
+- Workspace publication uses either macFUSE/SSHFS with `nemohermes <sandbox> share mount` or the authenticated
+  `nemohermes <sandbox> upload` transport. Upload mode stages canonical host data locally and publishes only the bounded
+  generation job directory; sandbox output still returns through the size-limited Hermes API response.
 - Provider keys are supplied through environment or provider credential stores and are never committed.
+- The Telegram surface uses a pinned Bot API client. The bot token is configured by the user outside the repository;
+  setup and diagnostics must never print it.
+- Telegram ingestion uses polling for the local MVP and requires no public inbound webhook or exposed FastAPI port.
+- Every Telegram-originated generation job must use the same NemoClaw workspace marker, transport checks, staged
+  request, Hermes endpoint, result bounds, schema validation, and generated-tool sandbox as dashboard-originated
+  generation.
+- Direct model calls from a surface or the host as a fallback for failed NemoClaw/Hermes generation are prohibited.
 - The app is single-process for the MVP; interrupted in-process jobs are marked failed on restart.
 - The existing H Company examples remain intact and outside the critical application path.
 
@@ -412,10 +527,17 @@ The database is the query index and job coordinator. Versioned files are the can
 
 - Bind the application to `127.0.0.1` by default.
 - Show provider disclosure before the first upload and retain the user's acknowledgement.
-- Keep original uploads and derived artifacts local until explicit deletion.
+- Keep dashboard uploads and all canonical source/artifact copies local until explicit deletion. A source intentionally
+  submitted through Telegram has already traversed Telegram; only the minimum review/status content required for the bot
+  workflow is sent back through Telegram.
 - Send only audio required for transcription to Gradium.
 - Send only selected frames, transcripts, SOP text, and instructions required for generation to hosted Holo3.
 - Never expose H Company or Gradium credentials to frontend code, logs, generated bundles, or Holo task text.
+- Never expose the Telegram bot token to the Foundry frontend, NemoClaw, Holo, logs, callback data, or generated bundles.
+- Include Telegram media/message handling in the provider disclosure before provider-backed processing begins.
+- Restrict Telegram to owner-only direct messages; disable groups and reject every non-allowlisted sender before media copy.
+- Treat Telegram captions, filenames, video content, and Gradium transcripts as untrusted input, never as privileged instructions.
+- Make every approval callback short-lived, single-use, action-specific, identity-bound, and hash-bound.
 - Reject unsafe filenames, symlinks, path traversal, oversized files, and unsupported content.
 - Validate every sandbox-produced path before reading or copying it on the host.
 - Redact secrets and unrelated visible content from shared diagnostics.
@@ -433,7 +555,7 @@ The database is the query index and job coordinator. Versioned files are the can
 | SOP and video conflict | Create blocking review conflicts; do not choose silently. |
 | Gradium unavailable | Retry only bounded transient failures; otherwise fail ingestion or voice turn with remediation. |
 | Holo3 unavailable or rate-limited | Preserve staged evidence, mark job failed/retryable, and create no approved bundle. |
-| NemoClaw sandbox or shared mount unavailable | Fail closed before generation or run queuing. |
+| NemoClaw sandbox or workspace transport unavailable | Fail closed before generation or run queuing. |
 | Generated output violates schema | Reject it, preserve diagnostics, and allow regeneration. |
 | Generated tool violates restrictions or times out | Mark validation failed and block approval. |
 | Approved artifact hash changes | Invalidate approval and block execution. |
@@ -444,6 +566,15 @@ The database is the query index and job coordinator. Versioned files are the can
 | Holo session is lost after staging | Fail the run; never create a new session merely to click Save. |
 | App exits during a job | Mark active in-process jobs interrupted on restart; require an explicit retry. |
 | Voice transcript is ambiguous or partial | Ask for clarification; never infer confirmation. |
+| Telegram sender is not paired or allowlisted | Ignore or return a generic denial without copying media or revealing state. |
+| Provider disclosure has not been accepted | Quarantine or reject the local attachment; do not begin provider processing. |
+| Telegram video is missing, unsupported, corrupt, oversized, or too long | Reject before ingestion with a safe remediation message. |
+| Telegram update is duplicated or delivered out of order | Deduplicate by update/message ID and preserve monotonic interaction state. |
+| Runtime input is missing or invalid | Ask for the specific field again; do not create or start a run. |
+| Approval callback is stale, replayed, expired, unauthorized, or hash-mismatched | Reject it without changing bundle or run state. |
+| Telegram is unavailable during ingestion | Continue the local job and deliver current status after reconnection. |
+| Telegram is unavailable while awaiting approval | Do not infer approval; let the configured approval timeout cancel safely. |
+| NemoClaw, workspace transport, Hermes, or Holo3 route is unavailable | Fail Telegram ingestion closed; retain safe local source state and offer explicit retry without generating elsewhere. |
 
 ## 15. Observability and retention
 
@@ -453,6 +584,8 @@ The database is the query index and job coordinator. Versioned files are the can
 - Keep Holo runtime diagnostics local and treat screenshots and event logs as sensitive.
 - Delete an automation's uploads, evidence, versions, and runs only after explicit confirmation.
 - A deletion failure must leave a visible tombstone or error rather than a partially hidden automation.
+- Persist Telegram update IDs, safe interaction state, callback consumption, and delivery status without storing bot tokens.
+- Treat downloaded Telegram videos and chat metadata as sensitive local source data covered by the automation deletion flow.
 
 ## 16. Unresolved decisions
 
@@ -461,8 +594,9 @@ There are no unresolved product decisions blocking MVP implementation. The follo
 - verify the installed NemoClaw/Hermes version can pass local image evidence to the configured Holo3 endpoint;
 - verify the public `hai-agents[desktop]` local-control example completes three consecutive bounded TextEdit runs on
   the demo machine before wiring a live execution adapter;
-- verify the macOS shared-mount prerequisites on the demo machine;
+- verify one supported workspace transport on the demo machine;
 - verify the chosen Gradium voice ID and H Company account have sufficient credits;
+- verify the pinned Telegram client can receive video attachments and render inline buttons on the demo machine;
 - pin compatible HoloDesktop, NemoClaw, Gradium SDK, and Python versions during the foundation phase.
 
 If a feasibility check fails, implementation stops at the affected boundary and the specification is revised before substituting another provider or weakening the sandbox model.
@@ -472,10 +606,11 @@ If a feasibility check fails, implementation stops at the affected boundary and 
 - Per-automation policies that allow low-risk autonomous commits.
 - Additional desktop workflow domains and real application sandboxes.
 - Multiple demonstrations, branching workflows, and author-provided counterexamples.
-- Scheduled and event-triggered runs.
+- Scheduled and noninteractive event-triggered runs.
 - Windows and Linux support.
 - Team accounts, shared bundle registries, approvals, and audit exports.
 - Voice cloning, continuous conversational mode, and telephony channels.
 - Production-grade secret management, retention policies, encryption, and compliance controls.
 - Outcome-based learning from reviewed run failures.
 - Hosted execution and organization-managed Holo environments.
+- WhatsApp and other messaging surfaces.

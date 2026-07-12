@@ -8,7 +8,7 @@ Evaluation results must identify:
 
 - commit hash;
 - macOS and hardware version;
-- Python, HoloDesktop, NemoClaw/Hermes, and browser versions;
+- Python, HoloDesktop, NemoClaw/Hermes, Telegram client, and browser versions;
 - configured Holo3 model;
 - fixture and prompt/template versions;
 - trial inputs and reset seed;
@@ -185,13 +185,55 @@ Safety checks are pass/fail and require 100% success:
 ### 3.9 Local data and privacy
 
 - [ ] The service binds to `127.0.0.1` by default.
-- [ ] Provider disclosure appears before the first source upload.
-- [ ] Original files and derived artifacts remain local until explicit deletion.
+- [ ] Provider disclosure is accepted before the first source is accepted or any provider-backed processing begins.
+- [ ] Dashboard uploads and canonical derived artifacts remain local until explicit deletion; Telegram-originated media
+  and outbound review/status content match the disclosed, minimal Telegram data flow.
 - [ ] Only required audio is sent to Gradium.
 - [ ] Only selected frames, transcript/SOP text, and required instructions are staged for hosted Holo3.
 - [ ] Logs, run artifacts, browser responses, and generated bundles contain no provider keys.
 - [ ] Sandbox-produced paths, sizes, and hashes are validated before host use.
 - [ ] Shared diagnostics are redacted of unrelated visible data and secrets.
+
+### 3.10 Telegram authoring and execution
+
+Use a dedicated test bot and one paired or numerically allowlisted Telegram operator in direct messages. Keep groups
+disabled. Exercise at least the following cases with recorded Telegram update IDs and Foundry interaction IDs:
+
+1. First-use provider disclosure accepted by inline button.
+2. `/learn <name>` with a valid narrated video.
+3. Valid silent video.
+4. Missing, malformed, unsupported, oversized, and over-duration attachments.
+5. Duplicate delivery of the same Telegram update.
+6. Bundle with a blocking conflict or failed validation.
+7. Valid bundle approval button.
+8. `/run <name>` with complete inputs.
+9. `/run <name>` with missing and invalid inputs requiring clarification.
+10. Start, commit, reject, cancel, expired, replayed, wrong-user, wrong-chat, and hash-mismatched button callbacks.
+
+Required results:
+
+- [ ] A valid `/learn` upload is durably copied and acknowledged with a stable automation ID before generation completes.
+- [ ] The Telegram video passes the same type, content, size, duration, filename, and path validation as a dashboard upload.
+- [ ] Provider-backed work does not start before disclosure acceptance.
+- [ ] Progress and terminal failure are reported without leaking local paths, credentials, provider payloads, or unrelated state.
+- [ ] Bot-native review details identify the version, inputs, procedure summary, completion check, commit boundary, and
+  conflicts without exposing local paths or unrelated artifacts.
+- [ ] A blocking conflict or validation failure omits or disables automation approval and directs edits to the Mac dashboard.
+- [ ] Automation approval is accepted only from the allowlisted owner through the current version/hash-bound button.
+- [ ] `/run` collects the target app and every missing required field from the approved input schema.
+- [ ] Invalid runtime input triggers field-specific clarification and never starts Holo.
+- [ ] The complete normalized preview requires a valid **Start** button; text, captions, and reactions do not confirm it.
+- [ ] The staged-change summary requires a separate valid **Commit** button; **Reject** and timeout preserve unchanged state.
+- [ ] Every callback is identity-bound, chat-bound, action-bound, hash-bound, expiring, and single-use.
+- [ ] Duplicate or out-of-order Telegram updates cannot create duplicate automations, runs, approvals, or commits.
+- [ ] Telegram and Gradium surface adapters have no macOS Accessibility permission and cannot invoke HoloDesktop or
+  publish a skill directly.
+- [ ] Surface adapters do not analyze evidence or generate instructions; every surface-originated authoring job is
+  observable through the NemoClaw workspace and Hermes generation boundary.
+- [ ] Loss of NemoClaw, its workspace transport, Hermes, or the configured Holo3 route produces no version or runnable bundle and
+  never falls back to a surface-owned or host model call.
+- [ ] Telegram-originated runs use the same approved-bundle checks, single-run lock, state transitions, budgets, and
+  same-session commit enforcement as dashboard runs.
 
 ## 4. Automated verification
 
@@ -226,6 +268,8 @@ npm run build
 - artifact store, version hashes, approval invalidation, and startup reconciliation;
 - media/SOP preprocessing with deterministic fixtures;
 - mocked Gradium transcription and voice streams;
+- mocked Telegram inbound media, progress delivery, conversational input collection, and callback handling;
+- Telegram sender policy, disclosure gating, update deduplication, callback expiry/replay, and hash-binding tests;
 - mocked Hermes/Holo3 success, malformed output, timeout, and retryable failure;
 - conflict generation and approval blocking;
 - generated-tool static validation and restricted runtime;
@@ -235,6 +279,7 @@ npm run build
 - REST and WebSocket authorization-by-state and payload validation;
 - React authoring and execution component behavior;
 - browser microphone lifecycle without exposing provider credentials;
+- secret-scanning tests that prevent Telegram bot-token exposure in responses, logs, artifacts, and callback data;
 - PySide6 seed/reset and exact state inspection;
 - Playwright end-to-end flows using mocked external providers.
 
@@ -256,13 +301,15 @@ npm run build
 3. Run `uv run foundry-desktop-smoke run --confirm-control` three times. Each run must create an unsaved TextEdit
    document containing the expected sentence, interact with no other application, and settle successfully within its
    configured twenty-step and three-minute budgets.
-4. Confirm Python 3.12, `uv`, Node/npm, FFmpeg, Docker Desktop or Colima, macFUSE, and SSHFS.
+4. Confirm Python 3.12, `uv`, Node/npm, FFmpeg, Docker Desktop or Colima, and the selected NemoClaw workspace transport.
 5. Confirm NemoClaw Hermes sandbox health.
-6. Confirm `/sandbox/workspace` is mounted at the expected host path.
+6. Confirm `/sandbox/workspace` is reachable through either the verified host mount or a bounded upload/readback probe.
 7. Confirm Holo login and H Company model access.
 8. Confirm macOS Accessibility, Screen Recording, Input Monitoring, and microphone permissions.
 9. Confirm Gradium STT and TTS smoke requests.
-10. Confirm no secrets are printed by health or diagnostic endpoints.
+10. Confirm the pinned Telegram client version, polling health, owner pairing/allowlist, and disabled groups.
+11. Confirm surface adapters lack macOS Accessibility, Screen Recording, and Input Monitoring privileges.
+12. Confirm no secrets are printed by health or diagnostic endpoints.
 
 ### 5.2 Authoring walkthrough
 
@@ -300,6 +347,23 @@ npm run build
 3. Confirm the run cancels at the documented action boundary.
 4. Confirm the UI reports cancellation and offers no automatic commit or retry.
 
+### 5.6 Telegram walkthrough
+
+1. Start the local Foundry host service, Hermes bridge, and Telegram adapter with the dedicated test bot; confirm no
+   public listener.
+2. From the allowlisted owner account, accept the provider disclosure through the bot's inline button.
+3. Send `/learn Telegram CRM update` with the canonical demonstration video.
+4. Confirm the bot acknowledges a stable automation ID promptly while processing continues in the background.
+5. Confirm progress messages lead to bot-native review details that are usable from the phone without exposing the
+   loopback dashboard.
+6. Press **Approve automation** and verify the approval binds to the displayed version and artifact hashes.
+7. Send `/run Telegram CRM update`; answer the target-app and schema-derived runtime-input prompts.
+8. Press **Start** on the complete preview and confirm Holo stages without saving.
+9. Press **Reject** once and verify persistent state remains unchanged.
+10. Repeat the run, press **Commit**, and verify the exact persisted state and terminal Telegram result.
+11. Replay the used **Commit** callback and confirm it is rejected without another desktop action.
+12. Repeat one callback from a non-allowlisted Telegram account and confirm it reveals no automation or run state.
+
 ## 6. Expected failure handling
 
 | Failure | Expected terminal behavior | Retry policy |
@@ -308,7 +372,7 @@ npm run build
 | Gradium transient failure | Bounded retry; preserve local source | Explicit retry after budget |
 | Holo3 invalid structured output | Validation failure with redacted diagnostics | Regenerate explicitly |
 | Holo3 rate limit or outage | `failed` or retryable ingestion state; no runnable version | Explicit retry |
-| Shared mount unavailable | Fail before sandbox handoff or queueing | Restore mount, then retry |
+| Workspace transport unavailable | Fail before sandbox handoff or queueing | Restore the mount or upload transport, then retry |
 | Generated tool rejected | Bundle validation failure | Edit or regenerate |
 | Approval hash mismatch | Execution refused | Revalidate and reapprove |
 | Holo permission failure | Preflight failure | Fix permission, then start a new run |
@@ -317,6 +381,11 @@ npm run build
 | Commit rejection/timeout | `cancelled`; unchanged persistent state | Start a new run |
 | Session loss after staging | `failed`; never create replacement commit session | Start a new run |
 | Backend restart | Mark in-process jobs interrupted | Explicit retry |
+| Telegram sender rejected | No media copy, state disclosure, or action | Pair/allowlist explicitly |
+| Telegram media rejected | Safe validation message; no ingestion job | Send a supported bounded video |
+| Telegram delivery outage | Local job/run remains authoritative; no inferred approval | Reconnect and query status |
+| Telegram callback expired or replayed | No state transition or desktop action | Request a fresh preview |
+| Telegram callback identity/hash mismatch | No state transition or desktop action | Reopen the current interaction |
 
 ## 7. Recommended quality checks
 
@@ -327,6 +396,9 @@ These measurements should be reported for the final demo build:
 - [ ] Gradium TTS begins playback within four seconds of response text availability in at least 9 of 10 trials.
 - [ ] Each CRM execution completes within three minutes or its configured smaller budget.
 - [ ] Ingestion and run events update the UI without a silent interval longer than ten seconds.
+- [ ] Telegram acknowledges a durably accepted `/learn` upload within five seconds in at least 9 of 10 local-network trials.
+- [ ] Telegram progress is updated at least every thirty seconds while a job changes stage, without message spam from polling.
+- [ ] Telegram input and button interactions receive a visible acknowledgement within five seconds in at least 9 of 10 trials.
 - [ ] Model requests, Holo steps, durations, and estimated provider usage are recorded per job/run.
 - [ ] The complete demo can be reset and repeated without manual database editing.
 
@@ -342,6 +414,7 @@ Quality misses must be documented with measured values and must not conceal a mu
 - Production red-team testing of generated code and prompt injection in source media.
 - Accessibility-tree and multilingual workflow coverage.
 - Recovery after host reboot and durable background queues.
+- WhatsApp and additional messaging surfaces.
 - Formal cost ceilings and provider-specific service-level targets.
 - Compliance, encryption-at-rest, retention, and audit-export verification.
 
@@ -363,11 +436,20 @@ Quality misses must be documented with measured values and must not conceal a mu
 
 ### Execution
 
-- [ ] Dashboard and voice invocation share one state machine.
+- [ ] Dashboard, voice, and Telegram invocation share one state machine.
 - [ ] CRM A live threshold passes.
 - [ ] CRM B zero-shot threshold passes.
 - [ ] All approval and cancellation safety checks pass.
 - [ ] Exact persisted-state evidence is retained for all live trials.
+
+### Telegram
+
+- [ ] Owner-only direct-message policy and disabled groups are verified.
+- [ ] Video authoring, background status, review, and version/hash-bound approval work end to end.
+- [ ] Schema-derived runtime input collection and start preview work end to end.
+- [ ] Start and commit require separate Telegram buttons; rejection, timeout, replay, and mismatch fail closed.
+- [ ] Telegram and Gradium surfaces remain outside the privileged desktop-control boundary.
+- [ ] Every Telegram-originated automation bundle is generated through NemoClaw/Hermes and validated on the host.
 
 ### Security and operations
 
@@ -399,7 +481,7 @@ two-reviewer matching procedure and must meet the same thresholds before release
 
 Pending release evidence:
 
-- live Gradium, Hermes/Holo3, and mounted-workspace ingestion trials;
+- live Gradium, Hermes/Holo3, and workspace-transport ingestion trials;
 - Member 2's Holo stage/commit, voice, cancellation, and CRM A/CRM B trials;
 - full FastAPI/pytest/ruff/mypy CI after dependency lock refresh;
 - release commit hash and environment/version matrix.
