@@ -173,8 +173,15 @@ class TelegramExecutionCoordinator:
             return TelegramSurfaceResponse(text="`target_app` is required. Send all values again.")
         coordinator = await self._coordinator(manifest)
         runtime_inputs: dict[str, object] = dict(values)
+        auto_commit = self._auto_commit_enabled(target_app)
         try:
-            preview = await coordinator.prepare(target_app, runtime_inputs, InvocationSource.TELEGRAM)
+            preview = await coordinator.prepare(
+                target_app,
+                runtime_inputs,
+                InvocationSource.TELEGRAM,
+                max_steps=self.execution_settings.hard_max_steps if auto_commit else None,
+                max_time_seconds=min(360, self.execution_settings.hard_max_time_seconds) if auto_commit else None,
+            )
         except InputValidationError as exc:
             problems = "; ".join(f"{name}: {message}" for name, message in sorted(exc.field_errors.items()))
             return TelegramSurfaceResponse(text=f"Fix these inputs and send all values again: {problems}")
@@ -182,7 +189,7 @@ class TelegramExecutionCoordinator:
             return TelegramSurfaceResponse(text=exc.spec.message)
         self._pending_inputs.pop(update.user_id, None)
         self._run_coordinators[preview.request.id] = coordinator
-        if self._auto_commit_enabled(target_app):
+        if auto_commit:
             self._auto_commit_run_ids.add(preview.request.id)
         payload_hash = _run_request_hash(preview.request.model_dump(mode="json"))
         issued = self.interactions.callbacks.mint(

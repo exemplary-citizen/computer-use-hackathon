@@ -35,6 +35,7 @@ class GenericLiveStandIn:
     def __init__(self) -> None:
         self.messages: list[str] = []
         self.fail_stage = False
+        self.no_matching_email = False
 
     def start_session(self) -> str:
         return "telegram-live-session"
@@ -45,6 +46,15 @@ class GenericLiveStandIn:
         if len(self.messages) == 1:
             if self.fail_stage:
                 return TurnOutcome(answer="No structured stage report.", steps_used=1)
+            if self.no_matching_email:
+                return TurnOutcome(
+                    answer=(
+                        '{"record":"NO_MATCHING_EMAIL","staged_fields":'
+                        '{"workflow_status":"no_matching_email"},'
+                        '"visible_verification":"No unprocessed RTN email exists among the three newest."}'
+                    ),
+                    steps_used=1,
+                )
             if "Atlas Returns Desk" in message:
                 return TurnOutcome(
                     answer=(
@@ -145,6 +155,11 @@ class TestTelegramExecutionCoordinator:
 
         started = await self._press(5, preview.buttons[0].callback_data)
         assert started.watch_run_id is not None
+        standard_request = self.execution._run_coordinators[started.watch_run_id].get_status(started.watch_run_id)[
+            "request"
+        ]
+        assert standard_request["max_steps"] == 40
+        assert standard_request["max_time_seconds"] == 180
         staged = await self.execution.wait_for_run(started.watch_run_id)
         assert "without commit" in staged.text
         assert [button.label for button in staged.buttons] == ["Commit", "Reject"]
@@ -198,6 +213,10 @@ class TestTelegramExecutionCoordinator:
         assert "complete the Atlas change automatically" in preview.text
         started = await self._press(14, preview.buttons[0].callback_data)
         assert "complete the Atlas change" in started.response.text
+        coordinator = self.execution._run_coordinators[started.watch_run_id]
+        request = coordinator.get_status(started.watch_run_id)["request"]
+        assert request["max_steps"] == 60
+        assert request["max_time_seconds"] == 360
 
         terminal = await self.execution.wait_for_run(started.watch_run_id)
 
@@ -208,16 +227,46 @@ class TestTelegramExecutionCoordinator:
         assert "choose the newest matching RTN case" in self.adapter.messages[0]
         assert "Once the chosen email context is captured" in self.adapter.messages[0]
         assert "do not return to Mail" in self.adapter.messages[0]
+        assert "click `Run Search`" in self.adapter.messages[0]
+        assert "confirm the case heading matches that ID" in self.adapter.messages[0]
+        assert "Do not call the approval tool before" in self.adapter.messages[0]
         assert "Apply Resolution` exactly once" in self.adapter.messages[1]
         assert "red `UPDATED!` directly beneath the button" in self.adapter.messages[1]
         assert 'verify return case "RTN-1064"' in self.adapter.messages[1]
         assert "Do not quit Atlas" in self.adapter.messages[1]
         assert "exclude the exact message used in Turn 1" in self.adapter.messages[1]
-        assert 'processed case "RTN-1064"' in self.adapter.messages[1]
+        assert "processed cases: RTN-1064" in self.adapter.messages[1]
         assert "Leave that next message selected" in self.adapter.messages[1]
         assert "never reopen the processed message" in self.adapter.messages[1]
+        assert coordinator._processed_record_ids(manifest.id, "Atlas Returns Desk") == ("RTN-1064",)
         approved = self.authoring.load_version(manifest.id, version.version)
         assert approved.approval is not None
+
+    @pytest.mark.asyncio
+    async def test_atlas_with_no_unprocessed_email_terminates_without_commit(self) -> None:
+        manifest = self.authoring.store.create_automation("Atlas Empty Queue Automation")
+        _, report = self.authoring.bundles.create_version(manifest.id, valid_draft())
+        assert report.valid
+        review = self.execution.review(
+            self._message(30, "/review Atlas Empty Queue Automation"),
+            "Atlas Empty Queue Automation",
+        )
+        await self._press(31, review.buttons[0].callback_data)
+        self.execution.begin_run(
+            self._message(32, "/run Atlas Empty Queue Automation"),
+            "Atlas Empty Queue Automation",
+        )
+        preview = await self.execution.collect_inputs(
+            self._message(33, "target_app=Atlas Returns Desk"),
+            "target_app=Atlas Returns Desk",
+        )
+        self.adapter.no_matching_email = True
+        started = await self._press(34, preview.buttons[0].callback_data)
+
+        terminal = await self.execution.wait_for_run(started.watch_run_id)
+
+        assert "No unprocessed return email" in terminal.text
+        assert len(self.adapter.messages) == 1
 
     @pytest.mark.asyncio
     async def test_atlas_terminal_failure_is_marked_silent(self) -> None:

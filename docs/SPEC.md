@@ -241,8 +241,9 @@ a clean work queue rather than the case and decision left by the prior demo. The
 `Atlas Returns Desk.app` under the user's Applications directory with LaunchServices metadata so Spotlight can find and
 launch it.
 
-The local demo environment may run a click-through, always-on-top red crosshair overlay centered on the macOS pointer so
-mouse movement remains visible in recordings across Apple Mail and Atlas. The overlay must never intercept input. When
+The local demo environment may run a click-through, focus-independent, always-on-top red cursor marker centered on the
+macOS pointer so mouse movement remains visible in recordings across Apple Mail and Atlas. The marker must remain visible
+when either application owns focus and must never intercept input. When
 the operator activates the green **Apply Resolution** button, Atlas reveals red `UPDATED!` text directly beneath the
 button without a popup, dialog, or additional confirmation step. After a brief visible interval, Atlas restores its
 canonical queue in the background while remaining open, so a later activation never resumes on the processed case.
@@ -262,6 +263,12 @@ within the three newest items whose subject contains a different `RTN-####` case
 and ends without processing or committing it; the next run starts from a fresh authorization. If no different match is
 present, it leaves the Inbox unchanged and reports that no next case is available. It must never reopen the just-processed
 message as the next item.
+
+The trusted execution host records successfully committed Atlas case IDs in its local execution database. Every later
+Atlas run injects those IDs as hard exclusions before Holo scans Mail. If none of the three newest messages contains an
+unprocessed return case, the stage completes successfully as `no matching email` without opening Atlas or attempting a
+commit. Atlas Telegram runs receive the configured 60-step and 360-second demo budget because the cross-application
+workflow spans Mail, Spotlight, Atlas staging, commit verification, and the next-email handoff.
 
 For the owner-only Atlas hackathon demo, the hash-bound Telegram **Start** button also authorizes the staged Atlas commit.
 The trusted host still stages and verifies the proposed change in the retained Holo session, then automatically resolves

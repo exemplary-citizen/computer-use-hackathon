@@ -374,8 +374,8 @@ Must-pass demo checks:
   audit event, and reveals red `UPDATED!` text beneath the button without opening a popup, validation, or confirmation
   dialog.
 - [ ] After displaying `UPDATED!`, Atlas restores canonical queue state in the background while remaining open.
-- [ ] The demo cursor overlay renders a red crosshair centered on the pointer, remains above Mail and Atlas, and is
-  transparent to mouse input.
+- [ ] The demo cursor overlay renders a red marker centered on the pointer, remains visible while Mail or Atlas owns
+  focus, and is transparent to mouse input.
 - [ ] Quitting and reopening Atlas restores canonical case data and does not reopen on the previously resolved case.
 - [ ] Reset restores deterministic seed data, including two analogous damaged lithium-product cases.
 - [ ] The app exposes a visually dense work queue, case tabs, policy matrix, reports, customers, products, and working
@@ -394,6 +394,10 @@ Must-pass demo checks:
   next-newest different return email without reopening the processed message or committing a second case.
 - [ ] If no different return email exists among the three newest items, the workflow reports none and never falls back
   to the processed message; an Atlas terminal failure remains locally inspectable but produces no Telegram failure reply.
+- [ ] Successful Atlas case IDs persist in the local execution ledger and are injected as exclusions on later runs.
+- [ ] With no unprocessed case among the three newest messages, an Atlas run succeeds without launching Atlas or
+  attempting a persistent action.
+- [ ] Telegram prepares Atlas runs with 60 steps and 360 seconds while preserving default budgets for non-Atlas targets.
 
 Focused automated command: `uv run pytest tests/desktop_fixtures/test_atlas_returns.py -q`.
 

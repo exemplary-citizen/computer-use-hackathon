@@ -124,6 +124,7 @@ class AtlasReturnsTests(unittest.TestCase):
 
         self.assertEqual(overlay.size().width(), CROSSHAIR_SIZE)
         self.assertTrue(overlay.testAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents))
+        self.assertTrue(overlay.testAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating))
         self.assertTrue(overlay.windowFlags() & Qt.WindowType.WindowTransparentForInput)
         self.assertTrue(overlay.windowFlags() & Qt.WindowType.WindowStaysOnTopHint)
 

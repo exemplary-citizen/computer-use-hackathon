@@ -8,10 +8,10 @@ from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QColor, QCursor, QPaintEvent, QPainter, QPen
 from PySide6.QtWidgets import QApplication, QWidget
 
-CROSSHAIR_SIZE = 34
-CROSSHAIR_ARM_LENGTH = 15
-CROSSHAIR_GAP = 4
-CROSSHAIR_LINE_WIDTH = 3
+CROSSHAIR_SIZE = 48
+CROSSHAIR_ARM_LENGTH = 21
+CROSSHAIR_GAP = 6
+CROSSHAIR_LINE_WIDTH = 4
 CURSOR_REFRESH_MILLISECONDS = 16
 
 
@@ -28,11 +28,14 @@ class CrosshairOverlay(QWidget):
         self.setFixedSize(size, size)
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
-        self.setWindowFlag(Qt.WindowType.FramelessWindowHint)
-        self.setWindowFlag(Qt.WindowType.Tool)
-        self.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint)
-        self.setWindowFlag(Qt.WindowType.WindowTransparentForInput)
-        self.setWindowFlag(Qt.WindowType.WindowDoesNotAcceptFocus)
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
+        self.setWindowFlags(
+            Qt.WindowType.Window
+            | Qt.WindowType.FramelessWindowHint
+            | Qt.WindowType.WindowStaysOnTopHint
+            | Qt.WindowType.WindowTransparentForInput
+            | Qt.WindowType.WindowDoesNotAcceptFocus
+        )
         self._timer = QTimer(self)
         self._timer.timeout.connect(self.follow_pointer)
         self._timer.start(CURSOR_REFRESH_MILLISECONDS)
@@ -42,6 +45,7 @@ class CrosshairOverlay(QWidget):
         """Center the overlay on the current global pointer position."""
         position = QCursor.pos()
         self.move(position.x() - self.width() // 2, position.y() - self.height() // 2)
+        self.raise_()
 
     def paintEvent(self, event: QPaintEvent) -> None:
         """Paint a high-contrast red crosshair.
@@ -54,9 +58,10 @@ class CrosshairOverlay(QWidget):
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
         center_x = self.width() // 2
         center_y = self.height() // 2
-        outline = QPen(QColor("#ffffff"), CROSSHAIR_LINE_WIDTH + 2)
+        outline = QPen(QColor("#ffffff"), CROSSHAIR_LINE_WIDTH + 3)
         outline.setCapStyle(Qt.PenCapStyle.RoundCap)
-        red = QPen(QColor("#ef2020"), CROSSHAIR_LINE_WIDTH)
+        red_color = QColor("#ff1010")
+        red = QPen(red_color, CROSSHAIR_LINE_WIDTH)
         red.setCapStyle(Qt.PenCapStyle.RoundCap)
         segments = (
             (center_x - CROSSHAIR_ARM_LENGTH, center_y, center_x - CROSSHAIR_GAP, center_y),
@@ -68,6 +73,14 @@ class CrosshairOverlay(QWidget):
             painter.setPen(pen)
             for start_x, start_y, end_x, end_y in segments:
                 painter.drawLine(start_x, start_y, end_x, end_y)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.setPen(QPen(QColor("#ffffff"), 6))
+        painter.drawEllipse(center_x - 9, center_y - 9, 18, 18)
+        painter.setPen(QPen(red_color, 3))
+        painter.drawEllipse(center_x - 9, center_y - 9, 18, 18)
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(red_color)
+        painter.drawEllipse(center_x - 3, center_y - 3, 6, 6)
 
 
 def main() -> None:
@@ -77,6 +90,7 @@ def main() -> None:
     app.setQuitOnLastWindowClosed(False)
     overlay = CrosshairOverlay()
     overlay.show()
+    overlay.raise_()
     raise SystemExit(app.exec())
 
 
