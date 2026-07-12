@@ -85,10 +85,63 @@ _APP_ALIASES: dict[str, AppKey] = {
     "meridian contacts": "b",
 }
 _APP_WINDOW_TITLES: dict[AppKey, str] = {"a": "Northlight CRM", "b": "Meridian Contacts"}
-
 AdapterFactory = Callable[[HoloTaskSpec], HoloAdapter]
 FixtureLauncher = Callable[[AppKey, Path | None, float], bool]
 Decision = Literal["approve", "reject", "cancel"]
+_REPORT_FIELD_ALIASES = {
+    "given_name": "first_name",
+    "family_name": "last_name",
+    "organisation": "company",
+    "stage": "status",
+}
+
+
+def _extract_stage_report(answer: str) -> dict[str, object] | None:
+    """Extract the staged object from JSON-only or fenced/annotated model output."""
+    decoder = json.JSONDecoder()
+    candidates: list[object] = []
+    try:
+        candidates.append(json.loads(answer))
+    except json.JSONDecodeError:
+        for index, character in enumerate(answer):
+            if character != "{":
+                continue
+            try:
+                candidate, _ = decoder.raw_decode(answer[index:])
+            except json.JSONDecodeError:
+                continue
+            candidates.append(candidate)
+    for candidate in candidates:
+        if isinstance(candidate, dict) and "record" in candidate and "staged_fields" in candidate:
+            return {str(key): value for key, value in candidate.items()}
+    return None
+
+
+def _normalize_reported_record(value: object) -> str | None:
+    if isinstance(value, str):
+        return value.strip()
+    if not isinstance(value, dict):
+        return None
+    direct_name = value.get("name") or value.get("full_name")
+    if isinstance(direct_name, str):
+        return direct_name.strip()
+    first = value.get("first_name") or value.get("given_name")
+    last = value.get("last_name") or value.get("family_name")
+    if isinstance(first, str) and isinstance(last, str):
+        return f"{first.strip()} {last.strip()}".strip()
+    return None
+
+
+def _normalize_reported_fields(value: object) -> dict[str, str] | None:
+    if not isinstance(value, dict):
+        return None
+    normalized: dict[str, str] = {}
+    for raw_field, raw_value in value.items():
+        if not isinstance(raw_field, str) or not isinstance(raw_value, str):
+            return None
+        field = _REPORT_FIELD_ALIASES.get(raw_field, raw_field)
+        normalized[field] = raw_value
+    return normalized
 
 
 class InputValidationError(ValueError):
@@ -424,6 +477,9 @@ class RunCoordinator:
                 "Holo session started.",
                 {"session_reference": runtime.session_reference},
             )
+            if self.settings.one_shot_demo:
+                await self._run_one_shot_demo(run_id, runtime, spec, pre_state)
+                return
             stage_outcome = await self._with_heartbeat(
                 run_id,
                 RunState.EXECUTING,
@@ -433,7 +489,11 @@ class RunCoordinator:
             if runtime.cancel_requested:
                 await self._finalize(run_id, RunState.CANCELLED, answer="Cancelled during staging; nothing saved.")
                 return
-            self._check_stage_answer(spec, stage_outcome)
+            stage_report = self._check_stage_answer(spec, stage_outcome)
+            stage_outcome = TurnOutcome(
+                answer=json.dumps(stage_report, separators=(",", ":"), ensure_ascii=False),
+                steps_used=stage_outcome.steps_used,
+            )
             post_stage = load_state(self._fixture_path(app))
             if post_stage != pre_state:
                 await asyncio.to_thread(runtime.adapter.cancel, runtime.session_reference)
@@ -445,12 +505,24 @@ class RunCoordinator:
                 RunState.EXECUTING,
                 RunState.AWAITING_COMMIT_APPROVAL,
                 "staged_change",
-                "Change staged; explicit approval required before anything is saved.",
+                (
+                    "Change staged; committing automatically in demo mode."
+                    if self.settings.auto_approve
+                    else "Change staged; explicit approval required before anything is saved."
+                ),
                 payload={
                     "staged_change": json.loads(staged.model_dump_json()),
                     "approval_timeout_seconds": self.settings.approval_timeout_seconds,
+                    "auto_approve": self.settings.auto_approve,
                 },
             )
+            if self.settings.auto_approve:
+                await self.approve_commit(
+                    run_id,
+                    staged.payload_sha256,
+                    InvocationSource.DASHBOARD,
+                    "demo-auto-approve",
+                )
             decision = await self._await_decision(runtime)
             if decision is None:
                 await asyncio.to_thread(runtime.adapter.cancel, runtime.session_reference)
@@ -517,6 +589,65 @@ class RunCoordinator:
                 return None
         return runtime.decision
 
+    async def _run_one_shot_demo(
+        self,
+        run_id: UUID,
+        runtime: _RunRuntime,
+        spec: HoloTaskSpec,
+        pre_state: CrmState,
+    ) -> None:
+        """Run the examples-style one-task demo and verify the exact persisted result."""
+        if runtime.adapter is None or runtime.session_reference is None:
+            raise fault("holo_unreachable", "one-shot session was not initialized")
+        await self._transition(
+            run_id,
+            RunState.EXECUTING,
+            RunState.AWAITING_COMMIT_APPROVAL,
+            "demo_commit_authorized",
+            "Start confirmation authorizes the one-shot demo commit.",
+        )
+        await self._transition(
+            run_id,
+            RunState.AWAITING_COMMIT_APPROVAL,
+            RunState.COMMITTING,
+            "one_shot_started",
+            "Holo is performing one bounded task in the selected CRM window.",
+        )
+        runtime.commit_dispatched = True
+        outcome = await self._with_heartbeat(
+            run_id,
+            RunState.COMMITTING,
+            asyncio.to_thread(
+                runtime.adapter.send_message,
+                runtime.session_reference,
+                self._one_shot_prompt(spec, pre_state),
+            ),
+            runtime.adapter,
+        )
+        report = {
+            "record": spec.record_name,
+            "staged_fields": spec.field_changes,
+            "visible_verification": outcome.answer or "Holo completed the one-shot desktop task.",
+        }
+        staged = self._build_staged_change(
+            run_id,
+            spec,
+            pre_state,
+            runtime.session_reference,
+            TurnOutcome(
+                answer=json.dumps(report, separators=(",", ":"), ensure_ascii=False),
+                steps_used=outcome.steps_used,
+            ),
+        )
+        verification = self._verify_commit(spec, pre_state, staged)
+        await self._finalize(
+            run_id,
+            RunState.SUCCEEDED,
+            answer=outcome.answer or "Holo completed the requested CRM change.",
+            verification=verification,
+            steps=outcome.steps_used,
+        )
+
     async def _with_heartbeat(
         self,
         run_id: UUID,
@@ -547,17 +678,23 @@ class RunCoordinator:
                 {"holo_event_type": diagnostic.event_type, **diagnostic.payload},
             )
 
-    def _check_stage_answer(self, spec: HoloTaskSpec, outcome: TurnOutcome) -> None:
-        try:
-            parsed = json.loads(outcome.answer)
-        except json.JSONDecodeError as error:
-            raise fault("malformed_stage_answer", "stage answer was not structured") from error
-        if not isinstance(parsed, dict) or "staged_fields" not in parsed or "record" not in parsed:
+    def _check_stage_answer(self, spec: HoloTaskSpec, outcome: TurnOutcome) -> dict[str, object]:
+        parsed = _extract_stage_report(outcome.answer)
+        if parsed is None:
+            raise fault("malformed_stage_answer", "stage answer was not structured")
+        record = _normalize_reported_record(parsed.get("record"))
+        staged_fields = _normalize_reported_fields(parsed.get("staged_fields"))
+        if record is None or staged_fields is None:
             raise fault("malformed_stage_answer", "stage answer missing record/staged_fields")
-        if parsed["record"] != spec.record_name:
+        if record != spec.record_name:
             raise fault("malformed_stage_answer", "agent-reported record differs from the requested record")
-        if parsed["staged_fields"] != spec.field_changes:
+        if staged_fields != spec.field_changes:
             raise fault("malformed_stage_answer", "agent-reported fields differ from the requested change")
+        return {
+            "record": record,
+            "staged_fields": staged_fields,
+            "visible_verification": str(parsed.get("visible_verification", "")),
+        }
 
     def _build_staged_change(
         self,
@@ -642,6 +779,7 @@ class RunCoordinator:
             max_time_seconds=request.max_time_seconds,
             operation=operation,
             diagnostics_path=self.settings.runs_root / str(request.id) / "holo_diagnostics.jsonl",
+            overlay_path=self.settings.holo_overlay_path,
         )
 
     def _stage_prompt_text(
@@ -656,14 +794,31 @@ class RunCoordinator:
         changes = "; ".join(f"{name} -> {value}" for name, value in sorted(field_changes.items()))
         action = "Create a new contact record" if operation == "create" else f"Update record {record_name}"
         window_title = _APP_WINDOW_TITLES[app]
+        if app == "b":
+            requested_last_name = field_changes.get("last_name", "")
+            return (
+                "STRICT MERIDIAN TEXT-ONLY TASK:\n"
+                f'Target the running window titled "{window_title}" for {request.target_app}. '
+                "A red HOLO visualization may flash briefly; it is input-transparent diagnostic decoration, not a "
+                "dialog or obstruction. Ignore it completely and never try to dismiss it. "
+                "Do not use click, double-click, pointer, arrow, Command, Control, Option, app-switching, Spotlight, "
+                "Finder, the Dock, Mission Control, browser, ChatGPT, or Terminal actions. The Find contact field is "
+                f"already focused and empty. First call write_desktop once with content {record_name!r}, "
+                "overwrite=false, and "
+                "press_enter=true. The exact result opens automatically and its Family name field is automatically "
+                f"focused with the old value selected. Verify the editor is for {record_name!r}. Then call "
+                f"write_desktop once with content {requested_last_name!r}, overwrite=false, and press_enter=false. "
+                "Visually verify the new Family name. Do not press Enter during staging. Return the required staged "
+                f"JSON immediately. Task: {action}. Requested values: {changes}."
+            )
         return (
             "HOST-PREPARED TARGET — FOLLOW THIS EVEN IF THE SKILL SAYS TO OPEN THE CRM:\n"
-            f'The Python fixture is already running in a visible window titled "{window_title}" '
-            f"for target {request.target_app}. Do not open Spotlight, Finder, the Dock, Terminal, or Applications. "
-            f'Do not search for an installed app named Meridian or Northlight. Work only in the "{window_title}" '
-            "window that is already on screen. Do not invoke Mission Control or interact with the dashboard, browser, "
-            "ChatGPT, or any other window. If the target window is no longer visible, return a failure instead of "
-            "interacting with another application.\n\n"
+            f'The host launched the fixture window titled "{window_title}" for target {request.target_app}. '
+            "Observe the full desktop. If another application is currently in front, use the normal macOS app "
+            f'switcher (Command-Tab) until the exact "{window_title}" window is visible, then work only in that '
+            "window. Do not edit or click inside the dashboard, browser, ChatGPT, Terminal, or another application. "
+            "Do not use Spotlight, Finder, the Dock, or Mission Control to search for the CRM. If the exact target "
+            "window cannot be made visible with the app switcher, return a failure.\n\n"
             "PORTABLE RECORD-OPENING RULE — DO NOT SKIP THESE STEPS:\n"
             f'1. Locate the exact visible record matching "{record_name}" using the current list, table, or search.\n'
             "2. Click the exact matching name or row so that record is visibly selected.\n"
@@ -677,6 +832,13 @@ class RunCoordinator:
         )
 
     def _stage_prompt(self, spec: HoloTaskSpec) -> str:
+        if spec.app == "b":
+            return (
+                f"{spec.task_text}\n\nTURN 1 OF 2 — STAGE ONLY. Perform exactly the two write_desktop actions "
+                "described above, verify the unsaved Family name, and perform no other desktop action. Immediately "
+                "answer with only this JSON: "
+                '{"record": ..., "staged_fields": {...}, "visible_verification": ...}.'
+            )
         window_title = _APP_WINDOW_TITLES[spec.app]
         interaction = (
             "open the Add Record form and fill the requested values"
@@ -684,8 +846,8 @@ class RunCoordinator:
             else "find the requested record and fill the requested values in its form"
         )
         return (
-            f'{spec.task_text}\n\nThe target is the already-visible "{window_title}" window. '
-            f"TURN 1 OF 2 — STAGE ONLY: {interaction}, visually "
+            f'{spec.task_text}\n\nThe target is the "{window_title}" window. First bring that exact window to '
+            f"the front with Command-Tab if necessary. TURN 1 OF 2 — STAGE ONLY: {interaction}, visually "
             "verify them, and leave the editor visibly open with the unsaved staged values. "
             "Do NOT press Save, Commit, Submit, or any equivalent. After verification, do not press Escape, "
             "switch or minimize applications, close the editor, or perform any other desktop action. "
@@ -694,10 +856,46 @@ class RunCoordinator:
         )
 
     def _commit_prompt(self, spec: HoloTaskSpec) -> str:
+        if spec.app == "b":
+            return (
+                "TURN 2 OF 2 — COMMIT: the staged change has been approved. Do not use a pointer or modifier key. "
+                "Re-check the staged value is visible, press Enter exactly once, and verify Meridian shows success."
+            )
         persistent_control = "Add Record" if spec.operation == "create" else "Save/Commit"
         return (
             "TURN 2 OF 2 — COMMIT: the staged change has been approved. Re-check the staged values are still "
             f"visible, press the {persistent_control} control once, and verify the application shows success."
+        )
+
+    def _one_shot_prompt(self, spec: HoloTaskSpec, pre_state: CrmState) -> str:
+        window_title = _APP_WINDOW_TITLES[spec.app]
+        if spec.operation == "create":
+            fields = ", ".join(f"{field}={value!r}" for field, value in sorted(spec.field_changes.items()))
+            return (
+                f'In the already-open "{window_title}" window, create one contact with {fields}. '
+                "Use normal visual clicks and typing. Click the final Add Record button, verify the new contact is "
+                "visible, and return DONE. Do not open, switch to, or interact with any other application."
+            )
+        record = next(item for item in pre_state.records if item.full_name == spec.record_name)
+        labels = {
+            "first_name": "Given name",
+            "last_name": "Family name",
+            "company": "Organisation",
+            "phone": "Phone",
+            "email": "Email",
+            "status": "Stage",
+            "owner": "Owner",
+            "notes": "Notes",
+        }
+        changes = "; ".join(
+            f"change {labels.get(field, field)} from {getattr(record, field)!r} to {value!r}"
+            for field, value in sorted(spec.field_changes.items())
+        )
+        return (
+            f'In the already-open "{window_title}" window, find the exact contact {spec.record_name!r}, open that '
+            f"record, and {changes}. Use normal visual clicks and typing. Click Commit Changes, verify the saved "
+            "record shows the new value, and return DONE. Do not open, switch to, or interact with any other "
+            "application."
         )
 
     def _default_adapter_factory(self, spec: HoloTaskSpec) -> HoloAdapter:

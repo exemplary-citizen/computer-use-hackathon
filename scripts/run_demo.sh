@@ -5,6 +5,11 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PYTHON="$REPO_ROOT/.venv/bin/python"
 BACKEND="$REPO_ROOT/.venv/bin/automation-foundry-api"
+export FOUNDRY_DESKTOP_APP_ROOT="${FOUNDRY_DESKTOP_APP_ROOT:-/private/tmp/automation-foundry-desktop-apps}"
+CRM_A_APP="$FOUNDRY_DESKTOP_APP_ROOT/NorthlightCRM.app"
+CRM_B_APP="$FOUNDRY_DESKTOP_APP_ROOT/MeridianContacts.app"
+CRM_A="$CRM_A_APP/Contents/MacOS/NorthlightCRM"
+CRM_B="$CRM_B_APP/Contents/MacOS/MeridianContacts"
 LOG_ROOT="${FOUNDRY_DEMO_LOG_ROOT:-/private/tmp/automation-foundry-demo}"
 CHILD_PIDS=()
 CLEANING_UP=0
@@ -32,6 +37,7 @@ cleanup() {
     done
 
     pkill -TERM -f 'desktop_fixtures\.crm_[ab]' 2>/dev/null || true
+    pkill -TERM -f "$FOUNDRY_DESKTOP_APP_ROOT/.+\.app/Contents/MacOS/" 2>/dev/null || true
     pkill -TERM -f "$REPO_ROOT/web/node_modules/.bin/vite" 2>/dev/null || true
     pkill -TERM -f "$BACKEND" 2>/dev/null || true
     pkill -TERM -f 'hai-agent-runtime' 2>/dev/null || true
@@ -54,6 +60,7 @@ trap 'exit 130' INT TERM HUP
 
 [[ -x "$PYTHON" ]] || fail "missing virtual environment; run UV_PYTHON=3.12 uv sync first"
 [[ -x "$BACKEND" ]] || fail "missing automation-foundry-api; run UV_PYTHON=3.12 uv sync first"
+[[ -x "$CRM_A" && -x "$CRM_B" ]] || fail "missing CRM app bundles; run ./scripts/build_desktop_apps.sh first"
 [[ -d "$REPO_ROOT/web/node_modules" ]] || fail "missing web dependencies; run cd web && npm ci first"
 command -v npm >/dev/null 2>&1 || fail "npm is not installed"
 command -v security >/dev/null 2>&1 || fail "macOS security command is unavailable"
@@ -82,7 +89,9 @@ export FOUNDRY_EXECUTION_DATABASE_PATH="${FOUNDRY_EXECUTION_DATABASE_PATH:-/priv
 export FOUNDRY_FIXTURE_DATA_ROOT="${FOUNDRY_FIXTURE_DATA_ROOT:-/private/tmp/automation-foundry-live/fixtures}"
 export FOUNDRY_HOLO_MODE="${FOUNDRY_HOLO_MODE:-live}"
 export FOUNDRY_LAUNCH_FIXTURE_ON_RUN="${FOUNDRY_LAUNCH_FIXTURE_ON_RUN:-true}"
+export FOUNDRY_ONE_SHOT_DEMO="${FOUNDRY_ONE_SHOT_DEMO:-true}"
 export FOUNDRY_VOICE_ENABLED="${FOUNDRY_VOICE_ENABLED:-false}"
+unset FOUNDRY_HOLO_OVERLAY_PATH
 
 [[ -f "$FOUNDRY_BUNDLE_PATH" ]] || fail "approved bundle not found: $FOUNDRY_BUNDLE_PATH"
 mkdir -p "$LOG_ROOT"
@@ -97,11 +106,6 @@ CHILD_PIDS+=("$BACKEND_PID")
 ) >"$LOG_ROOT/web.log" 2>&1 &
 WEB_PID=$!
 CHILD_PIDS+=("$WEB_PID")
-
-"$PYTHON" -m desktop_fixtures.crm_a >"$LOG_ROOT/crm_a.log" 2>&1 &
-CHILD_PIDS+=("$!")
-"$PYTHON" -m desktop_fixtures.crm_b >"$LOG_ROOT/crm_b.log" 2>&1 &
-CHILD_PIDS+=("$!")
 
 backend_ready=0
 web_ready=0
@@ -126,7 +130,7 @@ done
 echo "Automation Foundry is running."
 echo "Dashboard: http://127.0.0.1:5173"
 echo "Logs: $LOG_ROOT"
-echo "Press Ctrl+C to stop the backend, dashboard, CRMs, and Holo runtime."
+echo "Press Ctrl+C to stop the backend, dashboard, selected CRM, and Holo runtime."
 
 while true; do
     kill -0 "$BACKEND_PID" 2>/dev/null || fail "backend exited; see $LOG_ROOT/backend.log"

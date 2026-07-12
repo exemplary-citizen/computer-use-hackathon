@@ -14,7 +14,9 @@ import asyncio
 import contextlib
 import json
 import logging
+import os
 import threading
+import time
 import uuid
 from collections.abc import Coroutine
 from concurrent.futures import TimeoutError as FutureTimeoutError
@@ -66,6 +68,7 @@ class HoloTaskSpec:
     max_time_seconds: int
     operation: Literal["update", "create"] = "update"
     diagnostics_path: Path | None = None
+    overlay_path: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -255,6 +258,7 @@ class LiveHoloAdapter:
         self._client: AgentApiClient | None = None
         self._session: Session | None = None
         self._turns_sent = 0
+        self._turn_write_actions = 0
         self._last_steps = 0
         self._diagnostics: SimpleQueue[HoloDiagnostic] = SimpleQueue()
         self._diagnostic_lock = threading.Lock()
@@ -384,12 +388,14 @@ class LiveHoloAdapter:
             raise fault("session_lost", "live client was not initialized")
 
         turn_number = self._turns_sent + 1
+        self._turn_write_actions = 0
         self._record_diagnostic(
             "turn_started",
             f"Holo turn {turn_number} started.",
             {"turn": turn_number, "prompt": message},
             publish=True,
         )
+        self._write_overlay_state(label=f"Observing desktop · turn {turn_number}")
 
         async def capture_event(event: object) -> None:
             self._capture_runtime_event(event)
@@ -427,6 +433,7 @@ class LiveHoloAdapter:
             },
             publish=True,
         )
+        self._write_overlay_state(label="Turn complete", visible=False)
         if self._turns_sent >= 2:
             await self._close_async(cancel_session=False)
         return result
@@ -442,6 +449,7 @@ class LiveHoloAdapter:
     async def _close_async(self, *, cancel_session: bool) -> None:
         if self._closed:
             return
+        self._write_overlay_state(label="Holo stopped", visible=False)
         client = self._client
         session = self._session
         if cancel_session and client is not None and session is not None and session.session_id is not None:
@@ -476,6 +484,10 @@ class LiveHoloAdapter:
         data = raw.get("data")
         event_data = data if isinstance(data, dict) else {}
         kind = str(event_data.get("kind", outer_type))
+        if kind == "tool_result":
+            self._write_overlay_state(label="Action complete", visible=False)
+        else:
+            self._capture_overlay_target(event_data)
         safe_event = _sanitize_diagnostic(raw)
         payload = safe_event if isinstance(safe_event, dict) else {"event": safe_event}
         message = _runtime_event_message(outer_type, kind, event_data)
@@ -522,6 +534,89 @@ class LiveHoloAdapter:
                     payload=safe_payload if isinstance(safe_payload, dict) else {"event": safe_payload},
                 )
             )
+
+    def _capture_overlay_target(self, event_data: dict[str, object]) -> None:
+        requests = event_data.get("tool_reqs")
+        if not isinstance(requests, list) or not requests or not isinstance(requests[0], dict):
+            return
+        request = requests[0]
+        tool_name = str(request.get("tool_name", "desktop action"))
+        args = request.get("args")
+        arguments = args if isinstance(args, dict) else {}
+        element_value = arguments.get("element")
+        if tool_name == "write_desktop" and self.spec.app == "b":
+            self._turn_write_actions += 1
+            element_value = "Find contact" if self._turn_write_actions == 1 else "Family name field"
+        if element_value is None:
+            held = arguments.get("hold_keys")
+            tapped = arguments.get("tap_keys")
+            keys = [str(key) for key in held] if isinstance(held, list) else []
+            if isinstance(tapped, list):
+                keys.extend(str(key) for key in tapped if isinstance(key, str))
+            direct_keys = arguments.get("keys")
+            if isinstance(direct_keys, list):
+                keys.extend(str(key) for key in direct_keys if isinstance(key, str))
+            element_value = _keyboard_target_label(tool_name, keys, committing=self._turns_sent >= 1)
+        element = str(element_value)[:120]
+        target: dict[str, object] = {"element": element}
+        x = arguments.get("x")
+        y = arguments.get("y")
+        if isinstance(x, (int, float)) and isinstance(y, (int, float)):
+            target["x"] = min(max(float(x), 0.0), 1.0)
+            target["y"] = min(max(float(y), 0.0), 1.0)
+        self._write_overlay_state(label=f"{tool_name} · {element}", target=target)
+
+    def _write_overlay_state(
+        self,
+        *,
+        label: str,
+        target: dict[str, object] | None = None,
+        visible: bool = True,
+    ) -> None:
+        path = self.spec.overlay_path
+        if path is None:
+            return
+        state: dict[str, object] = {
+            "app": self.spec.app,
+            "visible": visible,
+            "label": label[:160],
+            "target": target,
+            "updated_at": time.time(),
+            "expires_at": time.time() + 1.0 if visible else 0.0,
+        }
+        temporary = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            temporary.write_text(
+                json.dumps(state, sort_keys=True, separators=(",", ":"), ensure_ascii=False),
+                encoding="utf-8",
+            )
+            temporary.replace(path)
+        except OSError:
+            logger.exception("failed to update Holo overlay state at %s", path)
+
+
+def _keyboard_target_label(tool_name: str, keys: list[str], *, committing: bool) -> str:
+    normalized = tuple(key.lower() for key in keys)
+    purposes = {
+        ("cmd", "f"): "Find contact (Command+F)",
+        ("cmd", "o"): "Open selected record (Command+O)",
+        ("cmd", "n"): "Add record (Command+N)",
+        ("cmd", "shift", "l"): "Family name field (Command+Shift+L)",
+        ("cmd", "s"): "Save changes (Command+S)",
+        ("return",): "Save changes (Return)" if committing else "Open exact search result (Return)",
+        ("enter",): "Save changes (Enter)" if committing else "Open exact search result (Enter)",
+        ("esc",): "Escape key",
+    }
+    if normalized in purposes:
+        return purposes[normalized]
+    if keys:
+        return f"Keyboard: {'+'.join(keys)}"
+    if tool_name == "answer":
+        return "Return staged result"
+    if tool_name == "write_desktop":
+        return "Focused text field"
+    return tool_name.replace("_desktop", "").replace("_", " ").title()
 
 
 def _model_dump(value: object) -> dict[str, object]:

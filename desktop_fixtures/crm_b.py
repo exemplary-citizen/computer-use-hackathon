@@ -9,9 +9,11 @@ wording (see ``FIELD_LABELS``).
 from __future__ import annotations
 
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -30,6 +32,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from desktop_fixtures.holo_overlay import HoloOverlay
 from desktop_fixtures.qt_common import apply_light_fusion_style, fix_window_geometry
 from desktop_fixtures.store import (
     FIELD_LABELS,
@@ -112,9 +115,35 @@ class RecordDialog(QDialog):
         buttons.addStretch(1)
         self.commit_button = QPushButton("Commit Changes" if record is not None else "Add Record")
         self.commit_button.setObjectName("primaryAction")
+        self.commit_button.setDefault(True)
+        self.commit_button.setAutoDefault(True)
         self.commit_button.clicked.connect(self._validate_and_accept)
         buttons.addWidget(self.commit_button)
         layout.addLayout(buttons)
+
+        self._field_shortcuts = [
+            self._shortcut("Meta+Shift+F", lambda: self._focus_and_select(self.first_name)),
+            self._shortcut("Meta+Shift+L", lambda: self._focus_and_select(self.last_name)),
+            self._shortcut("Meta+Shift+C", lambda: self._focus_and_select(self.company)),
+            self._shortcut("Meta+Shift+P", lambda: self._focus_and_select(self.phone)),
+            self._shortcut("Meta+Shift+E", lambda: self._focus_and_select(self.email)),
+            self._shortcut("Meta+Shift+T", self.status.setFocus),
+            self._shortcut("Meta+Shift+O", lambda: self._focus_and_select(self.owner)),
+            self._shortcut("Meta+Shift+N", lambda: self._focus_and_select(self.notes)),
+            self._shortcut("Meta+S", self._validate_and_accept),
+        ]
+        if record is not None:
+            QTimer.singleShot(0, lambda: self._focus_and_select(self.last_name))
+
+    def _shortcut(self, keys: str, action: Callable[[], object]) -> QShortcut:
+        shortcut = QShortcut(QKeySequence(keys), self)
+        shortcut.activated.connect(action)
+        return shortcut
+
+    @staticmethod
+    def _focus_and_select(widget: QLineEdit | QPlainTextEdit) -> None:
+        widget.setFocus()
+        widget.selectAll()
 
     def edited_record(self) -> ContactRecord:
         """Return the record with the dialog's current field values applied."""
@@ -169,6 +198,9 @@ class CrmBWindow(QMainWindow):
             record = self._state.records[index]
             for column, value in enumerate((record.first_name, record.last_name, record.company, record.status)):
                 self._results.setItem(row, column, QTableWidgetItem(value))
+        if self._visible_indices:
+            self._results.selectRow(0)
+            self._results.setCurrentCell(0, 0)
         self.statusBar().showMessage(f"{len(self._visible_indices)} record(s)")
 
     def open_selected_record(self) -> None:
@@ -217,7 +249,7 @@ class CrmBWindow(QMainWindow):
         search_label.setObjectName("fieldLabel")
         search_row.addWidget(search_label)
         self._search_box = QLineEdit()
-        self._search_box.returnPressed.connect(self.run_search)
+        self._search_box.returnPressed.connect(self._search_and_open_exact)
         search_row.addWidget(self._search_box, 1)
         search_button = QPushButton("Search")
         search_button.clicked.connect(self.run_search)
@@ -255,6 +287,30 @@ class CrmBWindow(QMainWindow):
 
         self.setCentralWidget(tabs)
         self.statusBar().showMessage("Ready")
+        self._holo_overlay = HoloOverlay(self, _APP_KEY)
+        self._navigation_shortcuts = [
+            self._shortcut("Meta+F", self._focus_search),
+            self._shortcut("Meta+O", self.open_selected_record),
+            self._shortcut("Meta+N", self.add_record),
+        ]
+
+    def _shortcut(self, keys: str, action: Callable[[], object]) -> QShortcut:
+        shortcut = QShortcut(QKeySequence(keys), self)
+        shortcut.activated.connect(action)
+        return shortcut
+
+    def _focus_search(self) -> None:
+        self._search_box.setFocus()
+        self._search_box.selectAll()
+
+    def _search_and_open_exact(self) -> None:
+        self.run_search()
+        needle = self._search_box.text().strip().casefold()
+        if len(self._visible_indices) != 1:
+            return
+        record = self._state.records[self._visible_indices[0]]
+        if record.full_name.casefold() == needle:
+            self.open_selected_record()
 
 
 def main() -> None:
@@ -265,6 +321,7 @@ def main() -> None:
     window.show()
     window.raise_()
     window.activateWindow()
+    QTimer.singleShot(0, window._focus_search)
     raise SystemExit(app.exec())
 
 

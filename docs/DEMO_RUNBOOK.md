@@ -69,11 +69,14 @@ ChatGPT:
 
 ```bash
 cd /Users/rushendra/Desktop/work/projects/computer-use-hackathon
+./scripts/build_desktop_apps.sh --rebuild
 ./scripts/run_demo.sh
 ```
 
-The script starts the backend in live mode, the Vite dashboard, and both CRM fixtures. Keep that terminal open and
-press `Ctrl+C` once to stop the backend, dashboard, CRM processes, and Holo runtime. Logs remain under
+The build command creates named macOS app bundles under `/private/tmp/automation-foundry-desktop-apps`, avoiding the
+Desktop-folder permission prompt. The launch script starts the backend and Vite dashboard in live mode. Only the CRM
+selected by a confirmed run is launched. Keep that terminal open and press
+`Ctrl+C` once to stop the backend, dashboard, CRM process, and Holo runtime. Logs remain under
 `/private/tmp/automation-foundry-demo/`.
 
 ## 3. Create the authored handoff

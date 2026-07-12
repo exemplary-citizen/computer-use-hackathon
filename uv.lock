@@ -527,6 +527,7 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "mypy" },
+    { name = "nuitka" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "ruff" },
@@ -555,6 +556,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "mypy", specifier = ">=1.10" },
+    { name = "nuitka", specifier = "==4.0" },
     { name = "pytest", specifier = ">=8.4" },
     { name = "pytest-asyncio", specifier = ">=1.0" },
     { name = "ruff", specifier = ">=0.6" },
@@ -1603,6 +1605,12 @@ sdist = { url = "https://files.pythonhosted.org/packages/a2/6e/371856a3fb9d31ca8
 wheels = [
     { url = "https://files.pythonhosted.org/packages/79/7b/2c79738432f5c924bef5071f933bcc9efd0473bac3b4aa584a6f7c1c8df8/mypy_extensions-1.1.0-py3-none-any.whl", hash = "sha256:1be4cccdb0f2482337c4743e60421de3a356cd97508abadd57d47403e94f5505", size = 4963, upload-time = "2025-04-22T14:54:22.983Z" },
 ]
+
+[[package]]
+name = "nuitka"
+version = "4.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/e5/d6/477dc84457fc07885f5fd020da4920e8a2787b2c04563ad444ac98f7d3eb/nuitka-4.0.tar.gz", hash = "sha256:0f404f292c3c2cc808d186d05a6d06a4b0aeca93f299cdfd5e33ddbcd19ab560", size = 4410008, upload-time = "2026-02-05T20:52:39.747Z" }
 
 [[package]]
 name = "numpy"

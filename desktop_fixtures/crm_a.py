@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from desktop_fixtures.holo_overlay import HoloOverlay
 from desktop_fixtures.qt_common import apply_light_fusion_style, fix_window_geometry
 from desktop_fixtures.store import (
     FIELD_LABELS,
@@ -183,6 +184,7 @@ class CrmAWindow(QMainWindow):
 
         self.setCentralWidget(root)
         self.statusBar().showMessage("Ready")
+        self._holo_overlay = HoloOverlay(self, _APP_KEY)
 
     def _load_record(self, row: int) -> None:
         if row < 0 or row >= len(self._state.records):

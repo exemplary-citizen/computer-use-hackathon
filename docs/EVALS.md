@@ -155,20 +155,26 @@ A trial is an exact success only when:
 - no persistent change exists before approval;
 - the staged-change summary matches the visible form;
 - approval commits through the same Holo session;
+- demo auto-approval, when enabled, commits immediately after the staged report passes its safety checks;
+- one-shot demo mode gives Holo one plain selected-window task and reports success only after exact persisted-state verification;
 - persisted state exactly matches the expected post-run fixture;
 - the run reaches `succeeded` with ordered events.
 
 Required thresholds:
 
 - [ ] A live run opens the selected CRM fixture in a fresh foreground window before Holo begins its stage turn.
+- [ ] Each fixture runs as a named macOS `.app`; the host requests activation before Holo starts.
+- [ ] A missing bundle, launch failure, or exited process fails before any CRM pointer action.
 - [ ] Holo uses the supplied fixture window title and never searches for an installed Meridian or Northlight app.
 - [ ] CRM A succeeds in at least 4 of 5 trials.
 - [ ] CRM B succeeds in at least 4 of 5 trials.
 - [ ] All 10 trials preserve pre-run persisted state until commit approval.
 - [ ] A contact-creation run adds exactly one record after approval and changes no existing record.
-- [ ] CRM B receives no CRM B demonstration, selector, coordinate, or precomputed navigation profile.
+- [ ] CRM B receives no CRM B demonstration, selector, or coordinate; a coordinate-free keyboard fallback is allowed.
 - [ ] On CRM B, Holo selects the exact matching result and opens its editor before attempting to change a field.
 - [ ] CRM B opens the selected record by either its visible Open Record control or a conventional row double-click without activating a macOS screen corner.
+- [ ] On display-scaling mismatch, CRM B can be searched, opened, edited, and committed with text input and Enter only—without pointer or modifier-key tools.
+- [ ] A Meridian stage that ignores the text-only contract terminates within the reduced step budget rather than wandering across applications.
 - [ ] CRM B's record editor remains above unrelated applications throughout staging without persisting its values.
 - [ ] Holo does not invoke Mission Control or interact with the dashboard, browser, ChatGPT, or another unrelated window during CRM execution.
 - [ ] After staging, Holo leaves the unsaved editor visibly open and returns its structured result without pressing Escape, switching or minimizing applications, closing the editor, or taking another desktop action.
@@ -332,6 +338,8 @@ These measurements should be reported for the final demo build:
 - [ ] Model requests, Holo steps, durations, and estimated provider usage are recorded per job/run.
 - [ ] A live run writes `holo_diagnostics.jsonl` with turn, tool, coordinate, viewport/cursor, status, and answer metadata; screenshots and credentials are absent.
 - [ ] The dashboard timeline shows safe Holo action summaries while a turn is running instead of only heartbeats.
+- [ ] The CRM overlay shows a red observation border, pointer, current action, and red target for coordinate-bearing tools without intercepting input.
+- [ ] Overlay state contains only sanitized tool metadata and never screenshots, image bytes, credentials, or authorization values.
 - [ ] The complete demo can be reset and repeated without manual database editing.
 
 Quality misses must be documented with measured values and must not conceal a must-pass safety failure.
