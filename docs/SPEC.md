@@ -156,7 +156,10 @@ All desktop interaction belongs to HoloDesktop.
 
 ### 5.6 Dashboard invocation
 
-The user selects an approved automation, target app, and runtime inputs. Clicking Run is the start confirmation for dashboard invocation. The system validates inputs and creates a run before Holo gains control.
+The user selects an approved automation, target app, and runtime inputs. The hackathon demo form defaults to CRM B —
+Meridian so the zero-shot target is not accidentally replaced by CRM A — Northlight; Northlight remains available only
+when the user deliberately selects it. Clicking Run is the start confirmation for dashboard invocation. The system
+validates inputs and creates a run before Holo gains control.
 
 ### 5.7 Voice invocation
 

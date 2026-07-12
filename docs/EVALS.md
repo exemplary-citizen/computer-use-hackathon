@@ -114,6 +114,7 @@ Required results:
 
 - [ ] Only approved, active, hash-matching versions can create a run.
 - [ ] The run form is generated from approved bundle inputs and supports record updates and contact creation.
+- [ ] A fresh dashboard run form defaults to CRM B — Meridian, and the confirmation preview displays that target before execution.
 - [ ] Missing or invalid runtime inputs produce field-level errors.
 - [ ] The preview identifies automation, version, target app, and normalized inputs.
 - [ ] Clicking Run records start confirmation for dashboard invocation.

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import type { RunState } from "../../contracts";
 import {
+  DEFAULT_TARGET_APP,
   ExecutionFaultError,
   InputFieldError,
   executionApi,
@@ -239,7 +240,7 @@ function StartPreview({
   onConfirm: () => void;
 }) {
   const inputs = preview?.normalized_inputs ?? status?.request.inputs ?? {};
-  const targetApp = preview?.request.target_app ?? status?.request.target_app ?? "crm_a";
+  const targetApp = preview?.request.target_app ?? status?.request.target_app ?? DEFAULT_TARGET_APP;
   return (
     <div className="run-preview">
       <h3>Confirm the interpreted command</h3>

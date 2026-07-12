@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 
 import {
+  DEFAULT_TARGET_APP,
   RUN_INPUT_FIELDS,
   TARGET_APPS,
   executionApi,
@@ -53,7 +54,7 @@ export function RunConfigForm({
       const value = String(data.get(field.name) ?? "").trim();
       if (field.required || value) inputs[field.name] = value;
     }
-    onSubmit(String(data.get("target_app") ?? "crm_a"), inputs);
+    onSubmit(String(data.get("target_app") ?? DEFAULT_TARGET_APP), inputs);
   }
 
   const knownFields = new Set<string>(["target_app", ...inputFields.map((field) => field.name)]);
@@ -64,7 +65,7 @@ export function RunConfigForm({
       <h3>Configure a run</h3>
       <label>
         Target app
-        <select defaultValue={TARGET_APPS[0].value} name="target_app">
+        <select defaultValue={DEFAULT_TARGET_APP} name="target_app">
           {TARGET_APPS.map((app) => (
             <option key={app.value} value={app.value}>
               {app.label}

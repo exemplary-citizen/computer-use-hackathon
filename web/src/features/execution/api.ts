@@ -10,6 +10,8 @@ export const TARGET_APPS = [
   { value: "crm_b", label: "CRM B — Meridian" },
 ] as const;
 
+export const DEFAULT_TARGET_APP = "crm_b";
+
 export const RUN_INPUT_FIELDS = [
   { name: "lead_name", label: "Lead name", placeholder: "Ada Lovelace", required: true },
   { name: "lifecycle_status", label: "Lifecycle status", placeholder: "Qualified", required: true },

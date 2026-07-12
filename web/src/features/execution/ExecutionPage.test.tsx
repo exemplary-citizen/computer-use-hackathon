@@ -190,6 +190,7 @@ describe("ExecutionPage run configuration", () => {
     expect(await screen.findByText("No runs yet")).toBeInTheDocument();
     expect(screen.getByText("Use the form above to configure and prepare the first run.")).toBeInTheDocument();
     expect(screen.getByLabelText("Target app")).toBeInTheDocument();
+    expect(screen.getByLabelText("Target app")).toHaveValue("crm_b");
     expect(screen.getByText("CRM A — Northlight")).toBeInTheDocument();
     expect(screen.getByText("CRM B — Meridian")).toBeInTheDocument();
 
