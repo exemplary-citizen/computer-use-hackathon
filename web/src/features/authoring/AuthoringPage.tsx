@@ -143,8 +143,8 @@ function CreateAutomation({ onCreated }: { onCreated: (automation: AutomationMan
       <label className="disclosure">
         <input name="provider_disclosure_accepted" type="checkbox" value="true" required />
         <span>
-          I understand selected frames and transcript/SOP text are staged for hosted Holo3, and audio is sent
-          to Gradium when transcription is configured.
+          I understand the uploaded video and normalized evidence/SOP text are sent to OpenRouter/Gemini for
+          generation. Holo receives the approved instructions only during desktop execution.
         </span>
       </label>
       {error ? <div className="callout danger">{error}</div> : null}

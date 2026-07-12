@@ -33,6 +33,8 @@ class PreprocessingConfig(BaseModel):
     """Maximum normalized SOP pages."""
     frame_interval_seconds: int = Field(default=1, ge=1, le=10)
     """Periodic frame sample interval before later visual deduplication."""
+    transcribe_video_audio: bool = True
+    """Extract/transcribe audio locally; direct-video providers process it themselves."""
 
     def make(
         self,
@@ -148,37 +150,38 @@ class EvidencePreprocessor:
         if not frame_paths:
             raise RuntimeError("FFmpeg produced no video frames")
 
-        audio_path = audio_root / f"{source.id}.wav"
-        self.command_runner(
-            [
-                self.config.ffmpeg_binary,
-                "-hide_banner",
-                "-loglevel",
-                "error",
-                "-y",
-                "-i",
-                str(source_path),
-                "-map",
-                "0:a:0?",
-                "-vn",
-                "-ac",
-                "1",
-                "-ar",
-                "24000",
-                "-c:a",
-                "pcm_s16le",
-                str(audio_path),
-            ]
-        )
         transcript = []
         persisted_audio_path: str | None = None
-        if audio_path.is_file() and audio_path.stat().st_size > 44:
-            persisted_audio_path = audio_path.relative_to(automation_root).as_posix()
-            if self.transcriber is None:
-                raise RuntimeError("Gradium transcription is not configured for narrated video")
-            transcript = await self.transcriber.transcribe(audio_path)
-        else:
-            audio_path.unlink(missing_ok=True)
+        if self.config.transcribe_video_audio:
+            audio_path = audio_root / f"{source.id}.wav"
+            self.command_runner(
+                [
+                    self.config.ffmpeg_binary,
+                    "-hide_banner",
+                    "-loglevel",
+                    "error",
+                    "-y",
+                    "-i",
+                    str(source_path),
+                    "-map",
+                    "0:a:0?",
+                    "-vn",
+                    "-ac",
+                    "1",
+                    "-ar",
+                    "24000",
+                    "-c:a",
+                    "pcm_s16le",
+                    str(audio_path),
+                ]
+            )
+            if audio_path.is_file() and audio_path.stat().st_size > 44:
+                persisted_audio_path = audio_path.relative_to(automation_root).as_posix()
+                if self.transcriber is None:
+                    raise RuntimeError("Gradium transcription is not configured for narrated video")
+                transcript = await self.transcriber.transcribe(audio_path)
+            else:
+                audio_path.unlink(missing_ok=True)
 
         return VideoEvidence(
             source_id=source.id,

@@ -15,7 +15,11 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 from automation_foundry.authoring.bundles import BundleManager, BundleManagerConfig
-from automation_foundry.authoring.generation import BundleGenerator, HermesClientConfig
+from automation_foundry.authoring.generation import (
+    BundleGenerator,
+    HermesClientConfig,
+    OpenRouterVideoClientConfig,
+)
 from automation_foundry.authoring.preprocessing import EvidencePreprocessor, PreprocessingConfig
 from automation_foundry.authoring.transcription import GradiumTranscriberConfig
 from automation_foundry.authoring.tool_testing import (
@@ -58,7 +62,7 @@ class IngestionPipeline:
         """Preprocess stored sources and materialize one generated draft version."""
         progress("preprocessing", 10, "Extracting normalized video and SOP evidence")
         evidence = await self.preprocessor.preprocess(automation_id)
-        progress("generation", 45, "Generating the semantic bundle with Hermes and Holo3")
+        progress("generation", 45, "Generating the semantic bundle from the supplied evidence")
         draft = await self.generator.generate(automation_id, evidence)
         progress("validation", 85, "Validating generated artifacts and safety policies")
         version, _ = self.bundles.create_version(automation_id, draft)
@@ -97,13 +101,12 @@ class AuthoringService:
         try:
             if self.pipeline is None:
                 raise RuntimeError(
-                    "Generation is not configured; set FOUNDRY_WORKSPACE_MOUNT and FOUNDRY_HERMES_API_KEY"
+                    "Generation is not configured; set FOUNDRY_OPENROUTER_API_KEY for openrouter_video, "
+                    "or FOUNDRY_WORKSPACE_MOUNT and FOUNDRY_HERMES_API_KEY for hermes_workspace"
                 )
             await self.pipeline.run(
                 automation_id,
-                lambda stage, percent, message: self._write_progress(
-                    automation_id, stage, percent, message
-                ),
+                lambda stage, percent, message: self._write_progress(automation_id, stage, percent, message),
             )
         except Exception as exc:
             manifest = self.store.get_manifest(automation_id)
@@ -151,6 +154,8 @@ class AuthoringService:
 
     def processing_error(self, automation_id: UUID) -> str | None:
         """Return a persisted user-visible processing failure, if present."""
+        if self.store.get_manifest(automation_id).status is not AutomationStatus.FAILED:
+            return None
         path = self.store.automation_root(automation_id) / "processing_error.json"
         if not path.is_file():
             return None
@@ -170,9 +175,7 @@ class AuthoringService:
         except (ValueError, UnicodeDecodeError):
             return None
 
-    def _write_progress(
-        self, automation_id: UUID, stage: str, percent: int, message: str
-    ) -> None:
+    def _write_progress(self, automation_id: UUID, stage: str, percent: int, message: str) -> None:
         progress = ProcessingProgress(
             stage=stage,
             percent=percent,
@@ -239,9 +242,7 @@ class AuthoringService:
         manifest = self.store.get_manifest(automation_id)
         published = self.bundles.published_skill_root / manifest.slug
         self.store.delete_automation(automation_id)
-        if published.is_dir() and published.resolve().is_relative_to(
-            self.bundles.published_skill_root.resolve()
-        ):
+        if published.is_dir() and published.resolve().is_relative_to(self.bundles.published_skill_root.resolve()):
             import shutil
 
             shutil.rmtree(published)
@@ -256,7 +257,18 @@ def build_authoring_service(settings: AppSettings) -> AuthoringService:
     bundles = BundleManagerConfig(published_skill_root=settings.published_skill_root).make(store)
     pipeline = None
     tool_test_runner = None
-    if settings.workspace_mount is not None and settings.hermes_api_key is not None:
+    if settings.generation_provider == "openrouter_video" and settings.openrouter_api_key is not None:
+        workspace_mount = settings.workspace_mount or settings.data_root.parent / "workspace"
+        workspace = WorkspaceConfig(host_mount=workspace_mount, require_mount=False).make(store)
+        workspace.initialize()
+        preprocessor = PreprocessingConfig(transcribe_video_audio=False).make(store)
+        openrouter_client = OpenRouterVideoClientConfig(
+            settings.openrouter_api_key.get_secret_value(),
+            base_url=settings.openrouter_base_url,
+            model=settings.openrouter_model,
+        ).make()
+        pipeline = IngestionPipeline(preprocessor, BundleGenerator(workspace, openrouter_client), bundles)
+    elif settings.workspace_mount is not None and settings.hermes_api_key is not None:
         workspace = WorkspaceConfig(
             host_mount=settings.workspace_mount,
             require_mount=settings.workspace_require_mount,
@@ -266,13 +278,13 @@ def build_authoring_service(settings: AppSettings) -> AuthoringService:
         if settings.gradium_api_key is not None:
             transcriber = GradiumTranscriberConfig(settings.gradium_api_key.get_secret_value()).make()
         preprocessor = PreprocessingConfig().make(store, transcriber=transcriber)
-        client = HermesClientConfig(
+        hermes_client = HermesClientConfig(
             settings.hermes_api_key.get_secret_value(),
             base_url=settings.hermes_base_url,
             model=settings.hermes_model,
         ).make()
-        pipeline = IngestionPipeline(preprocessor, BundleGenerator(workspace, client), bundles)
-        tool_test_runner = SandboxToolTestRunner(workspace, HermesToolTestExecutor(client))
+        pipeline = IngestionPipeline(preprocessor, BundleGenerator(workspace, hermes_client), bundles)
+        tool_test_runner = SandboxToolTestRunner(workspace, HermesToolTestExecutor(hermes_client))
     service = AuthoringService(
         store,
         UploadPolicyConfig().make(store),
@@ -292,6 +304,8 @@ def _safe_error_message(exc: Exception) -> str:
         "FFmpeg",
         "FFprobe",
         "Generation is not configured",
+        "Generation provider returned",
+        "Gemini returned",
         "Hermes returned",
         "NemoClaw workspace",
         "SOP exceeds",
