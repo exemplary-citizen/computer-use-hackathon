@@ -240,6 +240,8 @@ class LiveHoloAdapter:
             self.cancel(session_reference)
             raise fault("budget_exceeded") from exc
         except Exception as exc:
+            if _is_rate_limit(exc):
+                raise fault("holo_rate_limited") from exc
             raise fault("holo_unreachable", type(exc).__name__) from exc
         status = str(result.status)
         outcome = str(result.outcome) if result.outcome is not None else None
@@ -291,3 +293,17 @@ class LiveHoloAdapter:
     def _require_reference(self, session_reference: str) -> None:
         if session_reference != self._reference or self._cancelled:
             raise fault("session_lost", "unknown or cancelled live session")
+
+
+def _is_rate_limit(error: BaseException) -> bool:
+    current: BaseException | None = error
+    seen: set[int] = set()
+    while current is not None and id(current) not in seen:
+        seen.add(id(current))
+        response = getattr(current, "response", None)
+        if getattr(current, "status_code", None) == 429 or getattr(response, "status_code", None) == 429:
+            return True
+        if "429" in str(current):
+            return True
+        current = current.__cause__ or current.__context__
+    return False

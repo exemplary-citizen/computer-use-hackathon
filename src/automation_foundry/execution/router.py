@@ -41,6 +41,7 @@ _FAULT_STATUS = {
     "approval_hash_mismatch": 409,
     "hash_mismatch": 409,
     "holo_unreachable": 503,
+    "holo_rate_limited": 503,
     "gradium_unavailable": 503,
 }
 

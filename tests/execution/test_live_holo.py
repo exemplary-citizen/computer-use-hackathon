@@ -108,6 +108,19 @@ def test_live_adapter_accepts_missing_optional_stage_outcome_when_answer_is_stru
     assert json.loads(staged.answer)["record"] == "Sarah Chen"
 
 
+def test_live_adapter_reports_provider_rate_limit_without_retry() -> None:
+    class RateLimitedClient:
+        def start_session(self, **_kwargs):
+            raise RuntimeError("local bridge received HTTP 429")
+
+    adapter = LiveHoloAdapter(_spec(), lambda _environment: RateLimitedClient())
+
+    with pytest.raises(ExecutionFault) as caught:
+        adapter.send_message(adapter.start_session(), "stage only")
+
+    assert caught.value.spec.code == "holo_rate_limited"
+
+
 def test_live_adapter_returns_prose_stage_answer_without_extra_session_turn() -> None:
     client = FakeClient()
     client.handle.first_answer = "The form is ready and nothing was saved."

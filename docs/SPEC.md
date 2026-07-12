@@ -576,6 +576,7 @@ The database is the query index and job coordinator. Versioned files are the can
 | Holo reaches step/time budget | Cancel the session, report failure, and do not commit. |
 | User rejects or ignores commit approval | Cancel after the approval timeout and preserve unchanged state. |
 | Holo session is lost after staging | Fail the run; never create a new session merely to click Save. |
+| H Company returns HTTP 429 for a desktop trajectory | Fail without retry; wait for cooldown and require a fresh Start. |
 | App exits during a job | Mark active in-process jobs interrupted on restart; require an explicit retry. |
 | Voice transcript is ambiguous or partial | Ask for clarification; never infer confirmation. |
 | Telegram sender is not paired or allowlisted | Ignore or return a generic denial without copying media or revealing state. |
