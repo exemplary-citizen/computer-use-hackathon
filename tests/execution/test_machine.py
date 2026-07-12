@@ -65,19 +65,24 @@ class MachineTestBase(unittest.IsolatedAsyncioTestCase):
 class HappyPathTests(MachineTestBase):
     async def test_live_run_ensures_target_fixture_is_running_before_holo(self) -> None:
         calls: list[tuple[str, Path | None, float]] = []
+        task_texts: list[str] = []
         settings = self.settings.model_copy(update={"holo_mode": "live"})
 
         def launch(app, data_root, wait_seconds):
             calls.append((app, data_root, wait_seconds))
             return True
 
-        coordinator = RunCoordinator(
-            settings,
-            adapter_factory=lambda spec: ScriptedFakeHolo(
+        def adapter(spec):
+            task_texts.append(spec.task_text)
+            return ScriptedFakeHolo(
                 spec=spec,
                 script="stage-ok",
                 data_root=settings.fixture_data_root,
-            ),
+            )
+
+        coordinator = RunCoordinator(
+            settings,
+            adapter_factory=adapter,
             fixture_launcher=launch,
         )
         await coordinator.startup()
@@ -86,6 +91,8 @@ class HappyPathTests(MachineTestBase):
         await wait_for_state(coordinator, preview.request.id, RunState.AWAITING_COMMIT_APPROVAL)
 
         self.assertEqual(calls, [("a", settings.fixture_data_root, settings.fixture_launch_wait_seconds)])
+        self.assertIn('visible window titled "Northlight CRM"', task_texts[0])
+        self.assertIn("Do not open Spotlight", task_texts[0])
         events = coordinator.events.replay(preview.request.id)
         self.assertTrue(any(event.event_type == "target_app_ready" for event in events))
         await coordinator.cancel(preview.request.id)

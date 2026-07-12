@@ -259,6 +259,8 @@ def main() -> None:
     apply_light_fusion_style(app)
     window = CrmBWindow(state_path(_APP_KEY))
     window.show()
+    window.raise_()
+    window.activateWindow()
     raise SystemExit(app.exec())
 
 

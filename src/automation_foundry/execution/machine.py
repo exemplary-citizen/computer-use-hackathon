@@ -84,6 +84,7 @@ _APP_ALIASES: dict[str, AppKey] = {
     "crm b": "b",
     "meridian contacts": "b",
 }
+_APP_WINDOW_TITLES: dict[AppKey, str] = {"a": "Northlight CRM", "b": "Meridian Contacts"}
 
 AdapterFactory = Callable[[HoloTaskSpec], HoloAdapter]
 FixtureLauncher = Callable[[AppKey, Path | None, float], bool]
@@ -608,7 +609,7 @@ class RunCoordinator:
             for name, value in request.inputs.items()
             if name in INPUT_FIELD_MAP and str(value).strip()
         }
-        task_text = self._stage_prompt_text(loaded, request, operation, record_name, field_changes)
+        task_text = self._stage_prompt_text(loaded, request, app, operation, record_name, field_changes)
         return HoloTaskSpec(
             app=app,
             record_name=record_name,
@@ -624,25 +625,34 @@ class RunCoordinator:
         self,
         loaded: LoadedBundle,
         request: RunRequest,
+        app: AppKey,
         operation: Literal["update", "create"],
         record_name: str,
         field_changes: dict[str, str],
     ) -> str:
         changes = "; ".join(f"{name} -> {value}" for name, value in sorted(field_changes.items()))
         action = "Create a new contact record" if operation == "create" else f"Update record {record_name}"
+        window_title = _APP_WINDOW_TITLES[app]
         return (
-            f"{loaded.bundle.skill_markdown}\n\n"
-            f"Target application: {request.target_app}. {action}. Requested values: {changes}."
+            "HOST-PREPARED TARGET — FOLLOW THIS EVEN IF THE SKILL SAYS TO OPEN THE CRM:\n"
+            f'The Python fixture is already running in a visible window titled "{window_title}" '
+            f"for target {request.target_app}. Do not open Spotlight, Finder, the Dock, Terminal, or Applications. "
+            f'Do not search for an installed app named Meridian or Northlight. Work only in the "{window_title}" '
+            "window that is already on screen.\n\n"
+            f"APPROVED SKILL:\n{loaded.bundle.skill_markdown}\n\n"
+            f"{action}. Requested values: {changes}."
         )
 
     def _stage_prompt(self, spec: HoloTaskSpec) -> str:
+        window_title = _APP_WINDOW_TITLES[spec.app]
         interaction = (
             "open the Add Record form and fill the requested values"
             if spec.operation == "create"
             else "find the requested record and fill the requested values in its form"
         )
         return (
-            f"{spec.task_text}\n\nTURN 1 OF 2 — STAGE ONLY: {interaction}, visually "
+            f'{spec.task_text}\n\nThe target is the already-visible "{window_title}" window. '
+            f"TURN 1 OF 2 — STAGE ONLY: {interaction}, visually "
             "verify them, then END YOUR TURN. Do NOT press Save, Commit, Submit, or any equivalent. "
             'Answer with JSON: {"record": ..., "staged_fields": {...}, "visible_verification": ...}.'
         )

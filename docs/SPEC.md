@@ -175,9 +175,10 @@ Partial transcripts, silence, or ambiguous commands must never start a run. Voic
 
 The trusted host worker invokes HoloDesktop through its Python client. Every execution is bounded by configured step and wall-clock limits and supports cancellation and the Holo kill switch.
 
-For the bundled CRM fixtures, a live run shall ensure the selected CRM process is running before creating the Holo
-session. If it is not running, the host launches the corresponding PySide application with the configured fixture data
-root. Holo remains responsible for locating and focusing the visible application window.
+For the bundled CRM fixtures, a live run shall restart or launch the selected CRM process into a fresh visible window
+before creating the Holo session. The host uses the configured fixture data root and supplies Holo the exact window
+title. Holo must interact with that window and must not search Spotlight, Finder, the Dock, Terminal, or Applications
+for an installed CRM app.
 
 The run has two Holo turns:
 
