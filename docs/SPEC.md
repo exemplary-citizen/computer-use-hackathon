@@ -190,6 +190,12 @@ The run has two Holo turns:
 
 The staged-change summary must identify the target app, record, fields, proposed values, and evidence used for the summary. Rejection, cancellation, approval timeout, or loss of the live Holo session ends the run without attempting commit. A lost session requires a fresh run; the system must not create a new session solely to click Save on an unknown screen state.
 
+Every live Holo turn writes a per-run `holo_diagnostics.jsonl` beside the canonical run artifacts. Diagnostics include
+turn boundaries, runtime event kinds, tool requests and coordinates, viewport/cursor metadata, state changes, timing,
+and the final answer. Raw screenshots, image payloads, authorization headers, tokens, and API keys are excluded. Safe
+action summaries are also published as ordered run events so the dashboard shows actual Holo progress between
+heartbeats.
+
 ### 5.9 Cross-app transfer
 
 The repository ships two native PySide6 CRM fixtures:

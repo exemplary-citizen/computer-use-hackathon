@@ -4,16 +4,19 @@ from __future__ import annotations
 
 import json
 import unittest
+from datetime import UTC, datetime
+from pathlib import Path
+from tempfile import TemporaryDirectory
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 
-from agp_types import TrajectoryStatus
+from agp_types import TrajectoryEvent, TrajectoryStatus
 
 from automation_foundry.execution.errors import ExecutionFault
 from automation_foundry.execution.holo import HoloTaskSpec, LiveHoloAdapter
 
 
-def _spec() -> HoloTaskSpec:
+def _spec(diagnostics_path: Path | None = None) -> HoloTaskSpec:
     return HoloTaskSpec(
         app="a",
         record_name="Sarah Chen",
@@ -22,6 +25,7 @@ def _spec() -> HoloTaskSpec:
         task_text="Update Sarah Chen.",
         max_steps=24,
         max_time_seconds=180,
+        diagnostics_path=diagnostics_path,
     )
 
 
@@ -70,6 +74,7 @@ class LiveHoloAdapterTests(unittest.TestCase):
         )
         self.sessions: list[object] = []
         self.turn_status = TrajectoryStatus.IDLE
+        self.runtime_events: list[TrajectoryEvent] = []
         self.run_turn = AsyncMock(side_effect=self._run_turn)
         self.patches = (
             patch("automation_foundry.execution.holo.load_holo_env"),
@@ -85,9 +90,12 @@ class LiveHoloAdapterTests(unittest.TestCase):
             item.start()
             self.addCleanup(item.stop)
 
-    async def _run_turn(self, client: object, session: object, message: str, **_: object) -> object:
+    async def _run_turn(self, client: object, session: object, message: str, **kwargs: object) -> object:
         assert client is self.client
         self.sessions.append(session)
+        on_event = kwargs["on_event"]
+        for event in self.runtime_events:
+            await on_event(event)
         if getattr(session, "session_id") is None:
             session.session_id = "remote-session"
         self.client.steps += 4
@@ -147,6 +155,55 @@ class LiveHoloAdapterTests(unittest.TestCase):
         self.assertEqual(self.client.paused, ["remote-session"])
         self.assertEqual(self.client.cancelled, ["remote-session"])
         self.assertTrue(self.client.closed)
+
+    def test_diagnostics_capture_actions_and_metadata_without_images_or_tokens(self) -> None:
+        self.runtime_events = [
+            TrajectoryEvent(
+                type="AgentEvent",
+                timestamp=datetime.now(UTC),
+                data={
+                    "kind": "observation_event",
+                    "image": {"type": "base64", "source": "secret-image-bytes"},
+                    "metadata": {"cursor_position": [391, 916], "viewport_size": [1920, 1247]},
+                },
+            ),
+            TrajectoryEvent(
+                type="AgentEvent",
+                timestamp=datetime.now(UTC),
+                data={
+                    "kind": "policy_event",
+                    "tool_reqs": [
+                        {
+                            "tool_name": "click_desktop",
+                            "args": {
+                                "element": "Diego Patel row",
+                                "x": 0.25,
+                                "y": 0.325,
+                                "authorization": "secret-token",
+                            },
+                        }
+                    ],
+                },
+            ),
+        ]
+        with TemporaryDirectory() as tmp:
+            diagnostics_path = Path(tmp) / "holo_diagnostics.jsonl"
+            adapter = LiveHoloAdapter(_spec(diagnostics_path))
+            reference = adapter.start_session()
+            try:
+                adapter.send_message(reference, "stage")
+                encoded = diagnostics_path.read_text(encoding="utf-8")
+                self.assertIn("cursor_position", encoded)
+                self.assertIn("viewport_size", encoded)
+                self.assertIn("click_desktop", encoded)
+                self.assertIn("Diego Patel row", encoded)
+                self.assertIn("[redacted]", encoded)
+                self.assertNotIn("secret-image-bytes", encoded)
+                self.assertNotIn("secret-token", encoded)
+                progress = adapter.drain_diagnostics()
+                self.assertTrue(any(item.event_type == "runtime_policy_event" for item in progress))
+            finally:
+                adapter.cancel(reference)
 
 
 if __name__ == "__main__":

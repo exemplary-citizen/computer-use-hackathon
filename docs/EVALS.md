@@ -330,6 +330,8 @@ These measurements should be reported for the final demo build:
 - [ ] Each CRM execution completes within three minutes or its configured smaller budget.
 - [ ] Ingestion and run events update the UI without a silent interval longer than ten seconds.
 - [ ] Model requests, Holo steps, durations, and estimated provider usage are recorded per job/run.
+- [ ] A live run writes `holo_diagnostics.jsonl` with turn, tool, coordinate, viewport/cursor, status, and answer metadata; screenshots and credentials are absent.
+- [ ] The dashboard timeline shows safe Holo action summaries while a turn is running instead of only heartbeats.
 - [ ] The complete demo can be reset and repeated without manual database editing.
 
 Quality misses must be documented with measured values and must not conceal a must-pass safety failure.

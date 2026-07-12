@@ -259,10 +259,10 @@ describe("ExecutionPage executing surface", () => {
               run_id: RUN_ID,
               sequence: 1,
               state: "executing",
-              event_type: "heartbeat",
-              message: "Still working; the session is active.",
-              payload: {},
-              created_at: "2026-07-11T12:00:11Z",
+              event_type: "holo_progress",
+              message: "Holo action: click_desktop — Diego Patel row.",
+              payload: { x: 0.25, y: 0.325 },
+              created_at: "2026-07-11T12:00:06Z",
             },
             {
               run_id: RUN_ID,
@@ -271,11 +271,20 @@ describe("ExecutionPage executing surface", () => {
               event_type: "heartbeat",
               message: "Still working; the session is active.",
               payload: {},
-              created_at: "2026-07-11T12:00:21Z",
+              created_at: "2026-07-11T12:00:11Z",
             },
             {
               run_id: RUN_ID,
               sequence: 3,
+              state: "executing",
+              event_type: "heartbeat",
+              message: "Still working; the session is active.",
+              payload: {},
+              created_at: "2026-07-11T12:00:21Z",
+            },
+            {
+              run_id: RUN_ID,
+              sequence: 4,
               state: "executing",
               event_type: "heartbeat",
               message: "Still working; the session is active.",
@@ -293,6 +302,7 @@ describe("ExecutionPage executing surface", () => {
     fireEvent.click(await screen.findByRole("button", { name: /Ada Lovelace/ }));
 
     expect(await screen.findByText("Holo session started.")).toBeInTheDocument();
+    expect(screen.getByText("Holo action: click_desktop — Diego Patel row.")).toBeInTheDocument();
     expect(screen.getAllByText("Still working…")).toHaveLength(1);
     expect(screen.getByText("Kill switch: press Esc twice on the desktop.")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Cancel run" })).toBeEnabled();

@@ -70,7 +70,7 @@ from automation_foundry.execution.config import ExecutionSettings
 from automation_foundry.execution.errors import ExecutionFault, fault
 from automation_foundry.execution.events import EventLogConfig
 from automation_foundry.execution.fixtures import ensure_fixture_running
-from automation_foundry.execution.holo import HoloAdapter, HoloTaskSpec, ScriptedFakeHolo, TurnOutcome
+from automation_foundry.execution.holo import HoloAdapter, HoloDiagnostic, HoloTaskSpec, ScriptedFakeHolo, TurnOutcome
 
 _ACTIVE_STATES = (RunState.EXECUTING, RunState.AWAITING_COMMIT_APPROVAL, RunState.COMMITTING)
 _TERMINAL_STATES = (RunState.SUCCEEDED, RunState.FAILED, RunState.CANCELLED)
@@ -428,6 +428,7 @@ class RunCoordinator:
                 run_id,
                 RunState.EXECUTING,
                 asyncio.to_thread(runtime.adapter.send_message, runtime.session_reference, self._stage_prompt(spec)),
+                runtime.adapter,
             )
             if runtime.cancel_requested:
                 await self._finalize(run_id, RunState.CANCELLED, answer="Cancelled during staging; nothing saved.")
@@ -493,6 +494,7 @@ class RunCoordinator:
                 run_id,
                 RunState.COMMITTING,
                 asyncio.to_thread(runtime.adapter.send_message, runtime.session_reference, self._commit_prompt(spec)),
+                runtime.adapter,
             )
             verification = self._verify_commit(spec, pre_state, staged)
             await self._finalize(
@@ -516,14 +518,34 @@ class RunCoordinator:
         return runtime.decision
 
     async def _with_heartbeat(
-        self, run_id: UUID, state: RunState, awaitable: Coroutine[object, object, TurnOutcome]
+        self,
+        run_id: UUID,
+        state: RunState,
+        awaitable: Coroutine[object, object, TurnOutcome],
+        adapter: HoloAdapter,
     ) -> TurnOutcome:
         task: asyncio.Task[TurnOutcome] = asyncio.ensure_future(awaitable)
         while True:
             done, _ = await asyncio.wait({task}, timeout=self.settings.heartbeat_seconds)
+            await self._publish_holo_diagnostics(run_id, state, adapter.drain_diagnostics())
             if done:
                 return task.result()
             await self.events.append(run_id, state, "heartbeat", "Still working; the session is active.")
+
+    async def _publish_holo_diagnostics(
+        self,
+        run_id: UUID,
+        state: RunState,
+        diagnostics: list[HoloDiagnostic],
+    ) -> None:
+        for diagnostic in diagnostics:
+            await self.events.append(
+                run_id,
+                state,
+                "holo_progress",
+                diagnostic.message,
+                {"holo_event_type": diagnostic.event_type, **diagnostic.payload},
+            )
 
     def _check_stage_answer(self, spec: HoloTaskSpec, outcome: TurnOutcome) -> None:
         try:
@@ -619,6 +641,7 @@ class RunCoordinator:
             max_steps=request.max_steps,
             max_time_seconds=request.max_time_seconds,
             operation=operation,
+            diagnostics_path=self.settings.runs_root / str(request.id) / "holo_diagnostics.jsonl",
         )
 
     def _stage_prompt_text(

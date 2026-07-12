@@ -13,12 +13,15 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import logging
 import threading
 import uuid
 from collections.abc import Coroutine
 from concurrent.futures import TimeoutError as FutureTimeoutError
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
+from queue import Empty, SimpleQueue
 from typing import Any, Literal, Protocol, TypeVar
 
 from agp_types import TrajectoryStatus
@@ -33,6 +36,9 @@ from automation_foundry.execution.errors import ExecutionFault, fault
 
 _T = TypeVar("_T")
 _LIVE_IDLE_TIMEOUT_SECONDS = 1_800
+_DIAGNOSTIC_STRING_LIMIT = 8_000
+
+logger = logging.getLogger(__name__)
 
 FAKE_SCRIPTS = (
     "stage-ok",
@@ -59,6 +65,16 @@ class HoloTaskSpec:
     max_steps: int
     max_time_seconds: int
     operation: Literal["update", "create"] = "update"
+    diagnostics_path: Path | None = None
+
+
+@dataclass(frozen=True)
+class HoloDiagnostic:
+    """Safe runtime progress item for the canonical run event stream."""
+
+    event_type: str
+    message: str
+    payload: dict[str, object] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -86,6 +102,10 @@ class HoloAdapter(Protocol):
 
     def cancel(self, session_reference: str) -> None:
         """Best-effort session termination at the next action boundary."""
+        ...
+
+    def drain_diagnostics(self) -> list[HoloDiagnostic]:
+        """Return safe runtime progress captured since the previous drain."""
         ...
 
 
@@ -137,6 +157,10 @@ class ScriptedFakeHolo:
         del session_reference
         with self._lock:
             self._cancelled = True
+
+    def drain_diagnostics(self) -> list[HoloDiagnostic]:
+        """Return no runtime diagnostics for the deterministic fake."""
+        return []
 
     def _stage_turn(self) -> TurnOutcome:
         if self.script == "timeout":
@@ -232,7 +256,14 @@ class LiveHoloAdapter:
         self._session: Session | None = None
         self._turns_sent = 0
         self._last_steps = 0
+        self._diagnostics: SimpleQueue[HoloDiagnostic] = SimpleQueue()
+        self._diagnostic_lock = threading.Lock()
         self._loop_thread.start()
+        self._record_diagnostic(
+            "adapter_initialized",
+            "Live Holo adapter initialized.",
+            {"local_session_reference": self._reference},
+        )
 
     def start_session(self) -> str:
         """Start or attach to the local runtime and return an opaque reference."""
@@ -294,6 +325,15 @@ class LiveHoloAdapter:
             self._cancelled = True
         self._best_effort_close(cancel_session=True)
 
+    def drain_diagnostics(self) -> list[HoloDiagnostic]:
+        """Return safe runtime progress captured since the previous drain."""
+        diagnostics: list[HoloDiagnostic] = []
+        while True:
+            try:
+                diagnostics.append(self._diagnostics.get_nowait())
+            except Empty:
+                return diagnostics
+
     def _run_loop(self) -> None:
         asyncio.set_event_loop(self._loop)
         self._loop.run_forever()
@@ -325,6 +365,17 @@ class LiveHoloAdapter:
         self._daemon = await ensure_running(config, settings=settings)
         self._client = AgentApiClient(self._daemon.base_url, self._daemon.token)
         self._session = Session()
+        self._record_diagnostic(
+            "runtime_ready",
+            "Holo runtime is ready.",
+            {
+                "port": settings.runtime.port,
+                "model": settings.runtime.model,
+                "base_url": settings.runtime.base_url,
+                "fast": settings.runtime.fast,
+            },
+            publish=True,
+        )
 
     async def _send_async(self, message: str) -> TurnOutcome:
         client = self._client
@@ -332,8 +383,16 @@ class LiveHoloAdapter:
         if client is None or session is None:
             raise fault("session_lost", "live client was not initialized")
 
-        async def discard_event(_: object) -> None:
-            return
+        turn_number = self._turns_sent + 1
+        self._record_diagnostic(
+            "turn_started",
+            f"Holo turn {turn_number} started.",
+            {"turn": turn_number, "prompt": message},
+            publish=True,
+        )
+
+        async def capture_event(event: object) -> None:
+            self._capture_runtime_event(event)
 
         outcome = await run_turn(
             client,
@@ -342,7 +401,7 @@ class LiveHoloAdapter:
             max_steps=self.spec.max_steps,
             max_time_s=float(self.spec.max_time_seconds),
             idle_timeout_s=_LIVE_IDLE_TIMEOUT_SECONDS,
-            on_event=discard_event,
+            on_event=capture_event,
         )
         if session.session_id is None or outcome.status is None:
             raise fault("session_lost", "runtime returned no session status")
@@ -356,6 +415,18 @@ class LiveHoloAdapter:
 
         self._turns_sent += 1
         result = TurnOutcome(answer=outcome.answer, steps_used=steps_used)
+        self._record_diagnostic(
+            "turn_finished",
+            f"Holo turn {turn_number} finished as {outcome.status.value}.",
+            {
+                "turn": turn_number,
+                "remote_session_id": session.session_id,
+                "status": outcome.status.value,
+                "steps_used": steps_used,
+                "answer": outcome.answer,
+            },
+            publish=True,
+        )
         if self._turns_sent >= 2:
             await self._close_async(cancel_session=False)
         return result
@@ -398,3 +469,113 @@ class LiveHoloAdapter:
             return
         self._loop.call_soon_threadsafe(self._loop.stop)
         self._loop_thread.join(timeout=1.0)
+
+    def _capture_runtime_event(self, event: object) -> None:
+        raw = _model_dump(event)
+        outer_type = str(raw.get("type", type(event).__name__))
+        data = raw.get("data")
+        event_data = data if isinstance(data, dict) else {}
+        kind = str(event_data.get("kind", outer_type))
+        safe_event = _sanitize_diagnostic(raw)
+        payload = safe_event if isinstance(safe_event, dict) else {"event": safe_event}
+        message = _runtime_event_message(outer_type, kind, event_data)
+        self._record_diagnostic(
+            f"runtime_{kind}",
+            message,
+            payload,
+            publish=_publish_runtime_event(outer_type, kind, event_data),
+        )
+
+    def _record_diagnostic(
+        self,
+        event_type: str,
+        message: str,
+        payload: dict[str, object],
+        *,
+        publish: bool = False,
+    ) -> None:
+        record = {
+            "timestamp": datetime.now(UTC).isoformat(),
+            "event_type": event_type,
+            "message": message,
+            "local_session_reference": self._reference,
+            "remote_session_id": self._session.session_id if self._session is not None else None,
+            "payload": _sanitize_diagnostic(payload),
+        }
+        encoded = json.dumps(record, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+        path = self.spec.diagnostics_path
+        if path is not None:
+            try:
+                with self._diagnostic_lock:
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    with path.open("a", encoding="utf-8") as handle:
+                        handle.write(encoded + "\n")
+            except OSError:
+                logger.exception("failed to append Holo diagnostic to %s", path)
+        logger.info("holo_diagnostic %s", encoded)
+        if publish:
+            safe_payload = record["payload"]
+            self._diagnostics.put(
+                HoloDiagnostic(
+                    event_type=event_type,
+                    message=message,
+                    payload=safe_payload if isinstance(safe_payload, dict) else {"event": safe_payload},
+                )
+            )
+
+
+def _model_dump(value: object) -> dict[str, object]:
+    dump = getattr(value, "model_dump", None)
+    if callable(dump):
+        result = dump(mode="json")
+        return result if isinstance(result, dict) else {"value": result}
+    if isinstance(value, dict):
+        return value
+    attributes = getattr(value, "__dict__", None)
+    return dict(attributes) if isinstance(attributes, dict) else {"value": repr(value)}
+
+
+def _sanitize_diagnostic(value: object, *, key: str = "") -> object:
+    normalized_key = key.lower().replace("-", "_")
+    if any(marker in normalized_key for marker in ("token", "authorization", "api_key", "screenshot", "image")):
+        return "[redacted]"
+    if isinstance(value, dict):
+        return {str(item_key): _sanitize_diagnostic(item, key=str(item_key)) for item_key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_sanitize_diagnostic(item) for item in value[:100]]
+    if isinstance(value, str):
+        return value[:_DIAGNOSTIC_STRING_LIMIT]
+    if value is None or isinstance(value, (bool, int, float)):
+        return value
+    return repr(value)[:_DIAGNOSTIC_STRING_LIMIT]
+
+
+def _runtime_event_message(outer_type: str, kind: str, data: dict[str, object]) -> str:
+    tool_requests = data.get("tool_reqs")
+    if isinstance(tool_requests, list) and tool_requests:
+        first = tool_requests[0] if isinstance(tool_requests[0], dict) else {}
+        tool_name = str(first.get("tool_name", "desktop action"))
+        args = first.get("args")
+        element = args.get("element") if isinstance(args, dict) else None
+        return f"Holo action: {tool_name}{f' — {element}' if element else ''}."
+    tool_request = data.get("tool_req")
+    if isinstance(tool_request, dict):
+        return f"Holo tool completed: {tool_request.get('tool_name', 'desktop action')}."
+    if kind == "observation_event":
+        return "Holo observed the desktop."
+    if outer_type == "ActiveStateChangeEvent":
+        return f"Holo runtime state: {data.get('state', 'unknown')}."
+    return f"Holo runtime event: {kind}."
+
+
+def _publish_runtime_event(outer_type: str, kind: str, data: dict[str, object]) -> bool:
+    return (
+        bool(data.get("tool_reqs") or data.get("tool_req"))
+        or kind == "error_event"
+        or outer_type
+        in {
+            "ActiveStateChangeEvent",
+            "AgentErrorEvent",
+            "AgentCompletionEvent",
+        }
+    )

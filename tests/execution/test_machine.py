@@ -14,7 +14,7 @@ from desktop_fixtures.store import load_state, state_path
 from automation_foundry.contracts import InvocationSource, RunState
 from automation_foundry.contracts.transitions import require_run_transition
 from automation_foundry.execution.errors import ExecutionFault
-from automation_foundry.execution.holo import HoloTaskSpec, ScriptedFakeHolo
+from automation_foundry.execution.holo import HoloDiagnostic, HoloTaskSpec, ScriptedFakeHolo
 from automation_foundry.execution.machine import InputValidationError, RunCoordinator
 
 from tests.execution.helpers import CANONICAL_INPUTS, make_settings, wait_for_state
@@ -67,7 +67,24 @@ class HappyPathTests(MachineTestBase):
         calls: list[tuple[str, Path | None, float]] = []
         task_texts: list[str] = []
         task_specs: list[HoloTaskSpec] = []
+        progress: list[HoloDiagnostic] = []
         settings = self.settings.model_copy(update={"holo_mode": "live"})
+
+        class DiagnosticFake(ScriptedFakeHolo):
+            def send_message(self, session_reference: str, message: str):
+                progress.append(
+                    HoloDiagnostic(
+                        event_type="runtime_policy_event",
+                        message="Holo action: click_desktop — Sarah Chen row.",
+                        payload={"x": 0.25, "y": 0.325},
+                    )
+                )
+                return super().send_message(session_reference, message)
+
+            def drain_diagnostics(self) -> list[HoloDiagnostic]:
+                captured = list(progress)
+                progress.clear()
+                return captured
 
         def launch(app, data_root, wait_seconds):
             calls.append((app, data_root, wait_seconds))
@@ -76,7 +93,7 @@ class HappyPathTests(MachineTestBase):
         def adapter(spec):
             task_texts.append(spec.task_text)
             task_specs.append(spec)
-            return ScriptedFakeHolo(
+            return DiagnosticFake(
                 spec=spec,
                 script="stage-ok",
                 data_root=settings.fixture_data_root,
@@ -109,6 +126,8 @@ class HappyPathTests(MachineTestBase):
         self.assertIn("Immediately return control", stage_prompt)
         events = coordinator.events.replay(preview.request.id)
         self.assertTrue(any(event.event_type == "target_app_ready" for event in events))
+        self.assertTrue(any(event.event_type == "holo_progress" for event in events))
+        self.assertTrue(any("Sarah Chen row" in event.message for event in events))
         await coordinator.cancel(preview.request.id)
 
     async def test_full_stage_approve_commit_flow(self) -> None:
