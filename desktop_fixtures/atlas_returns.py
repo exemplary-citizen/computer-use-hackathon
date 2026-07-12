@@ -267,7 +267,7 @@ class AtlasReturnsWindow(QMainWindow):
         self.filter_cases()
         if self._queue.rowCount():
             self._queue.selectRow(0)
-        self.statusBar().showMessage("Changes applied", 8_000)
+        self.statusBar().showMessage("Updated!", 8_000)
         return True
 
     def assign_selected_case(self) -> None:

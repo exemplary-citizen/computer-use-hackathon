@@ -472,7 +472,11 @@ class RunCoordinator:
             commit_outcome = await self._with_heartbeat(
                 run_id,
                 RunState.COMMITTING,
-                asyncio.to_thread(runtime.adapter.send_message, runtime.session_reference, self._commit_prompt(spec)),
+                asyncio.to_thread(
+                    runtime.adapter.send_message,
+                    runtime.session_reference,
+                    self._commit_prompt(spec, staged),
+                ),
             )
             verification = self._verify_commit(spec, pre_state, staged, commit_outcome)
             await self._finalize(
@@ -515,14 +519,21 @@ class RunCoordinator:
         try:
             parsed = _parse_json_object(outcome.answer)
         except ValueError as error:
-            if _prose_matches_stage(spec, outcome.answer):
+            if spec.field_changes and _prose_matches_stage(spec, outcome.answer):
                 return
             raise fault("malformed_stage_answer", "stage report did not contain the exact requested values") from error
         if "staged_fields" not in parsed or "record" not in parsed:
-            if _prose_matches_stage(spec, outcome.answer):
+            if spec.field_changes and _prose_matches_stage(spec, outcome.answer):
                 return
             raise fault("malformed_stage_answer", "stage answer missing record/staged_fields")
-        if parsed["staged_fields"] != spec.field_changes:
+        staged_fields = parsed["staged_fields"]
+        if not isinstance(staged_fields, dict) or not staged_fields:
+            if spec.field_changes:
+                raise fault("malformed_stage_answer", "agent-reported fields differ from the requested change")
+            raise fault("malformed_stage_answer", "dynamic workflow reported no staged fields")
+        if not all(isinstance(name, str) and name and isinstance(value, str) for name, value in staged_fields.items()):
+            raise fault("malformed_stage_answer", "staged fields must contain named string values")
+        if spec.field_changes and staged_fields != spec.field_changes:
             raise fault("malformed_stage_answer", "agent-reported fields differ from the requested change")
 
     def _build_staged_change(
@@ -533,10 +544,14 @@ class RunCoordinator:
         session_reference: str,
         outcome: TurnOutcome,
     ) -> StagedChange:
+        reported_fields = spec.field_changes
+        if not reported_fields:
+            parsed = _parse_json_object(outcome.answer)
+            reported_fields = {str(name): str(value) for name, value in parsed["staged_fields"].items()}
         if pre_state is None:
             changes = [
                 FieldChange(field=field_name, before=None, after=after)
-                for field_name, after in sorted(spec.field_changes.items())
+                for field_name, after in sorted(reported_fields.items())
             ]
         else:
             record = next(item for item in pre_state.records if item.full_name == spec.record_name)
@@ -624,49 +639,68 @@ class RunCoordinator:
         )
 
     def _stage_prompt(self, spec: HoloTaskSpec) -> str:
+        staged_fields_instruction = (
+            f"`staged_fields` exactly equal to {json.dumps(spec.field_changes, sort_keys=True)}"
+            if spec.field_changes
+            else "`staged_fields` containing every exact field/value derived and staged during this workflow; it must "
+            "contain at least one field"
+        )
         if spec.stage_instructions and not spec.requires_commit:
             stage_steps = "\n".join(f"- {instruction}" for instruction in spec.stage_instructions)
             return (
                 f"{spec.task_text}\n\nNON-PERSISTENT WORKFLOW — execute and visually verify all steps:\n"
                 f"{stage_steps}\n\nNo Save, Commit, Submit, Send, or other persistent action is part of this workflow. "
                 "After completing every step, call `request_commit_approval` exactly once as a structured completion "
-                f'report with `record` equal to {json.dumps(spec.record_name)}, `staged_fields` exactly equal to '
-                f'{json.dumps(spec.field_changes, sort_keys=True)}, and `visible_verification` describing the observed '
+                f"report with `record` equal to {json.dumps(spec.record_name)}, {staged_fields_instruction}, and "
+                "`visible_verification` describing the observed "
                 "final state. Do not interact further while waiting for the tool result."
             )
         if spec.stage_instructions or spec.commit_instructions:
-            stage_steps = "\n".join(f"- {instruction}" for instruction in spec.stage_instructions) or "- Prepare the app."
+            stage_steps = (
+                "\n".join(f"- {instruction}" for instruction in spec.stage_instructions) or "- Prepare the app."
+            )
             blocked_steps = "\n".join(f"- {instruction}" for instruction in spec.commit_instructions)
             return (
                 f"{spec.task_text}\n\nTURN 1 OF 2 — STAGE ONLY. Execute only these non-persistent setup steps:\n"
                 f"{stage_steps}\n\nDo not execute these approval-gated steps yet:\n{blocked_steps}\n"
                 "Do not Save, Commit, Submit, type approval-gated content, or perform any equivalent persistent action. "
                 "Visually verify the app is ready, then call `request_commit_approval` exactly once with "
-                f'`record` equal to {json.dumps(spec.record_name)}, `staged_fields` exactly equal to '
-                f'{json.dumps(spec.field_changes, sort_keys=True)}, and `visible_verification` describing readiness. '
+                f"`record` equal to {json.dumps(spec.record_name)}, {staged_fields_instruction}, and "
+                "`visible_verification` describing readiness. "
                 "Do not answer or end the session; wait for the approval tool result."
             )
         return (
             f"{spec.task_text}\n\nTURN 1 OF 2 — STAGE ONLY: fill the requested values in the form, visually "
             "verify them. Do NOT press Save, Commit, Submit, or any equivalent. Call `request_commit_approval` exactly "
-            "once with `record`, exact `staged_fields`, and `visible_verification`. Do not answer or end the session; "
+            f"once with `record`, {staged_fields_instruction}, and `visible_verification`. Do not answer or end the session; "
             "wait for the approval tool result."
         )
 
-    def _commit_prompt(self, spec: HoloTaskSpec) -> str:
+    def _commit_prompt(self, spec: HoloTaskSpec, staged: StagedChange) -> str:
         target_guard = (
             f"The approval was clicked outside the target app, so the current foreground window is untrusted. Before "
             f"any data-entry keystroke or persistent action, explicitly activate {json.dumps(spec.app)} and visually "
             f"verify the expected {json.dumps(spec.record_name)} context. If it cannot be verified, stop without typing "
             "or committing and report failure. Never type workflow content into the approval surface. "
         )
+        approved_fields = {change.field: change.after for change in staged.changes}
+        if spec.app.strip().casefold() == "atlas returns desk":
+            return (
+                "TURN 2 OF 2 — APPROVED ATLAS COMMIT. "
+                f"{target_guard}Reactivate Atlas Returns Desk and verify the same return case and staged internal note. "
+                "Click the green button labeled `Apply Resolution` exactly once. Wait until the Atlas status area "
+                "visibly displays the exact text `Updated!`. Then quit Atlas Returns Desk and perform no further "
+                "desktop action. Report `record` as the same target context, `staged_fields` as these exact approved "
+                f"values: {json.dumps(approved_fields, sort_keys=True)}, and `visible_verification` confirming that "
+                "`Updated!` appeared before Atlas was closed."
+            )
         if spec.commit_instructions:
             commit_steps = "\n".join(f"- {instruction}" for instruction in spec.commit_instructions)
             return (
                 "TURN 2 OF 2 — APPROVED COMMIT. The displayed staged plan was explicitly approved. "
                 f"{target_guard}Re-check the same "
                 f"application and execute only these approval-gated steps once:\n{commit_steps}\n"
-                f"Use these exact approved values: {json.dumps(spec.field_changes, sort_keys=True)}. "
+                f"Use these exact approved values: {json.dumps(approved_fields, sort_keys=True)}. "
                 "Visually verify completion. Report `record` as the same target context, `staged_fields` as those exact "
                 "approved values, and `visible_verification` as the observed completion state."
             )

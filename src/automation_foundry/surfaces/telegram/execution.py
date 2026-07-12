@@ -280,10 +280,14 @@ class TelegramExecutionCoordinator:
                     ),
                 )
             if state in _TERMINAL_RUN_STATES:
+                suppress_failure = state == RunState.FAILED.value and run_id in self._auto_commit_run_ids
                 self._auto_commit_run_ids.discard(run_id)
                 result = status.get("result")
                 answer = result.get("answer") if isinstance(result, dict) else None
-                return TelegramSurfaceResponse(text=f"Run `{state}`. {answer or ''}".strip())
+                return TelegramSurfaceResponse(
+                    text=f"Run `{state}`. {answer or ''}".strip(),
+                    silent=suppress_failure,
+                )
             await asyncio.sleep(0.25)
 
     async def wait_for_terminal(self, run_id: UUID) -> TelegramSurfaceResponse:
@@ -297,10 +301,14 @@ class TelegramExecutionCoordinator:
             status = coordinator.get_status(run_id)
             state = str(status["state"])
             if state in _TERMINAL_RUN_STATES:
+                suppress_failure = state == RunState.FAILED.value and run_id in self._auto_commit_run_ids
                 self._auto_commit_run_ids.discard(run_id)
                 result = status.get("result")
                 answer = result.get("answer") if isinstance(result, dict) else None
-                return TelegramSurfaceResponse(text=f"Run `{state}`. {answer or ''}".strip())
+                return TelegramSurfaceResponse(
+                    text=f"Run `{state}`. {answer or ''}".strip(),
+                    silent=suppress_failure,
+                )
             await asyncio.sleep(0.25)
 
     async def _coordinator(self, manifest: AutomationManifest) -> RunCoordinator:

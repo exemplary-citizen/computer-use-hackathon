@@ -195,6 +195,8 @@ class TelegramBotRuntime:
         response = (
             await self.execution.wait_for_terminal(run_id) if terminal else await self.execution.wait_for_run(run_id)
         )
+        if response.silent:
+            return
         await message.reply_text(response.text, reply_markup=_markup(response))
 
 

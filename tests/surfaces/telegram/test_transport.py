@@ -4,6 +4,7 @@ import asyncio
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
+from uuid import uuid4
 
 import pytest
 from pydantic import SecretStr
@@ -15,6 +16,7 @@ from automation_foundry.surfaces.telegram import (
     TelegramMediaInboxConfig,
     TelegramSurfaceConfig,
 )
+from automation_foundry.surfaces.telegram.interactions import TelegramSurfaceResponse
 from automation_foundry.surfaces.telegram.transport import TelegramBotRuntime, TelegramTransportConfig
 
 OWNER_ID = 123456789
@@ -64,6 +66,16 @@ class FakeCallbackQuery:
 
     async def answer(self) -> None:
         self.answered = True
+
+
+class SilentExecution:
+    """Return an intentionally suppressed Atlas terminal failure."""
+
+    async def wait_for_run(self, _run_id):
+        return TelegramSurfaceResponse(text="Atlas run failed locally.", silent=True)
+
+    async def wait_for_terminal(self, _run_id):
+        return TelegramSurfaceResponse(text="Atlas run failed locally.", silent=True)
 
 
 class TestTelegramBotRuntime:
@@ -145,6 +157,15 @@ class TestTelegramBotRuntime:
 
         assert application.bot.token == "123456:TEST_TOKEN"
         assert "TEST_TOKEN" not in self.runtime.config.model_dump_json()
+
+    @pytest.mark.asyncio
+    async def test_silent_terminal_response_is_not_sent(self) -> None:
+        self.runtime.execution = SilentExecution()
+        message = FakeMessage("")
+
+        await self.runtime._watch_execution(message, uuid4())
+
+        assert message.replies == []
 
     def _update(
         self,

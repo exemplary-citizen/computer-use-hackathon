@@ -230,7 +230,7 @@ siloed retail return-management workstation. It is intentionally dense and legac
 legible to computer-use models. The primary business workflow resolves a return by searching for a case, reviewing its
 customer and intake context, entering an internal decision note, and activating **Apply Resolution** as the sole
 persistent action. For demo reliability, applying a resolution does not require the optional resolution, disposition,
-or warehouse fields and reports `Changes applied` in the application's status area without an additional dialog.
+or warehouse fields and reports `Updated!` in the application's status area without an additional dialog.
 
 The fixture includes a work queue, search and filters, case detail tabs, policy matrix, reports, customer and product
 views, decision workbench, audit timeline, assignment/escalation controls, draft save, validation, letter preview, CSV
@@ -251,7 +251,9 @@ not reply to, move, delete, or otherwise modify unrelated mail.
 For the owner-only Atlas hackathon demo, the hash-bound Telegram **Start** button also authorizes the staged Atlas commit.
 The trusted host still stages and verifies the proposed change in the retained Holo session, then automatically resolves
 that session's commit tool and waits for terminal verification. Telegram does not render a second Commit/Reject prompt
-for this target. All non-Atlas automations retain the separate commit approval flow.
+for this target. The Atlas commit turn must click the green **Apply Resolution** button exactly once, observe `Updated!`,
+quit Atlas, and end without another desktop action. Atlas-only terminal failures are retained in local run records but
+are not posted back to Telegram. All non-Atlas automations retain the separate commit approval and failure-report flow.
 
 ### 5.10 Hermes orchestration surfaces
 
@@ -601,7 +603,8 @@ The database is the query index and job coordinator. Versioned files are the can
 - Reject unsafe filenames, symlinks, path traversal, oversized files, and unsupported content.
 - Validate every sandbox-produced path before reading or copying it on the host.
 - Redact secrets and unrelated visible content from shared diagnostics.
-- Require approval before skill publication and before every persistent run action.
+- Require approval before skill publication and before every persistent run action; for the owner-only Atlas demo, the
+  hash-bound **Start** callback is the recorded approval for its later staged commit as defined in section 5.9.1.
 - Preserve the Holo double-Esc kill switch and provide UI/voice cancellation.
 - Do not automatically retry a failed commit turn.
 - Do not use the mock CRM state-inspection helpers during Holo execution.

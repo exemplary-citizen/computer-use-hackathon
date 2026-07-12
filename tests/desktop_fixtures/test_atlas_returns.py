@@ -73,7 +73,7 @@ class AtlasReturnsTests(unittest.TestCase):
         self.assertEqual(resolved.internal_note, "Customer sounds very frustrated. Initiate return ASAP.")
         self.assertEqual(resolved.status, "Resolved")
         self.assertEqual(resolved.timeline[-1].action, "Resolution applied")
-        self.assertEqual(self.window.statusBar().currentMessage(), "Changes applied")
+        self.assertEqual(self.window.statusBar().currentMessage(), "Updated!")
 
     def test_quit_restores_canonical_state_for_next_launch(self) -> None:
         self.window._search.setText("RTN-1064")

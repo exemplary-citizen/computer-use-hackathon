@@ -34,6 +34,7 @@ class GenericLiveStandIn:
 
     def __init__(self) -> None:
         self.messages: list[str] = []
+        self.fail_stage = False
 
     def start_session(self) -> str:
         return "telegram-live-session"
@@ -42,13 +43,28 @@ class GenericLiveStandIn:
         assert session_reference == "telegram-live-session"
         self.messages.append(message)
         if len(self.messages) == 1:
-            target_app = "Atlas Returns Desk" if "Atlas Returns Desk" in message else "TextEdit"
+            if self.fail_stage:
+                return TurnOutcome(answer="No structured stage report.", steps_used=1)
+            if "Atlas Returns Desk" in message:
+                return TurnOutcome(
+                    answer=(
+                        '{"record":"RTN-1064","staged_fields":{"internal_decision_note":'
+                        '"Customer sounds very frustrated. Initiate return ASAP."},'
+                        '"visible_verification":"Atlas shows the staged internal note and Apply Resolution is ready."}'
+                    ),
+                    steps_used=3,
+                )
             return TurnOutcome(
                 answer=(
-                    f"{target_app} is open with a blank unsaved document. The greeting_text value "
+                    "TextEdit is open with a blank unsaved document. The greeting_text value "
                     "Hello from Telegram is staged for approval and has not been typed."
                 ),
                 steps_used=3,
+            )
+        if "APPROVED ATLAS COMMIT" in message:
+            return TurnOutcome(
+                answer="Clicked green Apply Resolution, observed Updated!, and quit Atlas Returns Desk.",
+                steps_used=2,
             )
         return TurnOutcome(answer="Typed exact approved greeting and verified it.", steps_used=2)
 
@@ -146,12 +162,21 @@ class TestTelegramExecutionCoordinator:
 
     @pytest.mark.asyncio
     async def test_atlas_start_stages_and_commits_without_second_button(self) -> None:
-        review = self.execution.review(self._message(10, "/review Test Automation"), "Test Automation")
+        manifest = self.authoring.store.create_automation("Atlas Dynamic Automation")
+        version, report = self.authoring.bundles.create_version(manifest.id, valid_draft())
+        assert report.valid
+        review = self.execution.review(
+            self._message(10, "/review Atlas Dynamic Automation"),
+            "Atlas Dynamic Automation",
+        )
         await self._press(11, review.buttons[0].callback_data)
-        self.execution.begin_run(self._message(12, "/run Test Automation"), "Test Automation")
+        self.execution.begin_run(
+            self._message(12, "/run Atlas Dynamic Automation"),
+            "Atlas Dynamic Automation",
+        )
         preview = await self.execution.collect_inputs(
-            self._message(13, "target_app=Atlas Returns Desk; greeting_text=Hello from Telegram"),
-            "target_app=Atlas Returns Desk; greeting_text=Hello from Telegram",
+            self._message(13, "target_app=Atlas Returns Desk"),
+            "target_app=Atlas Returns Desk",
         )
 
         assert "complete the Atlas change automatically" in preview.text
@@ -161,8 +186,40 @@ class TestTelegramExecutionCoordinator:
         terminal = await self.execution.wait_for_run(started.watch_run_id)
 
         assert "succeeded" in terminal.text
+        assert not terminal.silent
         assert terminal.buttons == ()
         assert len(self.adapter.messages) == 2
+        assert "Apply Resolution` exactly once" in self.adapter.messages[1]
+        assert "exact text `Updated!`" in self.adapter.messages[1]
+        assert "quit Atlas Returns Desk" in self.adapter.messages[1]
+        approved = self.authoring.load_version(manifest.id, version.version)
+        assert approved.approval is not None
+
+    @pytest.mark.asyncio
+    async def test_atlas_terminal_failure_is_marked_silent(self) -> None:
+        manifest = self.authoring.store.create_automation("Atlas Failure Automation")
+        _, report = self.authoring.bundles.create_version(manifest.id, valid_draft())
+        assert report.valid
+        review = self.execution.review(
+            self._message(20, "/review Atlas Failure Automation"),
+            "Atlas Failure Automation",
+        )
+        await self._press(21, review.buttons[0].callback_data)
+        self.execution.begin_run(
+            self._message(22, "/run Atlas Failure Automation"),
+            "Atlas Failure Automation",
+        )
+        preview = await self.execution.collect_inputs(
+            self._message(23, "target_app=Atlas Returns Desk"),
+            "target_app=Atlas Returns Desk",
+        )
+        self.adapter.fail_stage = True
+        started = await self._press(24, preview.buttons[0].callback_data)
+
+        terminal = await self.execution.wait_for_run(started.watch_run_id)
+
+        assert "failed" in terminal.text
+        assert terminal.silent
 
     async def _press(self, update_id: int, callback_data):
         update = self._callback(update_id, callback_data)

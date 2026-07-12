@@ -371,7 +371,7 @@ Must-pass demo checks:
 - [ ] Searching or filtering the work queue selects the expected seeded case and updates the visible case details.
 - [ ] Editing the decision workbench and choosing **Save Draft** never changes the case's resolved status.
 - [ ] **Apply Resolution** accepts an internal note without requiring optional decision fields, persists the note and
-  audit event, and reports `Changes applied` in the status area without opening a validation or confirmation dialog.
+  audit event, and reports `Updated!` in the status area without opening a validation or confirmation dialog.
 - [ ] Quitting and reopening Atlas restores canonical case data and does not reopen on the previously resolved case.
 - [ ] Reset restores deterministic seed data, including two analogous damaged lithium-product cases.
 - [ ] The app exposes a visually dense work queue, case tabs, policy matrix, reports, customers, products, and working
@@ -382,6 +382,8 @@ Must-pass demo checks:
   the exact frustration/urgency note, and identifies **Apply Resolution** as the approval-gated persistent action.
 - [ ] For target `Atlas Returns Desk`, Telegram **Start** stages, verifies, and commits in the retained Holo session
   without rendering a second Commit/Reject prompt; a non-Atlas target still requires the separate commit button.
+- [ ] The Atlas commit turn clicks the green **Apply Resolution** button once, observes `Updated!`, quits Atlas, and ends;
+  an Atlas terminal failure remains locally inspectable but produces no Telegram failure reply.
 
 Focused automated command: `uv run pytest tests/desktop_fixtures/test_atlas_returns.py -q`.
 

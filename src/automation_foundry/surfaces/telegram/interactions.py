@@ -92,6 +92,7 @@ class TelegramSurfaceResponse(BaseModel):
     text: str = Field(min_length=1, max_length=4_096)
     buttons: tuple[TelegramButton, ...] = ()
     acknowledged: bool = True
+    silent: bool = False
 
 
 class TelegramInteractionService:
