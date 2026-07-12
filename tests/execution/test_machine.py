@@ -137,6 +137,7 @@ class GenericBundleTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(state, "succeeded")
         self.assertEqual(len(adapter.messages), 2)
         self.assertIn("Open TextEdit", adapter.messages[0])
+        self.assertIn("request_commit_approval", adapter.messages[0])
         self.assertIn("Type the exact greeting_text", adapter.messages[1])
 
     async def test_generic_bundle_accepts_live_markdown_report_with_embedded_field_json(self) -> None:

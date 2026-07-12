@@ -182,14 +182,17 @@ Partial transcripts, silence, or ambiguous commands must never start a run. Voic
 ### 5.8 Safe two-turn desktop execution
 
 The trusted host worker invokes HoloDesktop through H Company's installed `hai_agents` local-desktop client. The adapter
-creates the remote/local bridge on the first stage message, retains the returned session handle, sends commit through
-`SessionHandle.send_message` on that same session ID, polls its status for liveness, and uses session cancellation as
-the host kill path. Every execution is bounded by configured step and wall-clock limits.
+creates the remote/local bridge on the first stage message and retains the returned session handle. Holo must finish
+staging by calling the host-defined `request_commit_approval` tool with the staged record, fields, and visible
+verification. This leaves the same H session in `awaiting_tool_results`. Approval resolves that pending tool call with
+the commit instruction; rejection, cancellation, or timeout cancels the retained session. The adapter polls the same
+session ID for liveness and uses session cancellation as the host kill path. Every execution is bounded by configured
+step and wall-clock limits.
 
 The run has two Holo turns:
 
-1. **Stage turn:** Holo opens the target app, locates the intended record, fills the requested values, visually checks the staged form, and ends the turn without activating Save, Commit, Submit, or an equivalent persistent action.
-2. **Commit turn:** after explicit approval, the worker sends a second message in the same Holo session directing it to re-check the staged state, perform the final action, and verify visible success.
+1. **Stage phase:** Holo opens the target app, locates the intended record, fills the requested values, visually checks the staged form, and requests commit approval without activating Save, Commit, Submit, or an equivalent persistent action.
+2. **Commit phase:** after explicit approval, the worker resolves the pending approval tool in the same Holo session, directing it to re-check the staged state, perform the final action, and verify visible success.
 
 The staged-change summary must identify the target app, record, fields, proposed values, and evidence used for the summary. Rejection, cancellation, approval timeout, or loss of the live Holo session ends the run without attempting commit. A lost session requires a fresh run; the system must not create a new session solely to click Save on an unknown screen state.
 

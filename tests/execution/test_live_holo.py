@@ -11,42 +11,19 @@ from automation_foundry.execution.holo import HoloTaskSpec, LiveHoloAdapter
 
 
 class FakeSessionHandle:
-    """Settle two turns while retaining one session identity."""
+    """Retain one session identity across an approval-tool pause."""
 
     id = "remote-session-1"
 
-    def __init__(self) -> None:
-        self.messages: list[str] = []
-        self.wait_count = 0
-        self.steps = 0
+    def __init__(self, sessions: "FakeSessions") -> None:
+        self.sessions = sessions
         self.cancelled = False
-        self.first_outcome: str | None = "partial"
-        self.first_answer: object | None = None
-
-    def send_message(self, message: str) -> None:
-        self.messages.append(message)
 
     def wait_for_completion(self, **_kwargs):
-        self.wait_count += 1
-        if self.wait_count == 1:
-            self.steps = 7
-            answer = self.first_answer or {
-                "record": "Sarah Chen",
-                "staged_fields": {"owner": "Priya Shah"},
-                "visible_verification": "Owner is staged and Save was not pressed.",
-            }
-        else:
-            self.steps = 10
-            answer = {
-                "record": "Sarah Chen",
-                "staged_fields": {"owner": "Priya Shah"},
-                "visible_verification": "Saved and visibly verified.",
-            }
-        outcome = self.first_outcome if self.wait_count == 1 else "success"
-        return SimpleNamespace(status="idle", outcome=outcome, answer=answer)
+        return SimpleNamespace(status="idle", outcome="success", answer="Saved and visibly verified.")
 
     def status(self):
-        return SimpleNamespace(status="idle", steps=self.steps)
+        return self.sessions.get_session_status(self.id)
 
     def cancel(self) -> None:
         self.cancelled = True
@@ -56,12 +33,51 @@ class FakeClient:
     """Record that only the first turn creates a session."""
 
     def __init__(self) -> None:
-        self.handle = FakeSessionHandle()
+        self.sessions = FakeSessions()
+        self.handle = FakeSessionHandle(self.sessions)
         self.start_calls: list[dict[str, object]] = []
 
     def start_session(self, **kwargs):
         self.start_calls.append(kwargs)
         return self.handle
+
+
+class FakeSessions:
+    """Expose one pending approval request through the public sessions API."""
+
+    def __init__(self) -> None:
+        self.status_name = "awaiting_tool_results"
+        self.steps = 7
+        self.tool_results: list[object] = []
+        self.stage_args = {
+            "record": "Sarah Chen",
+            "staged_fields": {"owner": "Priya Shah"},
+            "visible_verification": "Owner is staged and Save was not pressed.",
+        }
+
+    def get_session_status(self, _session_id: str):
+        return SimpleNamespace(status=self.status_name, steps=self.steps, error_code=None)
+
+    def get_session_changes(self, _session_id: str, **_kwargs):
+        event = SimpleNamespace(
+            type="ActiveStateChangeEvent",
+            data={
+                "state": "awaiting_tool_results",
+                "pending_tool_calls": [
+                    {
+                        "tool_name": "request_commit_approval",
+                        "args": self.stage_args,
+                        "id": "approval-call-1",
+                    }
+                ],
+            },
+        )
+        return SimpleNamespace(new_events=[event])
+
+    def send_session_tool_results(self, _session_id: str, *, request: object) -> None:
+        self.tool_results.append(request)
+        self.status_name = "idle"
+        self.steps = 10
 
 
 def test_live_adapter_uses_one_session_for_stage_and_commit() -> None:
@@ -78,7 +94,11 @@ def test_live_adapter_uses_one_session_for_stage_and_commit() -> None:
     assert len(client.start_calls) == 1
     assert client.start_calls[0]["messages"] == "stage only"
     assert "answer_schema" not in client.start_calls[0]
-    assert client.handle.messages == ["approved; commit"]
+    agent = client.start_calls[0]["agent"]
+    assert agent.tools[0].name == "request_commit_approval"
+    assert len(client.sessions.tool_results) == 1
+    assert client.sessions.tool_results[0].result["approved"] is True
+    assert client.sessions.tool_results[0].result["instruction"] == "approved; commit"
     assert json.loads(staged.answer)["staged_fields"] == {"owner": "Priya Shah"}
     assert staged.steps_used == 7
     assert committed.steps_used == 3
@@ -98,14 +118,15 @@ def test_live_adapter_cancel_terminates_retained_session() -> None:
         adapter.send_message(reference, "commit")
 
 
-def test_live_adapter_accepts_missing_optional_stage_outcome_when_answer_is_structured() -> None:
+def test_live_adapter_fails_closed_if_session_ends_without_approval_tool() -> None:
     client = FakeClient()
-    client.handle.first_outcome = None
+    client.sessions.status_name = "completed"
     adapter = LiveHoloAdapter(_spec(), lambda _environment: client)
 
-    staged = adapter.send_message(adapter.start_session(), "stage only")
+    with pytest.raises(ExecutionFault) as caught:
+        adapter.send_message(adapter.start_session(), "stage only")
 
-    assert json.loads(staged.answer)["record"] == "Sarah Chen"
+    assert caught.value.spec.code == "malformed_stage_answer"
 
 
 def test_live_adapter_reports_provider_rate_limit_without_retry() -> None:
@@ -121,15 +142,13 @@ def test_live_adapter_reports_provider_rate_limit_without_retry() -> None:
     assert caught.value.spec.code == "holo_rate_limited"
 
 
-def test_live_adapter_returns_prose_stage_answer_without_extra_session_turn() -> None:
+def test_live_adapter_returns_structured_stage_report_from_approval_tool() -> None:
     client = FakeClient()
-    client.handle.first_answer = "The form is ready and nothing was saved."
     adapter = LiveHoloAdapter(_spec(), lambda _environment: client)
 
     staged = adapter.send_message(adapter.start_session(), "stage only")
 
-    assert client.handle.messages == []
-    assert staged.answer == "The form is ready and nothing was saved."
+    assert json.loads(staged.answer) == client.sessions.stage_args
 
 
 def _spec() -> HoloTaskSpec:

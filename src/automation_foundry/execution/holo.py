@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import threading
+import time
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass, field
@@ -23,10 +24,13 @@ from hai_agents.polling import SessionHandle
 from hai_agents.types.agent import Agent
 from hai_agents.types.environment import Environment_Desktop
 from hai_agents.types.session_changes_answer import SessionChangesAnswer
+from hai_agents.types.tool_definition import ToolDefinition
+from hai_agents.types.tool_request import ToolRequest
+from hai_agents.types.tool_result_event import ToolResultEvent
 
 from desktop_fixtures.store import AppKey, load_state, state_path, write_state_atomic
 
-from automation_foundry.execution.errors import fault
+from automation_foundry.execution.errors import ExecutionFault, fault
 
 FAKE_SCRIPTS = (
     "stage-ok",
@@ -39,6 +43,9 @@ FAKE_SCRIPTS = (
     "wrong-app",
     "holo-unreachable",
 )
+
+_APPROVAL_TOOL_NAME = "request_commit_approval"
+_TERMINAL_SESSION_STATUSES = ("completed", "failed", "idle", "interrupted", "timed_out")
 
 
 @dataclass(frozen=True)
@@ -199,7 +206,9 @@ class LiveHoloAdapter:
         self.spec = spec
         self._client_factory = client_factory or (lambda environment: Client(environment=environment))
         self._reference = f"h-live-{uuid.uuid4().hex}"
+        self._client: Any | None = None
         self._handle: SessionHandle[SessionChangesAnswer] | Any | None = None
+        self._pending_approval: ToolRequest | None = None
         self._cancelled = False
         self._last_steps = 0
         self._turns_completed = 0
@@ -207,12 +216,37 @@ class LiveHoloAdapter:
             name="automation-foundry-live-executor",
             description="Executes one approved two-turn desktop automation on the local Mac.",
             environments=[Environment_Desktop(id="foundry-mac", host="user_device")],
+            tools=[
+                ToolDefinition(
+                    name=_APPROVAL_TOOL_NAME,
+                    description=(
+                        "After completing and visually verifying every stage-only action, call this tool exactly once "
+                        "with the staged record, exact proposed fields, and visible verification. This is the only "
+                        "valid way to request commit approval. Wait for the tool result before taking any persistent "
+                        "action; do not end or complete the session while approval is pending."
+                    ),
+                    input_schema={
+                        "type": "object",
+                        "properties": {
+                            "record": {"type": "string"},
+                            "staged_fields": {
+                                "type": "object",
+                                "additionalProperties": {"type": "string"},
+                            },
+                            "visible_verification": {"type": "string"},
+                        },
+                        "required": ["record", "staged_fields", "visible_verification"],
+                        "additionalProperties": False,
+                    },
+                )
+            ],
             instructions=(
                 "Operate only the target application named by the approved task. Treat the first user message as a "
                 "strict staging turn: never Save, Commit, Submit, send, publish, purchase, delete, or perform another "
-                "persistent action. End the staging turn with outcome partial, not success, because an approval-gated "
-                "step remains; leave the session idle awaiting the next message. Perform a persistent action only when "
-                "a later message in this same session explicitly states that the staged change was approved."
+                "persistent action. After visually verifying the staged state, call request_commit_approval exactly "
+                "once with the requested record, exact staged fields, and visible verification. Do not answer, finish, "
+                "or complete the session before calling the tool. Wait for its result. Perform a persistent action only "
+                "when that tool result explicitly states that the staged change was approved."
             ),
         )
 
@@ -221,32 +255,33 @@ class LiveHoloAdapter:
         return self._reference
 
     def send_message(self, session_reference: str, message: str) -> TurnOutcome:
-        """Start or continue the retained live session and wait for one settled turn."""
+        """Start staging or resolve its approval tool on the retained session."""
         self._require_reference(session_reference)
         try:
             if self._handle is None:
                 environment = HaiAgentsEnvironment.US if self.spec.region == "us" else HaiAgentsEnvironment.EU
-                client = self._client_factory(environment)
-                self._handle = client.start_session(
+                self._client = self._client_factory(environment)
+                self._handle = self._client.start_session(
                     agent=self._agent,
                     messages=message,
                     max_steps=self.spec.max_steps,
                     max_time_s=float(self.spec.max_time_seconds),
                 )
-            else:
-                self._handle.send_message(message)
+                return self._wait_for_approval_request()
+            self._resolve_approval(message)
             result = self._handle.wait_for_completion(timeout_seconds=float(self.spec.max_time_seconds + 30))
         except TimeoutError as exc:
             self.cancel(session_reference)
             raise fault("budget_exceeded") from exc
+        except ExecutionFault:
+            raise
         except Exception as exc:
             if _is_rate_limit(exc):
                 raise fault("holo_rate_limited") from exc
             raise fault("holo_unreachable", type(exc).__name__) from exc
         status = str(result.status)
         outcome = str(result.outcome) if result.outcome is not None else None
-        allowed_outcomes = ("success", "partial", None) if self._turns_completed == 0 else ("success",)
-        if status not in ("idle", "completed") or outcome not in allowed_outcomes:
+        if status not in ("idle", "completed") or outcome != "success":
             code = "budget_exceeded" if status == "timed_out" else "wrong_app_state"
             error_code = getattr(result, "error_code", None)
             raise fault(code, f"status={status}, outcome={outcome or 'unknown'}, error_code={error_code or 'none'}")
@@ -265,17 +300,15 @@ class LiveHoloAdapter:
 
     def is_alive(self, session_reference: str) -> bool:
         """Return whether the retained session can accept the commit turn."""
-        if session_reference != self._reference or self._cancelled or self._handle is None:
+        if (
+            session_reference != self._reference
+            or self._cancelled
+            or self._handle is None
+            or self._pending_approval is None
+        ):
             return False
         try:
-            return str(self._handle.status().status) in (
-                "queued",
-                "pending",
-                "running",
-                "paused",
-                "idle",
-                "awaiting_tool_results",
-            )
+            return str(self._handle.status().status) == "awaiting_tool_results"
         except Exception:
             return False
 
@@ -293,6 +326,72 @@ class LiveHoloAdapter:
     def _require_reference(self, session_reference: str) -> None:
         if session_reference != self._reference or self._cancelled:
             raise fault("session_lost", "unknown or cancelled live session")
+
+    def _wait_for_approval_request(self) -> TurnOutcome:
+        if self._client is None or self._handle is None:
+            raise fault("holo_unreachable", "live session was not initialized")
+        deadline = time.monotonic() + self.spec.max_time_seconds + 30
+        while time.monotonic() < deadline:
+            status = self._client.sessions.get_session_status(self._handle.id)
+            status_name = str(status.status)
+            if status_name == "awaiting_tool_results":
+                pending = self._approval_request()
+                if pending is None:
+                    time.sleep(0.25)
+                    continue
+                self._pending_approval = pending
+                total_steps = int(status.steps or self._last_steps)
+                turn_steps = max(0, total_steps - self._last_steps)
+                self._last_steps = total_steps
+                self._turns_completed += 1
+                return TurnOutcome(answer=json.dumps(pending.args or {}, sort_keys=True), steps_used=turn_steps)
+            if status_name in _TERMINAL_SESSION_STATUSES:
+                if status_name == "timed_out":
+                    raise fault("budget_exceeded")
+                if status_name in ("failed", "interrupted"):
+                    raise fault(
+                        "wrong_app_state",
+                        f"status={status_name}, error_code={getattr(status, 'error_code', None) or 'none'}",
+                    )
+                raise fault("malformed_stage_answer", "live session ended before requesting commit approval")
+            time.sleep(0.25)
+        raise TimeoutError("live session did not request commit approval before the deadline")
+
+    def _approval_request(self) -> ToolRequest | None:
+        if self._client is None or self._handle is None:
+            return None
+        changes = self._client.sessions.get_session_changes(
+            self._handle.id,
+            from_index=0,
+            include_events=True,
+            wait_for_seconds=0,
+        )
+        events = changes.new_events if changes is not None else []
+        for event in reversed(events or []):
+            if event.type != "ActiveStateChangeEvent":
+                continue
+            data = event.data.model_dump() if hasattr(event.data, "model_dump") else event.data
+            if not isinstance(data, dict) or data.get("state") != "awaiting_tool_results":
+                continue
+            for raw_call in data.get("pending_tool_calls") or []:
+                call = raw_call.model_dump() if hasattr(raw_call, "model_dump") else raw_call
+                if isinstance(call, dict) and call.get("tool_name") == _APPROVAL_TOOL_NAME:
+                    return ToolRequest.model_validate(call)
+        return None
+
+    def _resolve_approval(self, instruction: str) -> None:
+        if self._client is None or self._handle is None or self._pending_approval is None:
+            raise fault("session_lost", "session has no pending commit approval request")
+        if str(self._handle.status().status) != "awaiting_tool_results":
+            raise fault("session_lost", "session is no longer awaiting commit approval")
+        self._client.sessions.send_session_tool_results(
+            self._handle.id,
+            request=ToolResultEvent(
+                tool_req=self._pending_approval,
+                result={"approved": True, "instruction": instruction},
+            ),
+        )
+        self._pending_approval = None
 
 
 def _is_rate_limit(error: BaseException) -> bool:

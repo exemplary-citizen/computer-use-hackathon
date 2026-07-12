@@ -614,15 +614,16 @@ class RunCoordinator:
                 f"{spec.task_text}\n\nTURN 1 OF 2 — STAGE ONLY. Execute only these non-persistent setup steps:\n"
                 f"{stage_steps}\n\nDo not execute these approval-gated steps yet:\n{blocked_steps}\n"
                 "Do not Save, Commit, Submit, type approval-gated content, or perform any equivalent persistent action. "
-                "Visually verify the app is ready, then end your turn with outcome partial—not success—because the "
-                "approval-gated step remains. Leave the session idle awaiting the next message. "
-                f'Answer with JSON whose `record` is {json.dumps(spec.record_name)}, whose `staged_fields` is exactly '
-                f'{json.dumps(spec.field_changes, sort_keys=True)}, and whose `visible_verification` describes readiness.'
+                "Visually verify the app is ready, then call `request_commit_approval` exactly once with "
+                f'`record` equal to {json.dumps(spec.record_name)}, `staged_fields` exactly equal to '
+                f'{json.dumps(spec.field_changes, sort_keys=True)}, and `visible_verification` describing readiness. '
+                "Do not answer or end the session; wait for the approval tool result."
             )
         return (
             f"{spec.task_text}\n\nTURN 1 OF 2 — STAGE ONLY: fill the requested values in the form, visually "
-            "verify them, then END YOUR TURN. Do NOT press Save, Commit, Submit, or any equivalent. "
-            'Answer with JSON: {"record": ..., "staged_fields": {...}, "visible_verification": ...}.'
+            "verify them. Do NOT press Save, Commit, Submit, or any equivalent. Call `request_commit_approval` exactly "
+            "once with `record`, exact `staged_fields`, and `visible_verification`. Do not answer or end the session; "
+            "wait for the approval tool result."
         )
 
     def _commit_prompt(self, spec: HoloTaskSpec) -> str:
