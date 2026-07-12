@@ -29,8 +29,8 @@ Planned application directories must follow the ownership boundaries in the memb
 
 - backend authoring modules — upload, evidence, ingestion, versioning, and approval;
 - backend execution modules — Holo adapter, run state machine, approvals, and events;
-- `src/automation_foundry/surfaces/` — thin Telegram and Gradium adapters; never store bot tokens or downloaded runtime
-  media in source directories;
+- `src/automation_foundry/surfaces/` — Gradium adapters and deterministic presentation contracts; Telegram transport is
+  provided by NemoClaw's managed Hermes channel. Never store bot tokens or downloaded runtime media in source directories;
 - `web/src/features/authoring/` — Member 1 UI ownership;
 - `web/src/features/execution/` — Member 2 UI ownership;
 - `desktop_fixtures/` — native CRM A and CRM B fixtures;
@@ -41,7 +41,7 @@ Planned application directories must follow the ownership boundaries in the memb
 - The FastAPI service is local-only and binds to `127.0.0.1` by default.
 - The NemoClaw sandbox must not receive macOS Accessibility privileges or direct HoloDesktop control.
 - Only the trusted host execution worker may invoke HoloDesktop or publish approved Holo skills.
-- Telegram and Gradium are unprivileged surfaces and must not receive macOS Accessibility, Screen Recording, Input
+- NemoClaw's Telegram channel and Gradium are unprivileged surfaces and must not receive macOS Accessibility, Screen Recording, Input
   Monitoring, direct HoloDesktop control, or skill-publication authority.
 - NemoClaw/Hermes is the sole agentic orchestrator. Telegram- and Gradium-originated generation must use the same
   `WorkspaceBridge`, NemoClaw workspace, sandboxed Hermes/Holo3 route, host validation, and generated-tool runner as
@@ -60,8 +60,8 @@ Planned application directories must follow the ownership boundaries in the memb
   never imply approval.
 - Telegram-originated authoring and execution must call the shared host services and state machine rather than duplicate
   validation, approval, or run-transition logic.
-- The Telegram bot token belongs in a user-managed environment value or token file outside the repository; never read,
-  print, log, copy, commit, or expose it to the browser, NemoClaw, generated bundles, or Holo.
+- The Telegram bot token belongs in NemoClaw's managed Telegram credential provider; never read, print, log, copy,
+  commit, or expose it to models, Foundry host capabilities, the browser, generated bundles, or Holo.
 - Original sources and derived artifacts remain local until explicit deletion, subject to the provider disclosures in `docs/SPEC.md`.
 - Preserve existing examples and avoid unrelated repository-wide refactors.
 

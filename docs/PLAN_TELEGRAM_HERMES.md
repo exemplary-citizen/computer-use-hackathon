@@ -7,7 +7,8 @@ Approved. Phase 1 was verified live on 2026-07-12 with NemoClaw 0.0.79, OpenShel
 the authenticated upload transport after host validation rejected and prompted correction of an unsafe first draft.
 
 The previous OpenClaw transport proposal was superseded on 2026-07-12. NemoClaw/Hermes is now the single orchestrator;
-Telegram and Gradium are thin surfaces, and the Foundry host service is a typed capability and privilege boundary.
+Hermes' NemoClaw-managed Telegram channel and Gradium are input surfaces, and the Foundry host service is a typed
+capability and privilege boundary.
 
 ## Outcome
 
@@ -18,7 +19,7 @@ only component allowed to publish skills or invoke HoloDesktop.
 
 ```mermaid
 flowchart LR
-    T["Telegram or Gradium surface"] --> H["NemoClaw/OpenShell\nHermes orchestrator"]
+    T["Hermes Telegram channel\nor Gradium surface"] --> H["NemoClaw/OpenShell\nHermes orchestrator"]
     H --> C["Typed Foundry\nhost capabilities"]
     C --> W["WorkspaceBridge\nvalidation and storage"]
     C --> X["Trusted Holo worker"]
@@ -83,13 +84,13 @@ later slices. Automated tests use fake authoring and execution services before a
 - Hermes and the host receive only safe identifiers and redacted errors; no credential or local path is returned.
 - The host remains authoritative for validation, storage, approval state, and Holo dispatch.
 
-## Phase 3 — Thin Telegram and Gradium surfaces
+## Phase 3 — Managed Telegram channel and Gradium surface
 
 ### Objective
 
-Implement owner-only Telegram direct messages and Gradium voice as transport adapters for the same Hermes conversation.
-Telegram supplies media and buttons; Gradium supplies final transcripts and response audio. Neither surface interprets
-intent, generates instructions, or calls HoloDesktop.
+Configure Hermes' native Telegram channel through `nemohermes channels add telegram` and connect Gradium voice to the
+same Hermes conversation. Telegram supplies media and buttons; Gradium supplies final transcripts and response audio.
+Neither surface owns privileged host operations.
 
 ### Acceptance criteria
 
@@ -97,8 +98,9 @@ intent, generates instructions, or calls HoloDesktop.
 - Partial Gradium transcripts never request a capability or imply approval.
 - One accepted Telegram update creates exactly one interaction and one media handoff.
 - Duplicate and out-of-order updates are idempotent.
-- The Telegram token remains outside the repository and never enters NemoClaw, Holo, logs, responses, or fixtures.
-- Surface failures do not mutate authoring or run state.
+- The Telegram token remains outside the repository in NemoClaw's credential provider and never enters model context,
+  Foundry host capabilities, Holo, logs, responses, or fixtures.
+- Channel or voice failures do not mutate authoring or run state.
 
 ## Phase 4 — Hermes-backed authoring and review
 
@@ -163,8 +165,8 @@ rotation, and deletion.
 
 ## User-managed setup
 
-- The user creates the Telegram bot in BotFather and stores its token outside the repository. The token is never pasted
-  into chat or committed.
+- The user creates the Telegram bot in BotFather and enters its token directly into the interactive
+  `nemohermes hai-hermes channels add telegram` setup. The token is never pasted into chat or committed.
 - The user pairs or configures the numeric Telegram owner ID during the live setup step.
 
 ## Deferred
