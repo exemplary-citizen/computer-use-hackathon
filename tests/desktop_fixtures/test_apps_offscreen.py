@@ -34,6 +34,7 @@ class CrmAWindowTests(unittest.TestCase):
 
     def test_save_button_is_text_labeled(self) -> None:
         self.assertEqual(self.window.save_button.text(), "Save")
+        self.assertEqual(self.window.add_button.text(), "Add Record")
 
     def test_editing_fields_does_not_touch_persisted_state(self) -> None:
         self.window._phone.setText("+1 000 555 0000")
@@ -54,6 +55,16 @@ class CrmAWindowTests(unittest.TestCase):
         self.window._contact_list.setCurrentRow(0)
         self.assertEqual(self.window._phone.text(), default_seed().records[0].phone)
         self.assertEqual(self.path.read_bytes(), self.baseline)
+
+    def test_add_record_requires_explicit_save(self) -> None:
+        self.window.begin_add_record()
+        self.window._first_name.setText("Amina")
+        self.window._last_name.setText("Diallo")
+        self.assertEqual(self.path.read_bytes(), self.baseline)
+        self.window.save_current_record()
+        state = load_state(self.path)
+        self.assertEqual(state.records[-1].full_name, "Amina Diallo")
+        self.assertEqual(state.records[-1].company, "Not provided")
 
 
 class CrmBWindowTests(unittest.TestCase):
@@ -91,6 +102,18 @@ class CrmBWindowTests(unittest.TestCase):
     def test_commit_button_is_text_labeled(self) -> None:
         dialog = RecordDialog(default_seed().records[0])
         self.assertEqual(dialog.commit_button.text(), "Commit Changes")
+        create_dialog = RecordDialog(None, record_id="c007")
+        self.assertEqual(create_dialog.commit_button.text(), "Add Record")
+
+    def test_add_record_persists_only_on_apply_create(self) -> None:
+        dialog = RecordDialog(None, record_id="c007")
+        dialog.first_name.setText("Amina")
+        dialog.last_name.setText("Diallo")
+        self.assertEqual(self.path.read_bytes(), self.baseline)
+        self.window.apply_create(dialog.edited_record())
+        state = load_state(self.path)
+        self.assertEqual(state.records[-1].full_name, "Amina Diallo")
+        self.assertEqual(self.window.add_button.text(), "Add Record")
 
     def test_window_geometry_is_pinned(self) -> None:
         self.assertEqual((self.window.width(), self.window.height()), (WINDOW_WIDTH, WINDOW_HEIGHT))

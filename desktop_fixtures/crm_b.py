@@ -37,6 +37,7 @@ from desktop_fixtures.store import (
     ContactRecord,
     CrmState,
     load_state,
+    next_contact_id,
     state_path,
     write_state_atomic,
 )
@@ -48,29 +49,39 @@ _TABLE_COLUMNS = ("Given name", "Family name", "Organisation", "Stage")
 class RecordDialog(QDialog):
     """Modal editor for one contact; commits via an explicit button only."""
 
-    def __init__(self, record: ContactRecord, parent: QWidget | None = None):
+    def __init__(
+        self,
+        record: ContactRecord | None,
+        parent: QWidget | None = None,
+        *,
+        record_id: str | None = None,
+    ):
         """Build the form pre-filled with the record's current values.
 
         Args:
-            record: Contact being edited.
+            record: Contact being edited, or ``None`` for creation.
             parent: Owning window.
+            record_id: New deterministic identifier when creating.
         """
         super().__init__(parent)
         self._record = record
+        self._record_id = record.id if record is not None else record_id
+        if self._record_id is None:
+            raise ValueError("record_id is required when creating a record")
         labels = {field: per_app[_APP_KEY] for field, per_app in FIELD_LABELS.items()}
-        self.setWindowTitle(f"Record — {record.full_name}")
+        self.setWindowTitle(f"Record — {record.full_name}" if record is not None else "Add Record")
         layout = QVBoxLayout(self)
         form = QFormLayout()
-        self.first_name = QLineEdit(record.first_name)
-        self.last_name = QLineEdit(record.last_name)
-        self.company = QLineEdit(record.company)
-        self.phone = QLineEdit(record.phone)
-        self.email = QLineEdit(record.email)
+        self.first_name = QLineEdit(record.first_name if record is not None else "")
+        self.last_name = QLineEdit(record.last_name if record is not None else "")
+        self.company = QLineEdit(record.company if record is not None else "")
+        self.phone = QLineEdit(record.phone if record is not None else "")
+        self.email = QLineEdit(record.email if record is not None else "")
         self.status = QComboBox()
         self.status.addItems(list(STATUS_VALUES))
-        self.status.setCurrentText(record.status)
-        self.owner = QLineEdit(record.owner)
-        self.notes = QPlainTextEdit(record.notes)
+        self.status.setCurrentText(record.status if record is not None else "Lead")
+        self.owner = QLineEdit(record.owner if record is not None else "")
+        self.notes = QPlainTextEdit(record.notes if record is not None else "")
         self.notes.setFixedHeight(110)
         for label_text, widget in (
             (labels["first_name"], self.first_name),
@@ -87,31 +98,41 @@ class RecordDialog(QDialog):
             form.addRow(label, widget)
         layout.addLayout(form)
 
+        self.validation_label = QLabel("")
+        self.validation_label.setObjectName("fieldError")
+        layout.addWidget(self.validation_label)
+
         buttons = QHBoxLayout()
         discard = QPushButton("Discard")
         discard.clicked.connect(self.reject)
         buttons.addWidget(discard)
         buttons.addStretch(1)
-        self.commit_button = QPushButton("Commit Changes")
+        self.commit_button = QPushButton("Commit Changes" if record is not None else "Add Record")
         self.commit_button.setObjectName("primaryAction")
-        self.commit_button.clicked.connect(self.accept)
+        self.commit_button.clicked.connect(self._validate_and_accept)
         buttons.addWidget(self.commit_button)
         layout.addLayout(buttons)
 
     def edited_record(self) -> ContactRecord:
         """Return the record with the dialog's current field values applied."""
-        return self._record.model_copy(
-            update={
-                "first_name": self.first_name.text().strip(),
-                "last_name": self.last_name.text().strip(),
-                "company": self.company.text().strip(),
-                "phone": self.phone.text().strip(),
-                "email": self.email.text().strip(),
-                "status": self.status.currentText(),
-                "owner": self.owner.text().strip(),
-                "notes": self.notes.toPlainText().strip(),
-            }
-        )
+        values = {
+            "id": self._record_id,
+            "first_name": self.first_name.text().strip(),
+            "last_name": self.last_name.text().strip(),
+            "company": self.company.text().strip() or "Not provided",
+            "phone": self.phone.text().strip() or "Not provided",
+            "email": self.email.text().strip() or "Not provided",
+            "status": self.status.currentText(),
+            "owner": self.owner.text().strip() or "Unassigned",
+            "notes": self.notes.toPlainText().strip(),
+        }
+        return ContactRecord.model_validate(values)
+
+    def _validate_and_accept(self) -> None:
+        if not self.first_name.text().strip() or not self.last_name.text().strip():
+            self.validation_label.setText("Given name and Family name are required")
+            return
+        self.accept()
 
 
 class CrmBWindow(QMainWindow):
@@ -170,6 +191,19 @@ class CrmBWindow(QMainWindow):
         self.run_search()
         self.statusBar().showMessage(f"Committed {record.full_name}", 5_000)
 
+    def add_record(self) -> None:
+        """Open a blank modal and persist one new record only after explicit confirmation."""
+        dialog = RecordDialog(None, self, record_id=next_contact_id(self._state))
+        if dialog.exec() == QDialog.DialogCode.Accepted:
+            self.apply_create(dialog.edited_record())
+
+    def apply_create(self, record: ContactRecord) -> None:
+        """Append one validated new record and persist it atomically."""
+        self._state.records.append(record)
+        write_state_atomic(self._path, self._state)
+        self.run_search()
+        self.statusBar().showMessage(f"Added {record.full_name}", 5_000)
+
     def _build_ui(self) -> None:
         tabs = QTabWidget()
 
@@ -198,6 +232,9 @@ class CrmBWindow(QMainWindow):
         directory_layout.addWidget(self._results)
 
         open_row = QHBoxLayout()
+        self.add_button = QPushButton("Add Record")
+        self.add_button.clicked.connect(self.add_record)
+        open_row.addWidget(self.add_button)
         open_row.addStretch(1)
         self.open_button = QPushButton("Open Record…")
         self.open_button.setObjectName("primaryAction")
