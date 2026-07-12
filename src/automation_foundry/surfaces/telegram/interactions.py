@@ -117,10 +117,35 @@ class TelegramInteractionService:
         Returns:
             Safe text and optional opaque buttons.
         """
+        preflight = self.preflight(update)
+        if preflight is not None:
+            return preflight
+        return self.handle_authorized(update)
+
+    def preflight(self, update: TelegramInboundUpdate) -> TelegramSurfaceResponse | None:
+        """Authorize and deduplicate an update before command-specific routing.
+
+        Args:
+            update: Untrusted normalized Telegram update.
+
+        Returns:
+            Rejection/duplicate response, or `None` when routing may continue.
+        """
         if not self._is_owner_dm(update):
             return TelegramSurfaceResponse(text="This bot is private.", acknowledged=False)
         if not self._claim_update(update.update_id):
             return TelegramSurfaceResponse(text="This update was already handled.")
+        return None
+
+    def handle_authorized(self, update: TelegramInboundUpdate) -> TelegramSurfaceResponse:
+        """Handle an update that already passed `preflight`.
+
+        Args:
+            update: Authorized and deduplicated update.
+
+        Returns:
+            Deterministic disclosure or command guidance response.
+        """
         if update.kind is TelegramUpdateKind.CALLBACK:
             return self._handle_callback(update)
         return self._handle_message(update)

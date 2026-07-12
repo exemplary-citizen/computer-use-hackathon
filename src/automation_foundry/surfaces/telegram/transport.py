@@ -6,11 +6,15 @@ import asyncio
 import logging
 from tempfile import SpooledTemporaryFile
 from typing import Any, BinaryIO, cast
+from uuid import UUID
 
 from pydantic import BaseModel, SecretStr
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, Video
 from telegram.ext import Application, CallbackQueryHandler, ContextTypes, MessageHandler, filters
 
+from automation_foundry.contracts import SurfaceCallbackAction
+from automation_foundry.surfaces.telegram.callbacks import TelegramCallbackRejectedError
+from automation_foundry.surfaces.telegram.execution import TelegramExecutionCoordinator
 from automation_foundry.surfaces.telegram.interactions import (
     PROVIDER_DISCLOSURE_ACCEPTED_TEXT,
     TelegramChatType,
@@ -39,6 +43,7 @@ class TelegramBotRuntime:
         config: TelegramTransportConfig,
         interactions: TelegramInteractionService,
         learning: TelegramLearningCoordinator,
+        execution: TelegramExecutionCoordinator | None = None,
     ):
         """Initialize the thin transport.
 
@@ -46,10 +51,12 @@ class TelegramBotRuntime:
             config: Bot token.
             interactions: Owner, disclosure, deduplication, and callback service.
             learning: Existing AuthoringService handoff.
+            execution: Optional review and two-turn execution surface.
         """
         self.config = config
         self.interactions = interactions
         self.learning = learning
+        self.execution = execution
         self._background_tasks: set[asyncio.Task[None]] = set()
         self._pending_learn: dict[str, tuple[TelegramInboundUpdate, Video]] = {}
 
@@ -69,10 +76,24 @@ class TelegramBotRuntime:
             _context: Unused Telegram callback context.
         """
         normalized = _normalize_message(update)
-        response = self.interactions.handle(normalized)
+        preflight = self.interactions.preflight(normalized)
         message = update.effective_message
         if message is None:
             return
+        if preflight is not None:
+            await message.reply_text(preflight.text, reply_markup=_markup(preflight))
+            return
+        text = (normalized.text or "").strip()
+        if self.execution is not None and (
+            text.startswith("/review ") or text.startswith("/run ") or self.execution.expects_input(normalized.user_id)
+        ):
+            execution_result = await self.execution.handle_message(normalized)
+            await message.reply_text(
+                execution_result.response.text,
+                reply_markup=_markup(execution_result.response),
+            )
+            return
+        response = self.interactions.handle_authorized(normalized)
         video = message.video
         if response.buttons and video is not None and (normalized.text or "").strip().startswith("/learn"):
             callback_data = response.buttons[0].callback_data.get_secret_value()
@@ -96,8 +117,40 @@ class TelegramBotRuntime:
         if query is None:
             return
         callback_data = query.data if isinstance(query.data, str) else None
-        response = self.interactions.handle(_normalize_callback(update))
+        normalized = _normalize_callback(update)
+        preflight = self.interactions.preflight(normalized)
         await query.answer()
+        if preflight is not None:
+            response = preflight
+        else:
+            callback_secret = normalized.callback_data
+            assert callback_secret is not None
+            try:
+                grant = self.interactions.callbacks.peek(
+                    callback_secret,
+                    telegram_user_id=normalized.user_id,
+                    telegram_chat_id=normalized.chat_id,
+                )
+            except TelegramCallbackRejectedError:
+                response = TelegramSurfaceResponse(text="This button is invalid or unavailable.")
+            else:
+                if grant.action is SurfaceCallbackAction.ACCEPT_DISCLOSURE:
+                    response = self.interactions.handle_authorized(normalized)
+                elif self.execution is not None:
+                    result = await self.execution.handle_callback(normalized, grant)
+                    response = result.response
+                    if result.watch_run_id is not None and query.message is not None:
+                        task = asyncio.create_task(
+                            self._watch_execution(
+                                cast(Any, query.message),
+                                result.watch_run_id,
+                                terminal=result.watch_terminal,
+                            )
+                        )
+                        self._background_tasks.add(task)
+                        task.add_done_callback(self._background_tasks.discard)
+                else:
+                    response = TelegramSurfaceResponse(text="This button is invalid or unavailable.")
         if callback_data is not None and response.text == PROVIDER_DISCLOSURE_ACCEPTED_TEXT:
             pending = self._pending_learn.pop(callback_data, None)
             if pending is not None:
@@ -136,11 +189,20 @@ class TelegramBotRuntime:
         task.add_done_callback(self._background_tasks.discard)
         return f"Accepted `{manifest.name}`. Automation ID: `{manifest.id}`. Processing in background."
 
+    async def _watch_execution(self, message: Any, run_id: UUID, *, terminal: bool = False) -> None:
+        if self.execution is None:
+            return
+        response = (
+            await self.execution.wait_for_terminal(run_id) if terminal else await self.execution.wait_for_run(run_id)
+        )
+        await message.reply_text(response.text, reply_markup=_markup(response))
+
 
 def build_telegram_runtime(
     token: SecretStr,
     interactions: TelegramInteractionService,
     learning: TelegramLearningCoordinator,
+    execution: TelegramExecutionCoordinator | None = None,
 ) -> TelegramBotRuntime:
     """Compose the Telegram transport from already initialized host services.
 
@@ -148,11 +210,12 @@ def build_telegram_runtime(
         token: BotFather token.
         interactions: Deterministic interaction service.
         learning: Existing authoring handoff.
+        execution: Optional review and execution coordinator.
 
     Returns:
         Ready polling runtime.
     """
-    return TelegramBotRuntime(TelegramTransportConfig(bot_token=token), interactions, learning)
+    return TelegramBotRuntime(TelegramTransportConfig(bot_token=token), interactions, learning, execution)
 
 
 def _normalize_message(update: Update) -> TelegramInboundUpdate:

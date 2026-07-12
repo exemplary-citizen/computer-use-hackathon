@@ -113,6 +113,32 @@ class TestTelegramCallbackStore:
         with pytest.raises(TelegramCallbackRejectedError, match="invalid or unavailable"):
             self.store.consume(issued.callback_data, **arguments)
 
+    def test_peek_routes_binding_without_consuming_it(self) -> None:
+        issued = self._mint_start()
+
+        grant = self.store.peek(
+            issued.callback_data,
+            telegram_user_id=OWNER_ID,
+            telegram_chat_id=OWNER_ID,
+        )
+
+        assert grant.action is SurfaceCallbackAction.START_RUN
+        assert grant.run_id is not None
+        consumed = self.store.consume(
+            issued.callback_data,
+            telegram_user_id=OWNER_ID,
+            telegram_chat_id=OWNER_ID,
+            expected_action=SurfaceCallbackAction.START_RUN,
+            expected_payload_sha256=OTHER_HASH,
+        )
+        assert consumed.consumed_at is not None
+        with pytest.raises(TelegramCallbackRejectedError):
+            self.store.peek(
+                issued.callback_data,
+                telegram_user_id=OWNER_ID,
+                telegram_chat_id=OWNER_ID,
+            )
+
     def test_concurrent_consumers_allow_exactly_one(self) -> None:
         issued = self._mint_start()
 

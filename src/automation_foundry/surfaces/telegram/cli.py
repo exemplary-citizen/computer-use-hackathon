@@ -6,8 +6,10 @@ from pathlib import Path
 from pydantic import SecretStr
 
 from automation_foundry.authoring.service import build_authoring_service
+from automation_foundry.execution.config import ExecutionSettings
 from automation_foundry.settings import AppSettings
 from automation_foundry.surfaces.telegram.interactions import TelegramSurfaceConfig
+from automation_foundry.surfaces.telegram.execution import TelegramExecutionCoordinator
 from automation_foundry.surfaces.telegram.learning import TelegramLearningCoordinator
 from automation_foundry.surfaces.telegram.media import TelegramMediaInboxConfig
 from automation_foundry.surfaces.telegram.transport import build_telegram_runtime
@@ -61,7 +63,8 @@ def main() -> None:
         database_path=settings.database_path,
     ).make()
     learning = TelegramLearningCoordinator(authoring, media)
-    build_telegram_runtime(telegram_bot_token, interactions, learning).run()
+    execution = TelegramExecutionCoordinator(authoring, interactions, ExecutionSettings(holo_mode="live"))
+    build_telegram_runtime(telegram_bot_token, interactions, learning, execution).run()
 
 
 def _discover_gateway_token(binary: str, sandbox_name: str) -> SecretStr:

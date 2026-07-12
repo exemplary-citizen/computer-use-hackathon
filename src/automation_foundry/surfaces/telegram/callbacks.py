@@ -189,6 +189,60 @@ class TelegramCallbackStore:
             consumed_at=now,
         )
 
+    def peek(
+        self,
+        callback_data: SecretStr,
+        *,
+        telegram_user_id: int,
+        telegram_chat_id: int,
+    ) -> SurfaceCallbackGrant:
+        """Read one live callback binding without authorizing its action.
+
+        Args:
+            callback_data: Opaque value received from Telegram.
+            telegram_user_id: Authenticated callback sender identity.
+            telegram_chat_id: Authenticated direct-message chat identity.
+
+        Returns:
+            Unconsumed action and resource binding.
+
+        Raises:
+            TelegramCallbackRejectedError: If identity, expiry, token, or one-time state is invalid.
+        """
+        token = callback_data.get_secret_value()
+        if len(token) > 64 or not token.startswith("f1_"):
+            raise TelegramCallbackRejectedError("Callback is invalid or unavailable")
+        with self._connect() as connection:
+            row = connection.execute(
+                """
+                SELECT id, action, telegram_user_id, telegram_chat_id, payload_sha256,
+                       automation_id, run_id, issued_at, expires_at, consumed_at
+                FROM telegram_callbacks
+                WHERE token_sha256 = ?
+                """,
+                (_token_hash(token),),
+            ).fetchone()
+        now = datetime.now(UTC)
+        if (
+            row is None
+            or row[9] is not None
+            or row[2] != telegram_user_id
+            or row[3] != telegram_chat_id
+            or datetime.fromisoformat(str(row[8])) <= now
+        ):
+            raise TelegramCallbackRejectedError("Callback is invalid or unavailable")
+        return SurfaceCallbackGrant(
+            id=UUID(row[0]),
+            action=SurfaceCallbackAction(row[1]),
+            telegram_user_id=row[2],
+            telegram_chat_id=row[3],
+            payload_sha256=row[4],
+            automation_id=UUID(row[5]) if row[5] is not None else None,
+            run_id=UUID(row[6]) if row[6] is not None else None,
+            issued_at=datetime.fromisoformat(row[7]),
+            expires_at=datetime.fromisoformat(row[8]),
+        )
+
     def _initialize_database(self) -> None:
         with self._connect() as connection:
             connection.execute(
