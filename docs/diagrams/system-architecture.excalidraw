@@ -1,0 +1,1358 @@
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "excalidraw-cli",
+  "elements": [
+    {
+      "type": "rectangle",
+      "id": "canvas",
+      "x": 35,
+      "y": 35,
+      "width": 1530,
+      "height": 1110,
+      "backgroundColor": "#f8f9fa",
+      "strokeColor": "#dee2e6",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "roughness": 1,
+      "roundness": {
+        "type": 3
+      }
+    },
+    {
+      "type": "text",
+      "id": "title",
+      "x": 80,
+      "y": 70,
+      "width": 900,
+      "height": 42,
+      "text": "Computer-Use Automation Foundry",
+      "fontSize": 34,
+      "strokeColor": "#1e1e1e",
+      "fontFamily": 1
+    },
+    {
+      "type": "text",
+      "id": "subtitle",
+      "x": 82,
+      "y": 118,
+      "width": 1100,
+      "height": 24,
+      "text": "Teach a workflow from video, approve it on Telegram, then run it safely on the Mac.",
+      "fontSize": 18,
+      "strokeColor": "#5f6368",
+      "fontFamily": 1
+    },
+    {
+      "type": "arrow",
+      "id": "header_divider",
+      "x": 80,
+      "y": 165,
+      "width": 1440,
+      "height": 0,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          1440,
+          0
+        ]
+      ],
+      "endArrowhead": null,
+      "strokeColor": "#ced4da",
+      "strokeWidth": 2,
+      "roughness": 1
+    },
+    {
+      "type": "rectangle",
+      "id": "owner_zone",
+      "x": 75,
+      "y": 210,
+      "width": 220,
+      "height": 715,
+      "backgroundColor": "#dbe4ff",
+      "strokeColor": "#91a7ff",
+      "fillStyle": "solid",
+      "opacity": 35,
+      "strokeWidth": 2,
+      "roughness": 1,
+      "roundness": {
+        "type": 3
+      }
+    },
+    {
+      "type": "text",
+      "id": "owner_zone_title",
+      "x": 100,
+      "y": 232,
+      "width": 150,
+      "height": 24,
+      "text": "OWNER",
+      "fontSize": 20,
+      "strokeColor": "#364fc7",
+      "fontFamily": 1
+    },
+    {
+      "type": "rectangle",
+      "id": "surface_zone",
+      "x": 330,
+      "y": 210,
+      "width": 280,
+      "height": 715,
+      "backgroundColor": "#dbe4ff",
+      "strokeColor": "#74c0fc",
+      "fillStyle": "solid",
+      "opacity": 35,
+      "strokeWidth": 2,
+      "roughness": 1,
+      "roundness": {
+        "type": 3
+      }
+    },
+    {
+      "type": "text",
+      "id": "surface_zone_title",
+      "x": 355,
+      "y": 232,
+      "width": 220,
+      "height": 24,
+      "text": "INPUT SURFACES",
+      "fontSize": 20,
+      "strokeColor": "#1864ab",
+      "fontFamily": 1
+    },
+    {
+      "type": "rectangle",
+      "id": "host_zone",
+      "x": 650,
+      "y": 210,
+      "width": 500,
+      "height": 715,
+      "backgroundColor": "#d3f9d8",
+      "strokeColor": "#69db7c",
+      "fillStyle": "solid",
+      "opacity": 35,
+      "strokeWidth": 2,
+      "roughness": 1,
+      "roundness": {
+        "type": 3
+      }
+    },
+    {
+      "type": "text",
+      "id": "host_zone_title",
+      "x": 675,
+      "y": 232,
+      "width": 300,
+      "height": 24,
+      "text": "TRUSTED macOS HOST",
+      "fontSize": 20,
+      "strokeColor": "#2b8a3e",
+      "fontFamily": 1
+    },
+    {
+      "type": "rectangle",
+      "id": "agent_zone",
+      "x": 1190,
+      "y": 210,
+      "width": 330,
+      "height": 715,
+      "backgroundColor": "#e5dbff",
+      "strokeColor": "#b197fc",
+      "fillStyle": "solid",
+      "opacity": 35,
+      "strokeWidth": 2,
+      "roughness": 1,
+      "roundness": {
+        "type": 3
+      }
+    },
+    {
+      "type": "text",
+      "id": "agent_zone_title",
+      "x": 1215,
+      "y": 232,
+      "width": 250,
+      "height": 24,
+      "text": "AGENTS + DESKTOP",
+      "fontSize": 20,
+      "strokeColor": "#6741d9",
+      "fontFamily": 1
+    },
+    {
+      "type": "rectangle",
+      "id": "teach_tag",
+      "x": 95,
+      "y": 285,
+      "width": 180,
+      "height": 55,
+      "backgroundColor": "#d0bfff",
+      "strokeColor": "#7950f2",
+      "fillStyle": "solid",
+      "roughness": 1,
+      "roundness": {
+        "type": 3
+      },
+      "boundElements": [
+        {
+          "id": "teach_tag_label",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "teach_tag_label",
+      "x": 105,
+      "y": 295,
+      "width": 160,
+      "height": 35,
+      "text": "1  TEACH",
+      "fontSize": 22,
+      "fontFamily": 1,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "teach_tag",
+      "strokeColor": "#3b2f70"
+    },
+    {
+      "type": "ellipse",
+      "id": "operator",
+      "x": 95,
+      "y": 395,
+      "width": 180,
+      "height": 175,
+      "backgroundColor": "#a5d8ff",
+      "strokeColor": "#1971c2",
+      "fillStyle": "solid",
+      "roughness": 1,
+      "boundElements": [
+        {
+          "id": "operator_label",
+          "type": "text"
+        }
+      ],
+      "roundness": {
+        "type": 3
+      }
+    },
+    {
+      "type": "text",
+      "id": "operator_label",
+      "x": 105,
+      "y": 405,
+      "width": 160,
+      "height": 155,
+      "text": "Operations expert\nphone",
+      "fontSize": 22,
+      "fontFamily": 1,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "operator",
+      "strokeColor": "#1971c2"
+    },
+    {
+      "type": "rectangle",
+      "id": "run_tag",
+      "x": 95,
+      "y": 665,
+      "width": 180,
+      "height": 55,
+      "backgroundColor": "#b2f2bb",
+      "strokeColor": "#2f9e44",
+      "fillStyle": "solid",
+      "roughness": 1,
+      "roundness": {
+        "type": 3
+      },
+      "boundElements": [
+        {
+          "id": "run_tag_label",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "run_tag_label",
+      "x": 105,
+      "y": 675,
+      "width": 160,
+      "height": 35,
+      "text": "2  RUN",
+      "fontSize": 22,
+      "fontFamily": 1,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "run_tag",
+      "strokeColor": "#1b5e20"
+    },
+    {
+      "type": "rectangle",
+      "id": "telegram",
+      "x": 365,
+      "y": 315,
+      "width": 210,
+      "height": 140,
+      "backgroundColor": "#a5d8ff",
+      "strokeColor": "#1971c2",
+      "fillStyle": "solid",
+      "roughness": 1,
+      "roundness": {
+        "type": 3
+      },
+      "boundElements": [
+        {
+          "id": "telegram_label",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "telegram_label",
+      "x": 375,
+      "y": 325,
+      "width": 190,
+      "height": 120,
+      "text": "Telegram bot\nvideo • review • Start\nstatus",
+      "fontSize": 19,
+      "fontFamily": 1,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "telegram",
+      "strokeColor": "#1971c2"
+    },
+    {
+      "type": "rectangle",
+      "id": "gradium",
+      "x": 365,
+      "y": 520,
+      "width": 210,
+      "height": 100,
+      "backgroundColor": "#d0bfff",
+      "strokeColor": "#7950f2",
+      "fillStyle": "solid",
+      "roughness": 1,
+      "roundness": {
+        "type": 3
+      },
+      "boundElements": [
+        {
+          "id": "gradium_label",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "gradium_label",
+      "x": 375,
+      "y": 530,
+      "width": 190,
+      "height": 80,
+      "text": "Gradium\naudio → transcript",
+      "fontSize": 18,
+      "fontFamily": 1,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "gradium",
+      "strokeColor": "#7950f2"
+    },
+    {
+      "type": "text",
+      "id": "surface_note",
+      "x": 365,
+      "y": 835,
+      "width": 210,
+      "height": 42,
+      "text": "Owner-only and unprivileged",
+      "fontSize": 16,
+      "strokeColor": "#5f6368",
+      "fontFamily": 1
+    },
+    {
+      "type": "rectangle",
+      "id": "authoring",
+      "x": 690,
+      "y": 300,
+      "width": 390,
+      "height": 140,
+      "backgroundColor": "#ffec99",
+      "strokeColor": "#f59f00",
+      "fillStyle": "solid",
+      "roughness": 1,
+      "roundness": {
+        "type": 3
+      },
+      "boundElements": [
+        {
+          "id": "authoring_label",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "authoring_label",
+      "x": 700,
+      "y": 310,
+      "width": 370,
+      "height": 120,
+      "text": "Foundry authoring\ningest • validate • version\napprove",
+      "fontSize": 20,
+      "fontFamily": 1,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "authoring",
+      "strokeColor": "#f59f00"
+    },
+    {
+      "type": "rectangle",
+      "id": "bundle_store",
+      "x": 690,
+      "y": 510,
+      "width": 390,
+      "height": 110,
+      "backgroundColor": "#c3fae8",
+      "strokeColor": "#0ca678",
+      "fillStyle": "solid",
+      "roughness": 1,
+      "roundness": {
+        "type": 3
+      },
+      "boundElements": [
+        {
+          "id": "bundle_store_label",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "bundle_store_label",
+      "x": 700,
+      "y": 520,
+      "width": 370,
+      "height": 90,
+      "text": "Local evidence + approved bundle\nhashes • SOP • skill • run records",
+      "fontSize": 18,
+      "fontFamily": 1,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "bundle_store",
+      "strokeColor": "#0ca678"
+    },
+    {
+      "type": "rectangle",
+      "id": "execution",
+      "x": 690,
+      "y": 690,
+      "width": 390,
+      "height": 135,
+      "backgroundColor": "#b2f2bb",
+      "strokeColor": "#2f9e44",
+      "fillStyle": "solid",
+      "roughness": 1,
+      "roundness": {
+        "type": 3
+      },
+      "boundElements": [
+        {
+          "id": "execution_label",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "execution_label",
+      "x": 700,
+      "y": 700,
+      "width": 370,
+      "height": 115,
+      "text": "Execution coordinator\napproved hash • run state\nlimits • cleanup",
+      "fontSize": 20,
+      "fontFamily": 1,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "execution",
+      "strokeColor": "#2f9e44"
+    },
+    {
+      "type": "rectangle",
+      "id": "nemo",
+      "x": 1225,
+      "y": 300,
+      "width": 250,
+      "height": 140,
+      "backgroundColor": "#d0bfff",
+      "strokeColor": "#7950f2",
+      "fillStyle": "solid",
+      "roughness": 1,
+      "roundness": {
+        "type": 3
+      },
+      "boundElements": [
+        {
+          "id": "nemo_label",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "nemo_label",
+      "x": 1235,
+      "y": 310,
+      "width": 230,
+      "height": 120,
+      "text": "NemoClaw + Hermes\nsandboxed orchestrator\ncreates the automation",
+      "fontSize": 19,
+      "fontFamily": 1,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "nemo",
+      "strokeColor": "#7950f2"
+    },
+    {
+      "type": "rectangle",
+      "id": "gemini",
+      "x": 1260,
+      "y": 500,
+      "width": 180,
+      "height": 90,
+      "backgroundColor": "#ffd8a8",
+      "strokeColor": "#e67700",
+      "fillStyle": "solid",
+      "roughness": 1,
+      "roundness": {
+        "type": 3
+      },
+      "boundElements": [
+        {
+          "id": "gemini_label",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "gemini_label",
+      "x": 1270,
+      "y": 510,
+      "width": 160,
+      "height": 70,
+      "text": "OpenRouter\nGemini 3.5 Flash",
+      "fontSize": 17,
+      "fontFamily": 1,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "gemini",
+      "strokeColor": "#e67700"
+    },
+    {
+      "type": "rectangle",
+      "id": "holo",
+      "x": 1225,
+      "y": 665,
+      "width": 250,
+      "height": 110,
+      "backgroundColor": "#b2f2bb",
+      "strokeColor": "#2f9e44",
+      "fillStyle": "solid",
+      "roughness": 1,
+      "roundness": {
+        "type": 3
+      },
+      "boundElements": [
+        {
+          "id": "holo_label",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "holo_label",
+      "x": 1235,
+      "y": 675,
+      "width": 230,
+      "height": 90,
+      "text": "HoloDesktop\ncomputer-use agent",
+      "fontSize": 20,
+      "fontFamily": 1,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "holo",
+      "strokeColor": "#2f9e44"
+    },
+    {
+      "type": "rectangle",
+      "id": "desktop_apps",
+      "x": 1225,
+      "y": 820,
+      "width": 250,
+      "height": 85,
+      "backgroundColor": "#a5d8ff",
+      "strokeColor": "#1971c2",
+      "fillStyle": "solid",
+      "roughness": 1,
+      "roundness": {
+        "type": 3
+      },
+      "boundElements": [
+        {
+          "id": "desktop_apps_label",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "desktop_apps_label",
+      "x": 1235,
+      "y": 830,
+      "width": 230,
+      "height": 65,
+      "text": "Apple Mail  →  Atlas Returns Desk",
+      "fontSize": 17,
+      "fontFamily": 1,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "desktop_apps",
+      "strokeColor": "#1971c2"
+    },
+    {
+      "type": "arrow",
+      "id": "owner_to_telegram",
+      "x": 275,
+      "y": 450,
+      "width": 90,
+      "height": -55,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          90,
+          -55
+        ]
+      ],
+      "endArrowhead": "arrow",
+      "strokeColor": "#1971c2",
+      "strokeWidth": 3,
+      "roughness": 1,
+      "startBinding": {
+        "elementId": "operator",
+        "fixedPoint": [
+          1,
+          0.35
+        ]
+      },
+      "endBinding": {
+        "elementId": "telegram",
+        "fixedPoint": [
+          0,
+          0.5
+        ]
+      },
+      "boundElements": [
+        {
+          "id": "owner_to_telegram_label",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "owner_to_telegram_label",
+      "x": 285,
+      "y": 460,
+      "width": 70,
+      "height": -75,
+      "text": "video / commands",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "owner_to_telegram"
+    },
+    {
+      "type": "arrow",
+      "id": "telegram_to_authoring",
+      "x": 575,
+      "y": 355,
+      "width": 115,
+      "height": 0,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          115,
+          0
+        ]
+      ],
+      "endArrowhead": "arrow",
+      "strokeColor": "#4a9eed",
+      "strokeWidth": 3,
+      "roughness": 1,
+      "startBinding": {
+        "elementId": "telegram",
+        "fixedPoint": [
+          1,
+          0.3
+        ]
+      },
+      "endBinding": {
+        "elementId": "authoring",
+        "fixedPoint": [
+          0,
+          0.4
+        ]
+      },
+      "boundElements": [
+        {
+          "id": "telegram_to_authoring_label",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "telegram_to_authoring_label",
+      "x": 585,
+      "y": 365,
+      "width": 95,
+      "height": 40,
+      "text": "teach",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "telegram_to_authoring"
+    },
+    {
+      "type": "arrow",
+      "id": "gradium_to_authoring",
+      "x": 575,
+      "y": 565,
+      "width": 115,
+      "height": -150,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          55,
+          0
+        ],
+        [
+          55,
+          -150
+        ],
+        [
+          115,
+          -150
+        ]
+      ],
+      "endArrowhead": "arrow",
+      "strokeColor": "#7950f2",
+      "strokeWidth": 2,
+      "roughness": 1,
+      "startBinding": {
+        "elementId": "gradium",
+        "fixedPoint": [
+          1,
+          0.5
+        ]
+      },
+      "endBinding": {
+        "elementId": "authoring",
+        "fixedPoint": [
+          0,
+          0.8
+        ]
+      },
+      "boundElements": [
+        {
+          "id": "gradium_to_authoring_label",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "gradium_to_authoring_label",
+      "x": 585,
+      "y": 575,
+      "width": 95,
+      "height": -170,
+      "text": "transcript",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "gradium_to_authoring"
+    },
+    {
+      "type": "arrow",
+      "id": "authoring_to_nemo",
+      "x": 1080,
+      "y": 345,
+      "width": 145,
+      "height": 0,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          145,
+          0
+        ]
+      ],
+      "endArrowhead": "arrow",
+      "strokeColor": "#7950f2",
+      "strokeWidth": 3,
+      "roughness": 1,
+      "startBinding": {
+        "elementId": "authoring",
+        "fixedPoint": [
+          1,
+          0.35
+        ]
+      },
+      "endBinding": {
+        "elementId": "nemo",
+        "fixedPoint": [
+          0,
+          0.35
+        ]
+      },
+      "boundElements": [
+        {
+          "id": "authoring_to_nemo_label",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "authoring_to_nemo_label",
+      "x": 1090,
+      "y": 355,
+      "width": 125,
+      "height": 40,
+      "text": "evidence + schema",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "authoring_to_nemo"
+    },
+    {
+      "type": "arrow",
+      "id": "nemo_to_authoring",
+      "x": 1225,
+      "y": 410,
+      "width": -145,
+      "height": 0,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          -145,
+          0
+        ]
+      ],
+      "endArrowhead": "arrow",
+      "strokeColor": "#7950f2",
+      "strokeWidth": 2,
+      "roughness": 1,
+      "startBinding": {
+        "elementId": "nemo",
+        "fixedPoint": [
+          0,
+          0.8
+        ]
+      },
+      "endBinding": {
+        "elementId": "authoring",
+        "fixedPoint": [
+          1,
+          0.8
+        ]
+      },
+      "boundElements": [
+        {
+          "id": "nemo_to_authoring_label",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "nemo_to_authoring_label",
+      "x": 1235,
+      "y": 420,
+      "width": -165,
+      "height": 40,
+      "text": "reviewable bundle",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "nemo_to_authoring"
+    },
+    {
+      "type": "arrow",
+      "id": "nemo_to_gemini",
+      "x": 1350,
+      "y": 440,
+      "width": 0,
+      "height": 60,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          60
+        ]
+      ],
+      "endArrowhead": "arrow",
+      "strokeColor": "#e67700",
+      "strokeWidth": 2,
+      "roughness": 1,
+      "startBinding": {
+        "elementId": "nemo",
+        "fixedPoint": [
+          0.5,
+          1
+        ]
+      },
+      "endBinding": {
+        "elementId": "gemini",
+        "fixedPoint": [
+          0.5,
+          0
+        ]
+      },
+      "boundElements": [
+        {
+          "id": "nemo_to_gemini_label",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "nemo_to_gemini_label",
+      "x": 1360,
+      "y": 450,
+      "width": 80,
+      "height": 40,
+      "text": "inference",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "nemo_to_gemini"
+    },
+    {
+      "type": "arrow",
+      "id": "authoring_to_store",
+      "x": 885,
+      "y": 440,
+      "width": 0,
+      "height": 70,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          70
+        ]
+      ],
+      "endArrowhead": "arrow",
+      "strokeColor": "#0ca678",
+      "strokeWidth": 3,
+      "roughness": 1,
+      "startBinding": {
+        "elementId": "authoring",
+        "fixedPoint": [
+          0.5,
+          1
+        ]
+      },
+      "endBinding": {
+        "elementId": "bundle_store",
+        "fixedPoint": [
+          0.5,
+          0
+        ]
+      },
+      "boundElements": [
+        {
+          "id": "authoring_to_store_label",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "authoring_to_store_label",
+      "x": 895,
+      "y": 450,
+      "width": 80,
+      "height": 50,
+      "text": "validated version",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "authoring_to_store"
+    },
+    {
+      "type": "arrow",
+      "id": "store_to_execution",
+      "x": 885,
+      "y": 620,
+      "width": 0,
+      "height": 70,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          70
+        ]
+      ],
+      "endArrowhead": "arrow",
+      "strokeColor": "#2f9e44",
+      "strokeWidth": 3,
+      "roughness": 1,
+      "startBinding": {
+        "elementId": "bundle_store",
+        "fixedPoint": [
+          0.5,
+          1
+        ]
+      },
+      "endBinding": {
+        "elementId": "execution",
+        "fixedPoint": [
+          0.5,
+          0
+        ]
+      },
+      "boundElements": [
+        {
+          "id": "store_to_execution_label",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "store_to_execution_label",
+      "x": 895,
+      "y": 630,
+      "width": 80,
+      "height": 50,
+      "text": "approved hash",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "store_to_execution"
+    },
+    {
+      "type": "arrow",
+      "id": "telegram_to_execution",
+      "x": 575,
+      "y": 420,
+      "width": 115,
+      "height": 335,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          75,
+          0
+        ],
+        [
+          75,
+          335
+        ],
+        [
+          115,
+          335
+        ]
+      ],
+      "endArrowhead": "arrow",
+      "strokeColor": "#2f9e44",
+      "strokeWidth": 3,
+      "roughness": 1,
+      "startBinding": {
+        "elementId": "telegram",
+        "fixedPoint": [
+          1,
+          0.75
+        ]
+      },
+      "endBinding": {
+        "elementId": "execution",
+        "fixedPoint": [
+          0,
+          0.5
+        ]
+      },
+      "boundElements": [
+        {
+          "id": "telegram_to_execution_label",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "telegram_to_execution_label",
+      "x": 585,
+      "y": 430,
+      "width": 95,
+      "height": 315,
+      "text": "Start",
+      "fontSize": 17,
+      "fontFamily": 1,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "telegram_to_execution"
+    },
+    {
+      "type": "arrow",
+      "id": "execution_to_holo",
+      "x": 1080,
+      "y": 730,
+      "width": 145,
+      "height": -10,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          145,
+          -10
+        ]
+      ],
+      "endArrowhead": "arrow",
+      "strokeColor": "#2f9e44",
+      "strokeWidth": 3,
+      "roughness": 1,
+      "startBinding": {
+        "elementId": "execution",
+        "fixedPoint": [
+          1,
+          0.35
+        ]
+      },
+      "endBinding": {
+        "elementId": "holo",
+        "fixedPoint": [
+          0,
+          0.35
+        ]
+      },
+      "boundElements": [
+        {
+          "id": "execution_to_holo_label",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "execution_to_holo_label",
+      "x": 1090,
+      "y": 740,
+      "width": 125,
+      "height": -30,
+      "text": "task + limits",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "execution_to_holo"
+    },
+    {
+      "type": "arrow",
+      "id": "holo_to_execution",
+      "x": 1225,
+      "y": 760,
+      "width": -145,
+      "height": 20,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          -145,
+          20
+        ]
+      ],
+      "endArrowhead": "arrow",
+      "strokeColor": "#2f9e44",
+      "strokeWidth": 2,
+      "roughness": 1,
+      "startBinding": {
+        "elementId": "holo",
+        "fixedPoint": [
+          0,
+          0.8
+        ]
+      },
+      "endBinding": {
+        "elementId": "execution",
+        "fixedPoint": [
+          1,
+          0.75
+        ]
+      },
+      "boundElements": [
+        {
+          "id": "holo_to_execution_label",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "holo_to_execution_label",
+      "x": 1235,
+      "y": 770,
+      "width": -165,
+      "height": 0,
+      "text": "staged report + result",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "holo_to_execution"
+    },
+    {
+      "type": "arrow",
+      "id": "holo_to_apps",
+      "x": 1350,
+      "y": 775,
+      "width": 0,
+      "height": 45,
+      "points": [
+        [
+          0,
+          0
+        ],
+        [
+          0,
+          45
+        ]
+      ],
+      "endArrowhead": "arrow",
+      "strokeColor": "#1971c2",
+      "strokeWidth": 3,
+      "roughness": 1,
+      "startBinding": {
+        "elementId": "holo",
+        "fixedPoint": [
+          0.5,
+          1
+        ]
+      },
+      "endBinding": {
+        "elementId": "desktop_apps",
+        "fixedPoint": [
+          0.5,
+          0
+        ]
+      },
+      "boundElements": [
+        {
+          "id": "holo_to_apps_label",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "holo_to_apps_label",
+      "x": 1360,
+      "y": 785,
+      "width": 80,
+      "height": 25,
+      "text": "computer use",
+      "fontSize": 16,
+      "fontFamily": 1,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "holo_to_apps"
+    },
+    {
+      "type": "rectangle",
+      "id": "security_bar",
+      "x": 330,
+      "y": 970,
+      "width": 1190,
+      "height": 100,
+      "backgroundColor": "#fff3bf",
+      "strokeColor": "#e67700",
+      "fillStyle": "solid",
+      "roughness": 1,
+      "roundness": {
+        "type": 3
+      },
+      "boundElements": [
+        {
+          "id": "security_bar_label",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "type": "text",
+      "id": "security_bar_label",
+      "x": 340,
+      "y": 980,
+      "width": 1170,
+      "height": 80,
+      "text": "Safety boundary: Telegram and NemoClaw have no macOS control. Only the trusted host can invoke HoloDesktop, and only an approved, hash-matching automation can run.",
+      "fontSize": 19,
+      "fontFamily": 1,
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "containerId": "security_bar",
+      "strokeColor": "#5f3b00"
+    }
+  ],
+  "appState": {
+    "viewBackgroundColor": "#ffffff",
+    "gridSize": null
+  },
+  "files": {}
+}
