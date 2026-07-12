@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import sqlite3
 import unittest
 from pathlib import Path
@@ -139,6 +140,8 @@ class GenericBundleTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Open TextEdit", adapter.messages[0])
         self.assertIn("request_commit_approval", adapter.messages[0])
         self.assertIn("Type the exact greeting_text", adapter.messages[1])
+        await _wait_for_adapter_cancel(adapter)
+        self.assertTrue(adapter.cancelled)
 
     async def test_generic_bundle_accepts_live_markdown_report_with_embedded_field_json(self) -> None:
         temporary = TemporaryDirectory()
@@ -176,6 +179,7 @@ class _GenericAdapter:
     def __init__(self, stage_answer: str | None = None) -> None:
         self.messages: list[str] = []
         self.stage_answer = stage_answer
+        self.cancelled = False
 
     def start_session(self) -> str:
         return "generic-session"
@@ -199,7 +203,7 @@ class _GenericAdapter:
 
     def cancel(self, session_reference: str) -> None:
         assert session_reference == "generic-session"
-
+        self.cancelled = True
 
 class ApprovalSafetyTests(MachineTestBase):
     approval_timeout = 0.25
@@ -411,6 +415,14 @@ class RestartReconciliationTests(unittest.IsolatedAsyncioTestCase):
             second = await coordinator.prepare("crm_a", dict(CANONICAL_INPUTS), InvocationSource.DASHBOARD)
             await coordinator.confirm_start(second.request.id)  # slot is free again
             await coordinator.cancel(second.request.id)
+
+
+async def _wait_for_adapter_cancel(adapter: _GenericAdapter) -> None:
+    deadline = asyncio.get_running_loop().time() + 1
+    while not adapter.cancelled:
+        if asyncio.get_running_loop().time() >= deadline:
+            raise AssertionError("terminal run did not release its desktop session")
+        await asyncio.sleep(0.01)
 
 
 if __name__ == "__main__":

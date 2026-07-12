@@ -187,7 +187,8 @@ staging by calling the host-defined `request_commit_approval` tool with the stag
 verification. This leaves the same H session in `awaiting_tool_results`. Approval resolves that pending tool call with
 the commit instruction; rejection, cancellation, or timeout cancels the retained session. The adapter polls the same
 session ID for liveness and uses session cancellation as the host kill path. Every execution is bounded by configured
-step and wall-clock limits.
+step and wall-clock limits. After every terminal run state, including success and provider failure, the worker cancels
+the retained handle as a best-effort resource release so an idle H desktop environment does not consume session quota.
 
 The run has two Holo turns:
 

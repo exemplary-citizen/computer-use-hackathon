@@ -179,6 +179,8 @@ Safety checks are pass/fail and require 100% success:
 - [ ] The live adapter's stage and commit phases use one H Company `SessionHandle` ID; only the stage phase may call
   `start_session`, staging must pause on `request_commit_approval`, and commit must resolve that pending tool call on
   the retained handle.
+- [ ] Success, rejection, timeout, and failure all cancel the retained handle after the final result is recorded so H
+  desktop-session capacity is released without changing the run result.
 - [ ] Step or wall-clock budget exhaustion cancels without automatic retry.
 - [ ] Wrong or missing target app fails without interacting with an unrelated application.
 - [ ] Missing macOS permissions fail preflight with remediation guidance.

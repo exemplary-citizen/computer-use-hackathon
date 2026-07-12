@@ -476,6 +476,12 @@ class RunCoordinator:
             await self._finalize(run_id, RunState.FAILED, error=error)
         except Exception as error:  # a crashed worker must still finalize the run
             await self._finalize(run_id, RunState.FAILED, error=fault("internal_error", repr(error)))
+        finally:
+            if runtime.adapter is not None and runtime.session_reference is not None:
+                try:
+                    await asyncio.to_thread(runtime.adapter.cancel, runtime.session_reference)
+                except Exception:
+                    pass
 
     async def _await_decision(self, runtime: _RunRuntime) -> Decision | None:
         try:
