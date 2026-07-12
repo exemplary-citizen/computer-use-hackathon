@@ -17,6 +17,7 @@ from automation_foundry.surfaces.telegram.interactions import (
     TelegramSurfaceResponse,
     TelegramUpdateKind,
 )
+from automation_foundry.surfaces.telegram.learning import TelegramLearningCoordinator
 from automation_foundry.surfaces.telegram.media import (
     QuarantinedTelegramVideo,
     TelegramMediaInbox,
@@ -35,6 +36,7 @@ __all__ = [
     "TelegramChatType",
     "TelegramInboundUpdate",
     "TelegramInteractionService",
+    "TelegramLearningCoordinator",
     "TelegramMediaInbox",
     "TelegramMediaInboxConfig",
     "TelegramSurfaceConfig",
