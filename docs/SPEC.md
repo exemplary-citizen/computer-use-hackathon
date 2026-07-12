@@ -87,17 +87,17 @@ The host backend must:
 
 - validate extension, MIME type, size, duration, and page limits;
 - sanitize filenames and store uploads under a generated automation ID;
-- extract timestamped audio and visual evidence from video;
-- transcribe audio through Gradium with segment timestamps;
+- extract timestamped visual evidence and source metadata from video;
+- optionally transcribe audio through Gradium when using the legacy workspace ingestion path;
 - extract normalized SOP text and stable page/section references;
 - retain source hashes and preprocessing metadata;
 - expose processing progress and actionable failures.
 
-The implementation may reduce redundant video frames, but must preserve enough timestamped evidence to recover all gold critical steps. Frame selection parameters must be recorded with the ingestion job.
+The implementation may reduce redundant video frames for local review, but the hosted video-ingestion path sends the original accepted video so the model can interpret motion and audio in temporal order. Frame selection parameters must still be recorded with the ingestion job.
 
 ### 5.3 Agentic bundle generation
 
-The backend stages the derived evidence in the NemoClaw shared workspace. Hermes, routed to hosted `holo3-122b-a10b`, analyzes evidence in bounded batches and generates a structured bundle.
+The default hosted ingestion path sends the accepted original video plus normalized source metadata to `google/gemini-3.5-flash` through OpenRouter and requests a schema-constrained bundle. SOP-only and legacy workspace generation may still use the NemoClaw/Hermes adapter. Holo models and HoloDesktop are reserved for approved desktop execution, not video ingestion.
 
 For combined video and SOP inputs:
 
@@ -220,8 +220,8 @@ The MVP does not include:
 3. User accepts the provider-disclosure notice.
 4. Backend validates and stores sources.
 5. Backend derives transcript, frames, and SOP text.
-6. Evidence is staged in the NemoClaw workspace.
-7. Hermes/Holo3 generates version 1 of the bundle.
+6. The backend prepares normalized evidence and attaches the original video when present.
+7. Gemini through OpenRouter generates version 1 of the bundle.
 8. Structural and generated-tool validation runs.
 9. Automation moves to `review_required` or `failed` with remediation details.
 
@@ -298,8 +298,10 @@ The MVP does not include:
 ### Cross-app evaluation
 
 - **FR-X01:** Both desktop fixtures shall represent the same CRM operation with different UI structure.
-- **FR-X02:** CRM B execution shall not use CRM B-specific demonstration artifacts.
-- **FR-X03:** Persisted state shall be inspectable by the test harness but not by Holo.
+- **FR-X02:** Both desktop fixtures shall expose a visible Add Record flow that remains unpersisted until its final
+  Add Record, Save, or Commit control is activated.
+- **FR-X03:** CRM B execution shall not use CRM B-specific demonstration artifacts.
+- **FR-X04:** Persisted state shall be inspectable by the test harness but not by Holo.
 
 ## 9. Architecture and data flow
 
@@ -307,7 +309,7 @@ The MVP does not include:
 
 - **React/Vite frontend:** dashboard, authoring editors, microphone capture, previews, approvals, and live events.
 - **FastAPI backend:** REST/WebSocket API, source validation, job orchestration, metadata persistence, provider proxies, and run coordination.
-- **Media processor:** frame/audio extraction, transcript coordination, and SOP normalization.
+- **Media processor:** frame extraction, optional transcript coordination, and SOP normalization.
 - **Artifact store:** repo-local gitignored source, evidence, bundle, and run directories.
 - **SQLite database:** automation index, versions, jobs, approvals, and run metadata.
 - **Trusted Holo worker:** the only component allowed to invoke HoloDesktop and publish approved Holo skills.
@@ -315,16 +317,15 @@ The MVP does not include:
 ### Sandboxed components
 
 - **NemoClaw/OpenShell:** filesystem and network policy boundary.
-- **Hermes:** orchestration agent and conversational intent resolver.
-- **Holo3-122B-A10B:** hosted multimodal model used by Hermes for evidence interpretation.
+- **Hermes:** optional workspace generation adapter and conversational intent resolver.
 - **Automation MCP server:** bounded access to staged evidence, bundle submission, generated-tool validation, and file-based run queues.
 - **Generated-tool runner:** restricted subprocess for approved pure-data functions.
 
 ### External services
 
-- **H Company Models API:** hosted Holo3 inference.
+- **OpenRouter API:** hosted Gemini video understanding and schema-constrained bundle generation.
 - **HoloDesktop CLI/runtime:** visible desktop observation and control on macOS.
-- **Gradium API:** video transcription, push-to-talk STT, and response TTS.
+- **Gradium API:** optional legacy video transcription, push-to-talk STT, and response TTS.
 
 ### Trust boundary
 
@@ -407,9 +408,9 @@ The database is the query index and job coordinator. Versioned files are the can
 - Bind the application to `127.0.0.1` by default.
 - Show provider disclosure before the first upload and retain the user's acknowledgement.
 - Keep original uploads and derived artifacts local until explicit deletion.
-- Send only audio required for transcription to Gradium.
-- Send only selected frames, transcripts, SOP text, and instructions required for generation to hosted Holo3.
-- Never expose H Company or Gradium credentials to frontend code, logs, generated bundles, or Holo task text.
+- Send audio to Gradium only when the selected ingestion path explicitly requires transcription.
+- Send only the accepted source video, normalized evidence/SOP text, and required instructions to OpenRouter.
+- Never expose H Company, OpenRouter, or Gradium credentials to frontend code, logs, generated bundles, or Holo task text.
 - Reject unsafe filenames, symlinks, path traversal, oversized files, and unsupported content.
 - Validate every sandbox-produced path before reading or copying it on the host.
 - Redact secrets and unrelated visible content from shared diagnostics.
@@ -425,8 +426,8 @@ The database is the query index and job coordinator. Versioned files are the can
 | Unsupported, corrupt, oversized, or over-duration source | Reject before agent invocation and preserve no partial runnable version. |
 | Video has no audio | Continue with visual evidence and mark the missing transcript. |
 | SOP and video conflict | Create blocking review conflicts; do not choose silently. |
-| Gradium unavailable | Retry only bounded transient failures; otherwise fail ingestion or voice turn with remediation. |
-| Holo3 unavailable or rate-limited | Preserve staged evidence, mark job failed/retryable, and create no approved bundle. |
+| Gradium unavailable | Retry only bounded transient failures for voice or legacy transcription; otherwise fail with remediation. |
+| OpenRouter or Gemini unavailable/rate-limited | Preserve local evidence, mark the job failed/retryable, and create no approved bundle. |
 | NemoClaw sandbox or shared mount unavailable | Fail closed before generation or run queuing. |
 | Generated output violates schema | Reject it, preserve diagnostics, and allow regeneration. |
 | Generated tool violates restrictions or times out | Mark validation failed and block approval. |
@@ -452,7 +453,7 @@ The database is the query index and job coordinator. Versioned files are the can
 
 There are no unresolved product decisions blocking MVP implementation. The following are implementation feasibility checks, not product choices:
 
-- verify the installed NemoClaw/Hermes version can pass local image evidence to the configured Holo3 endpoint;
+- verify the configured OpenRouter account can invoke `google/gemini-3.5-flash` with inline video and structured output;
 - verify the macOS shared-mount prerequisites on the demo machine;
 - verify the chosen Gradium voice ID and H Company account have sufficient credits;
 - pin compatible HoloDesktop, NemoClaw, Gradium SDK, and Python versions during the foundation phase.

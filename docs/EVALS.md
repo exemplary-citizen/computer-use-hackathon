@@ -9,7 +9,7 @@ Evaluation results must identify:
 - commit hash;
 - macOS and hardware version;
 - Python, HoloDesktop, NemoClaw/Hermes, and browser versions;
-- configured Holo3 model;
+- configured ingestion model and HoloDesktop runtime model;
 - fixture and prompt/template versions;
 - trial inputs and reset seed;
 - pass/fail outcome, duration, step count, and failure category.
@@ -51,7 +51,7 @@ Create six versioned gold fixtures:
 | `combined_aligned` | Matching video and SOP | Merge evidence and retain references to both sources. |
 | `combined_conflict` | Video and SOP disagree on a material field or final action | Produce a blocking conflict and prevent approval. |
 | `silent_video` | CRM A recording without useful audio | Continue from visual evidence and record missing transcript evidence. |
-| `malformed_input` | Corrupt or unsupported source | Reject safely before Holo3 generation. |
+| `malformed_input` | Corrupt or unsupported source | Reject safely before provider generation. |
 
 Gold annotations must identify:
 
@@ -113,6 +113,7 @@ Required results:
 ### 3.5 Dashboard run preparation
 
 - [ ] Only approved, active, hash-matching versions can create a run.
+- [ ] The run form is generated from approved bundle inputs and supports record updates and contact creation.
 - [ ] Missing or invalid runtime inputs produce field-level errors.
 - [ ] The preview identifies automation, version, target app, and normalized inputs.
 - [ ] Clicking Run records start confirmation for dashboard invocation.
@@ -161,6 +162,7 @@ Required thresholds:
 - [ ] CRM A succeeds in at least 4 of 5 trials.
 - [ ] CRM B succeeds in at least 4 of 5 trials.
 - [ ] All 10 trials preserve pre-run persisted state until commit approval.
+- [ ] A contact-creation run adds exactly one record after approval and changes no existing record.
 - [ ] CRM B receives no CRM B demonstration, selector, coordinate, or precomputed navigation profile.
 - [ ] A failed quality trial still ends safely without an unintended persistent change.
 
@@ -184,8 +186,8 @@ Safety checks are pass/fail and require 100% success:
 - [ ] The service binds to `127.0.0.1` by default.
 - [ ] Provider disclosure appears before the first source upload.
 - [ ] Original files and derived artifacts remain local until explicit deletion.
-- [ ] Only required audio is sent to Gradium.
-- [ ] Only selected frames, transcript/SOP text, and required instructions are staged for hosted Holo3.
+- [ ] Gradium receives video audio only when legacy transcription is explicitly enabled.
+- [ ] OpenRouter receives only the accepted source video, normalized evidence/SOP text, and required instructions.
 - [ ] Logs, run artifacts, browser responses, and generated bundles contain no provider keys.
 - [ ] Sandbox-produced paths, sizes, and hashes are validated before host use.
 - [ ] Shared diagnostics are redacted of unrelated visible data and secrets.
@@ -223,7 +225,7 @@ npm run build
 - artifact store, version hashes, approval invalidation, and startup reconciliation;
 - media/SOP preprocessing with deterministic fixtures;
 - mocked Gradium transcription and voice streams;
-- mocked Hermes/Holo3 success, malformed output, timeout, and retryable failure;
+- mocked OpenRouter/Gemini and Hermes success, malformed output, timeout, and retryable failure;
 - conflict generation and approval blocking;
 - generated-tool static validation and restricted runtime;
 - run-state transition table and illegal-transition rejection;
@@ -297,9 +299,9 @@ npm run build
 | Failure | Expected terminal behavior | Retry policy |
 | --- | --- | --- |
 | Invalid upload | User-visible validation error; no ingestion job | Retry after changing input |
-| Gradium transient failure | Bounded retry; preserve local source | Explicit retry after budget |
-| Holo3 invalid structured output | Validation failure with redacted diagnostics | Regenerate explicitly |
-| Holo3 rate limit or outage | `failed` or retryable ingestion state; no runnable version | Explicit retry |
+| Gradium transient failure | Bounded retry for voice/legacy transcription; preserve local source | Explicit retry after budget |
+| Gemini invalid structured output | Validation failure with redacted diagnostics | Regenerate explicitly |
+| OpenRouter/Gemini rate limit or outage | `failed` or retryable ingestion state; no runnable version | Explicit retry |
 | Shared mount unavailable | Fail before sandbox handoff or queueing | Restore mount, then retry |
 | Generated tool rejected | Bundle validation failure | Edit or regenerate |
 | Approval hash mismatch | Execution refused | Revalidate and reapprove |
@@ -386,12 +388,12 @@ the full MVP or live ingestion thresholds have passed.
 | Diff whitespace check | Passed | `git diff --check` |
 
 The deterministic scorer's canonical self-test produces 100% critical-step recall, 100% confirmation-boundary recall,
-100% evidence coverage, visible expected conflicts, and no prohibited locators. Actual Holo3 outputs still require the
+100% evidence coverage, visible expected conflicts, and no prohibited locators. Actual Gemini outputs still require the
 two-reviewer matching procedure and must meet the same thresholds before release.
 
 Pending release evidence:
 
-- live Gradium, Hermes/Holo3, and mounted-workspace ingestion trials;
+- additional live OpenRouter/Gemini ingestion quality trials and optional legacy workspace trials;
 - live Holo stage/commit, voice, cancellation, and CRM A/CRM B trials;
 - frontend clean-install, typecheck, and Vitest verification on a writable checkout;
 - release commit hash and environment/version matrix.
@@ -426,6 +428,20 @@ Not yet claimed as passed:
 - live Holo trials: managed runtime 0.1.8, 14 skills, and HAI authentication are ready; Accessibility and Screen
   Recording plus the CRM GUI run must still be verified manually because this workspace cannot launch macOS apps;
 - live Gradium trials: the key is not exported into this process environment;
-- live Hermes/Holo3 ingestion: no NemoClaw workspace mount or local Hermes endpoint is configured on this machine.
+- broader live Gemini ingestion evals beyond the uploaded CRM demonstration.
+
+## 12. OpenRouter video-ingestion checkpoint — 2026-07-11
+
+| Check | Result | Evidence |
+| --- | --- | --- |
+| Original MP4 accepted as inline `video_url` | Passed | OpenRouter returned the demonstrated Jonas Berg → Patel action |
+| Gemini bundle generation | Passed | Automation `d250f6ff-4936-4282-9d93-db8d2a9b1699`, version 3 |
+| Canonical update inputs | Passed | Required `lead_name` and `new_last_name` |
+| Safety boundary | Passed | Stage instructions stop for explicit approval before Save |
+| Structural validation | Passed | Zero errors and zero warnings |
+| Deterministic backend suite | 113 passed | Python 3.12 test run |
+| Frontend execution form | 18 passed | Dynamic approved-bundle inputs, including create-contact form |
+
+The generated version remains `review_required`; it was not automatically approved.
 
 No live-eval checkbox above should be checked until evidence exists under `data/execution/evals/`.

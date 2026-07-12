@@ -5,9 +5,9 @@ in `.env`, shell history, logs, screenshots, or git; export them interactively i
 
 ## 1. Prepare the machine
 
-1. Install Python 3.12, `uv`, Node/npm, FFmpeg/FFprobe, and the configured NemoClaw workspace runtime.
-2. Export `FOUNDRY_HERMES_API_KEY`, `FOUNDRY_GRADIUM_API_KEY`, and
-   `FOUNDRY_WORKSPACE_MOUNT` interactively. Never print their values.
+1. Install Python 3.12, `uv`, Node/npm, and FFmpeg/FFprobe.
+2. Export `FOUNDRY_GENERATION_PROVIDER=openrouter_video`, `FOUNDRY_OPENROUTER_API_KEY`, and the optional
+   `FOUNDRY_GRADIUM_API_KEY` interactively. Never print credential values.
 3. Complete the Holo bootstrap below before granting macOS permissions; the first fake run downloads the managed
    `hai-agent-runtime` binary so it appears in Privacy & Security settings.
 
