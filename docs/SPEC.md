@@ -229,7 +229,8 @@ context, generated artifacts, NemoClaw, or Holo.
 Authoring through Telegram follows this flow:
 
 1. Before the first provider-backed ingestion, the bot presents the provider disclosure and records acceptance through
-   an inline button. A video received before acceptance may be quarantined locally but is not processed by providers.
+   an inline button. A valid `/learn` video received before acceptance remains pending without being downloaded or
+   processed; accepting the disclosure resumes that same upload without requiring the owner to resend it.
 2. The owner sends `/learn <automation name>` with one supported video attachment.
 3. The adapter copies the attachment into a host quarantine using an opaque ID and revalidates type, size, duration,
    name, and content instead of trusting Telegram metadata. Hermes may reference only that opaque ID when requesting

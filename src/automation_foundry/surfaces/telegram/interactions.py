@@ -25,6 +25,7 @@ PROVIDER_DISCLOSURE_TEXT = (
 PROVIDER_DISCLOSURE_SHA256 = hashlib.sha256(
     f"{PROVIDER_DISCLOSURE_REVISION}\n{PROVIDER_DISCLOSURE_TEXT}".encode()
 ).hexdigest()
+PROVIDER_DISCLOSURE_ACCEPTED_TEXT = "Provider disclosure accepted. Send /learn with one demonstration video."
 
 
 class TelegramChatType(StrEnum):
@@ -177,7 +178,7 @@ class TelegramInteractionService:
                 """,
                 (update.user_id, PROVIDER_DISCLOSURE_SHA256, datetime.now(UTC).isoformat()),
             )
-        return TelegramSurfaceResponse(text="Provider disclosure accepted. Send /learn with one demonstration video.")
+        return TelegramSurfaceResponse(text=PROVIDER_DISCLOSURE_ACCEPTED_TEXT)
 
     def _is_owner_dm(self, update: TelegramInboundUpdate) -> bool:
         return (

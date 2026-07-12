@@ -11,12 +11,9 @@ from pydantic import SecretStr
 from automation_foundry.authoring.service import build_authoring_service
 from automation_foundry.settings import AppSettings
 from automation_foundry.surfaces.telegram import (
-    TelegramChatType,
-    TelegramInboundUpdate,
     TelegramLearningCoordinator,
     TelegramMediaInboxConfig,
     TelegramSurfaceConfig,
-    TelegramUpdateKind,
 )
 from automation_foundry.surfaces.telegram.transport import TelegramBotRuntime, TelegramTransportConfig
 
@@ -57,6 +54,18 @@ class FakeMessage:
         self.replies.append((text, reply_markup))
 
 
+class FakeCallbackQuery:
+    """Capture callback acknowledgement and provide the original message."""
+
+    def __init__(self, data: str, message: FakeMessage) -> None:
+        self.data = data
+        self.message = message
+        self.answered = False
+
+    async def answer(self) -> None:
+        self.answered = True
+
+
 class TestTelegramBotRuntime:
     """Verify the complete mocked `/learn + video` transport path."""
 
@@ -91,7 +100,7 @@ class TestTelegramBotRuntime:
         self.temporary_directory.cleanup()
 
     @pytest.mark.asyncio
-    async def test_disclosure_blocks_download_then_accepted_video_starts_job(self) -> None:
+    async def test_disclosure_acceptance_continues_original_video_without_resend(self) -> None:
         blocked_video = FakeVideo()
         blocked_message = FakeMessage("/learn Update CRM", blocked_video)
 
@@ -101,29 +110,20 @@ class TestTelegramBotRuntime:
         assert blocked_message.replies[0][1] is not None
         assert self.authoring.store.list_automations() == []
 
-        callback_data = self._disclosure_callback()
-        self.interactions.handle(
-            TelegramInboundUpdate(
-                update_id=2,
-                kind=TelegramUpdateKind.CALLBACK,
-                user_id=OWNER_ID,
-                chat_id=OWNER_ID,
-                chat_type=TelegramChatType.PRIVATE,
-                callback_data=callback_data,
-            )
-        )
-        accepted_video = FakeVideo()
-        accepted_message = FakeMessage("/learn Update CRM", accepted_video)
+        markup = blocked_message.replies[0][1]
+        callback_data = markup.inline_keyboard[0][0].callback_data
+        callback_query = FakeCallbackQuery(callback_data, blocked_message)
 
-        await self.runtime.handle_message(self._update(3, accepted_message), SimpleNamespace())
+        await self.runtime.handle_callback(self._callback_update(2, callback_query), SimpleNamespace())
         if self.runtime._background_tasks:
             await asyncio.gather(*self.runtime._background_tasks)
 
-        assert accepted_video.download_requested
+        assert callback_query.answered
+        assert blocked_video.download_requested
         manifests = self.authoring.store.list_automations()
         assert len(manifests) == 1
         assert manifests[0].name == "Update CRM"
-        assert str(manifests[0].id) in accepted_message.replies[-1][0]
+        assert str(manifests[0].id) in blocked_message.replies[-1][0]
 
     @pytest.mark.asyncio
     async def test_wrong_owner_and_group_never_download_video(self) -> None:
@@ -162,15 +162,11 @@ class TestTelegramBotRuntime:
             effective_message=message,
         )
 
-    def _disclosure_callback(self) -> SecretStr:
-        prompt = self.interactions.handle(
-            TelegramInboundUpdate(
-                update_id=10,
-                kind=TelegramUpdateKind.MESSAGE,
-                user_id=OWNER_ID,
-                chat_id=OWNER_ID,
-                chat_type=TelegramChatType.PRIVATE,
-                text="/learn Update CRM",
-            )
+    def _callback_update(self, update_id: int, callback_query: FakeCallbackQuery):
+        return SimpleNamespace(
+            update_id=update_id,
+            effective_user=SimpleNamespace(id=OWNER_ID),
+            effective_chat=SimpleNamespace(id=OWNER_ID, type="private"),
+            effective_message=callback_query.message,
+            callback_query=callback_query,
         )
-        return prompt.buttons[0].callback_data

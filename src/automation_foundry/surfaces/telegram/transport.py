@@ -8,10 +8,11 @@ from tempfile import SpooledTemporaryFile
 from typing import Any, BinaryIO, cast
 
 from pydantic import BaseModel, SecretStr
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Message, Update
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update, Video
 from telegram.ext import Application, CallbackQueryHandler, ContextTypes, MessageHandler, filters
 
 from automation_foundry.surfaces.telegram.interactions import (
+    PROVIDER_DISCLOSURE_ACCEPTED_TEXT,
     TelegramChatType,
     TelegramInboundUpdate,
     TelegramInteractionService,
@@ -50,6 +51,7 @@ class TelegramBotRuntime:
         self.interactions = interactions
         self.learning = learning
         self._background_tasks: set[asyncio.Task[None]] = set()
+        self._pending_learn: dict[str, tuple[TelegramInboundUpdate, Video]] = {}
 
     def build_application(self) -> Application[Any, Any, Any, Any, Any, Any]:
         """Build the polling application without starting network traffic."""
@@ -71,13 +73,53 @@ class TelegramBotRuntime:
         message = update.effective_message
         if message is None:
             return
+        video = message.video
+        if response.buttons and video is not None and (normalized.text or "").strip().startswith("/learn"):
+            callback_data = response.buttons[0].callback_data.get_secret_value()
+            self._pending_learn[callback_data] = (normalized, video)
         if not response.acknowledged or response.buttons or response.text == "This update was already handled.":
             await message.reply_text(response.text, reply_markup=_markup(response))
             return
-        video = message.video
         if video is None or not (normalized.text or "").strip().startswith("/learn"):
             await message.reply_text(response.text)
             return
+        await message.reply_text(await self._accept_video(normalized, video))
+
+    async def handle_callback(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Consume one deterministic inline-button callback.
+
+        Args:
+            update: python-telegram-bot callback update.
+            _context: Unused Telegram callback context.
+        """
+        query = update.callback_query
+        if query is None:
+            return
+        callback_data = query.data if isinstance(query.data, str) else None
+        response = self.interactions.handle(_normalize_callback(update))
+        await query.answer()
+        if callback_data is not None and response.text == PROVIDER_DISCLOSURE_ACCEPTED_TEXT:
+            pending = self._pending_learn.pop(callback_data, None)
+            if pending is not None:
+                normalized, video = pending
+                response = response.model_copy(update={"text": await self._accept_video(normalized, video)})
+        if query.message is not None and hasattr(query.message, "reply_text"):
+            await cast(Any, query.message).reply_text(response.text, reply_markup=_markup(response))
+
+    async def handle_error(self, _update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+        """Log only an exception type so bot-token URLs cannot leak.
+
+        Args:
+            _update: Unused update that failed.
+            context: Telegram context containing the exception.
+        """
+        logger.error("Telegram update failed (%s)", type(context.error).__name__)
+
+    def run(self) -> None:
+        """Run long polling until the process is interrupted."""
+        self.build_application().run_polling(allowed_updates=Update.ALL_TYPES)
+
+    async def _accept_video(self, normalized: TelegramInboundUpdate, video: Video) -> str:
         telegram_file = await video.get_file()
         with SpooledTemporaryFile(max_size=20_000_000, mode="w+b") as stream:
             binary_stream = cast(BinaryIO, stream)
@@ -92,37 +134,7 @@ class TelegramBotRuntime:
         task = asyncio.create_task(self.learning.process(manifest.id))
         self._background_tasks.add(task)
         task.add_done_callback(self._background_tasks.discard)
-        await message.reply_text(
-            f"Accepted `{manifest.name}`. Automation ID: `{manifest.id}`. Processing in background."
-        )
-
-    async def handle_callback(self, update: Update, _context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Consume one deterministic inline-button callback.
-
-        Args:
-            update: python-telegram-bot callback update.
-            _context: Unused Telegram callback context.
-        """
-        query = update.callback_query
-        if query is None:
-            return
-        response = self.interactions.handle(_normalize_callback(update))
-        await query.answer()
-        if isinstance(query.message, Message):
-            await query.message.reply_text(response.text, reply_markup=_markup(response))
-
-    async def handle_error(self, _update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
-        """Log only an exception type so bot-token URLs cannot leak.
-
-        Args:
-            _update: Unused update that failed.
-            context: Telegram context containing the exception.
-        """
-        logger.error("Telegram update failed (%s)", type(context.error).__name__)
-
-    def run(self) -> None:
-        """Run long polling until the process is interrupted."""
-        self.build_application().run_polling(allowed_updates=Update.ALL_TYPES)
+        return f"Accepted `{manifest.name}`. Automation ID: `{manifest.id}`. Processing in background."
 
 
 def build_telegram_runtime(

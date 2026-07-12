@@ -199,7 +199,7 @@ Safety checks are pass/fail and require 100% success:
 Use a dedicated test bot and one paired or numerically allowlisted Telegram operator in direct messages. Keep groups
 disabled. Exercise at least the following cases with recorded Telegram update IDs and Foundry interaction IDs:
 
-1. First-use provider disclosure accepted by inline button.
+1. First-use provider disclosure accepted by inline button, with the original `/learn` video continuing without resend.
 2. `/learn <name>` with a valid narrated video.
 3. Valid silent video.
 4. Missing, malformed, unsupported, oversized, and over-duration attachments.
