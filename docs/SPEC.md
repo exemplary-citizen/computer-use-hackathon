@@ -31,7 +31,7 @@ An automation engineer who diagnoses failed generations or runs, inspects eviden
 - One local user on macOS.
 - One browser session connected to a FastAPI service bound to `127.0.0.1`.
 - One configured NemoClaw Hermes sandbox.
-- One NemoClaw-managed Hermes Telegram channel with one bot and one numerically allowlisted operator account.
+- One thin local Telegram adapter with one bot and one numerically allowlisted operator account.
 - One active HoloDesktop execution at a time.
 - No dashboard application-level authentication because the service is loopback-only; Telegram requests are authenticated
   by sender policy and short-lived, action-bound callback tokens.
@@ -219,18 +219,21 @@ or publish each bounded job through NemoClaw's authenticated upload transport. I
 Hermes, or the configured Holo3 route is unavailable, authoring fails closed with a retryable status and produces no
 runnable bundle. No surface or host model substitutes for Hermes.
 
-The Telegram MVP uses Hermes' native Telegram channel managed by NemoClaw. It accepts direct messages only from the
-owner's numerically allowlisted Telegram user ID. Group handling is disabled. NemoClaw injects the bot token into the
-sandbox through its credential provider; the token is never stored in the repository or passed to browser code,
-generated artifacts, Foundry host capabilities, or Holo.
+The Telegram MVP uses a thin deterministic host adapter because Hermes' native plugin API does not expose custom
+Telegram callback handlers for Foundry's action/hash-bound buttons. The adapter accepts direct messages only from the
+owner's numerically allowlisted Telegram user ID and rejects groups before media download or state lookup. It forwards
+conversation turns to Hermes through the authenticated NemoClaw gateway and never performs model reasoning itself. The
+bot token remains in a user-managed environment value or token file outside the repository and is never passed to model
+context, generated artifacts, NemoClaw, or Holo.
 
 Authoring through Telegram follows this flow:
 
 1. Before the first provider-backed ingestion, the bot presents the provider disclosure and records acceptance through
    an inline button. A video received before acceptance may be quarantined locally but is not processed by providers.
 2. The owner sends `/learn <automation name>` with one supported video attachment.
-3. Hermes submits an opaque reference to the downloaded attachment through a typed Foundry capability. The host copies
-   it through the upload boundary and revalidates type, size, duration, name, and content instead of trusting metadata.
+3. The adapter copies the attachment into a host quarantine using an opaque ID and revalidates type, size, duration,
+   name, and content instead of trusting Telegram metadata. Hermes may reference only that opaque ID when requesting
+   ingestion through a typed Foundry capability.
 4. The bot acknowledges the accepted upload without waiting for generation and reports background progress and terminal
    failure using the stable automation ID.
 5. When generation and validation finish, the bot sends a compact review summary and bot-native **Review details**
@@ -404,8 +407,9 @@ The MVP does not include:
 - **Trusted Holo worker:** the only component allowed to invoke HoloDesktop and publish approved Holo skills.
 - **Foundry host capability layer:** typed, loopback-only operations used by Hermes to ingest sources, query authoring
   status, prepare runs, and request approved state transitions. It owns validation and privileged dispatch, not reasoning.
-- **NemoClaw-managed Hermes Telegram channel and Gradium adapter:** receive allowlisted direct messages or voice and
-  render progress, review, and deterministic approval controls. They do not own privileged host operations.
+- **Telegram and Gradium adapters:** receive allowlisted direct messages or voice, forward conversational turns to
+  Hermes, and render progress, review, and deterministic approval controls. They do not own agentic reasoning or
+  privileged host operations.
 
 ### Sandboxed components
 
@@ -421,8 +425,8 @@ The MVP does not include:
 - **HoloDesktop CLI/runtime:** visible desktop observation and control on macOS.
 - **Gradium API:** video transcription, push-to-talk STT, and response TTS.
 - **Telegram Bot API:** inbound direct messages, video downloads, progress messages, and inline-button callbacks routed
-  through Hermes' native Telegram channel. Telegram necessarily receives and retains messages and media according to
-  its own service behavior before Hermes downloads them.
+  through the thin host adapter. Telegram necessarily receives and retains messages and media according to its own
+  service behavior before the adapter downloads them.
 
 ### Trust boundary
 
@@ -513,8 +517,8 @@ The database is the query index and job coordinator. Versioned files are the can
   `nemohermes <sandbox> upload` transport. Upload mode stages canonical host data locally and publishes only the bounded
   generation job directory; sandbox output still returns through the size-limited Hermes API response.
 - Provider keys are supplied through environment or provider credential stores and are never committed.
-- Telegram uses the pinned native client bundled with Hermes and configured through `nemohermes channels add telegram`.
-  NemoClaw stores the bot token through its credential provider; setup and diagnostics must never print it.
+- Telegram uses a pinned Bot API client in the thin host adapter. The user configures its bot token outside the
+  repository; setup and diagnostics must never print it.
 - Telegram ingestion uses polling for the local MVP and requires no public inbound webhook or exposed FastAPI port.
 - Every Telegram-originated generation job must use the same NemoClaw workspace marker, transport checks, staged
   request, Hermes endpoint, result bounds, schema validation, and generated-tool sandbox as dashboard-originated
@@ -533,8 +537,8 @@ The database is the query index and job coordinator. Versioned files are the can
 - Send only audio required for transcription to Gradium.
 - Send only selected frames, transcripts, SOP text, and instructions required for generation to hosted Holo3.
 - Never expose H Company or Gradium credentials to frontend code, logs, generated bundles, or Holo task text.
-- Never expose the Telegram bot token to models, Foundry host capabilities or frontend, Holo, logs, callback data, or
-  generated bundles; only NemoClaw's credential provider and the Hermes Telegram runtime may receive it.
+- Never expose the Telegram bot token to models, NemoClaw, Foundry host capabilities or frontend, Holo, logs, callback
+  data, or generated bundles; only the thin Telegram transport process may receive it.
 - Include Telegram media/message handling in the provider disclosure before provider-backed processing begins.
 - Restrict Telegram to owner-only direct messages; disable groups and reject every non-allowlisted sender before media copy.
 - Treat Telegram captions, filenames, video content, and Gradium transcripts as untrusted input, never as privileged instructions.

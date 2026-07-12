@@ -7,8 +7,8 @@ Approved. Phase 1 was verified live on 2026-07-12 with NemoClaw 0.0.79, OpenShel
 the authenticated upload transport after host validation rejected and prompted correction of an unsafe first draft.
 
 The previous OpenClaw transport proposal was superseded on 2026-07-12. NemoClaw/Hermes is now the single orchestrator;
-Hermes' NemoClaw-managed Telegram channel and Gradium are input surfaces, and the Foundry host service is a typed
-capability and privilege boundary.
+Telegram and Gradium are thin input surfaces, NemoClaw/Hermes is the orchestrator, and the Foundry host service is a
+typed capability and privilege boundary.
 
 ## Outcome
 
@@ -19,7 +19,7 @@ only component allowed to publish skills or invoke HoloDesktop.
 
 ```mermaid
 flowchart LR
-    T["Hermes Telegram channel\nor Gradium surface"] --> H["NemoClaw/OpenShell\nHermes orchestrator"]
+    T["Telegram or Gradium\nthin surface"] --> H["NemoClaw/OpenShell\nHermes orchestrator"]
     H --> C["Typed Foundry\nhost capabilities"]
     C --> W["WorkspaceBridge\nvalidation and storage"]
     C --> X["Trusted Holo worker"]
@@ -27,8 +27,9 @@ flowchart LR
     C --> T
 ```
 
-Surface adapters never call a model. NemoClaw never receives macOS Accessibility privileges. Hermes can request a Holo
-run through typed host tools, but cannot bypass approval, validation, state-machine, hash, or same-session checks.
+Surface adapters forward turns only to the authenticated Hermes gateway and never call a provider or surface-owned
+model. NemoClaw never receives macOS Accessibility privileges. Hermes can request a Holo run through typed host tools,
+but cannot bypass approval, validation, state-machine, hash, or same-session checks.
 
 ## Existing NemoClaw assets to reuse
 
@@ -88,13 +89,14 @@ later slices. Automated tests use fake authoring and execution services before a
 - Hermes and the host receive only safe identifiers and redacted errors; no credential or local path is returned.
 - The host remains authoritative for validation, storage, approval state, and Holo dispatch.
 
-## Phase 3 — Managed Telegram channel and Gradium surface
+## Phase 3 — Thin Telegram and Gradium surfaces
 
 ### Objective
 
-Configure Hermes' native Telegram channel through `nemohermes channels add telegram` and connect Gradium voice to the
-same Hermes conversation. Telegram supplies media and buttons; Gradium supplies final transcripts and response audio.
-Neither surface owns privileged host operations.
+Implement owner-only Telegram polling/media/buttons and connect Gradium voice to the same Hermes conversation. Telegram
+supplies media and buttons; Gradium supplies final transcripts and response audio. Neither surface owns reasoning or
+privileged host operations. The Telegram adapter exists because Hermes 0.17.0's public plugin API cannot register custom
+Telegram callbacks; it forwards all conversation turns to Hermes and consumes Foundry buttons directly on the host.
 
 ### Acceptance criteria
 
@@ -102,8 +104,8 @@ Neither surface owns privileged host operations.
 - Partial Gradium transcripts never request a capability or imply approval.
 - One accepted Telegram update creates exactly one interaction and one media handoff.
 - Duplicate and out-of-order updates are idempotent.
-- The Telegram token remains outside the repository in NemoClaw's credential provider and never enters model context,
-  Foundry host capabilities, Holo, logs, responses, or fixtures.
+- The Telegram token remains outside the repository and enters only the thin transport process, never model context,
+  NemoClaw, Foundry host capabilities, Holo, logs, responses, or fixtures.
 - Channel or voice failures do not mutate authoring or run state.
 
 ## Phase 4 — Hermes-backed authoring and review
@@ -169,8 +171,8 @@ rotation, and deletion.
 
 ## User-managed setup
 
-- The user creates the Telegram bot in BotFather and enters its token directly into the interactive
-  `nemohermes hai-hermes channels add telegram` setup. The token is never pasted into chat or committed.
+- The user creates the Telegram bot in BotFather and stores its token in a user-managed environment value or token file
+  outside the repository. The token is never pasted into chat or committed.
 - The user pairs or configures the numeric Telegram owner ID during the live setup step.
 
 ## Deferred

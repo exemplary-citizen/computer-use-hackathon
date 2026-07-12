@@ -8,7 +8,7 @@ Evaluation results must identify:
 
 - commit hash;
 - macOS and hardware version;
-- Python, HoloDesktop, NemoClaw/Hermes (including its Telegram client), and browser versions;
+- Python, HoloDesktop, NemoClaw/Hermes, Telegram client, and browser versions;
 - configured Holo3 model;
 - fixture and prompt/template versions;
 - trial inputs and reset seed;
@@ -226,7 +226,7 @@ Required results:
 - [ ] The staged-change summary requires a separate valid **Commit** button; **Reject** and timeout preserve unchanged state.
 - [ ] Every callback is identity-bound, chat-bound, action-bound, hash-bound, expiring, and single-use.
 - [ ] Duplicate or out-of-order Telegram updates cannot create duplicate automations, runs, approvals, or commits.
-- [ ] NemoClaw's Telegram channel and the Gradium surface have no macOS Accessibility permission and cannot invoke HoloDesktop or
+- [ ] Telegram and Gradium adapters have no macOS Accessibility permission and cannot invoke HoloDesktop or
   publish a skill directly.
 - [ ] Surface adapters do not analyze evidence or generate instructions; every surface-originated authoring job is
   observable through the NemoClaw workspace and Hermes generation boundary.
@@ -308,7 +308,7 @@ npm run build
 7. Confirm Holo login and H Company model access.
 8. Confirm macOS Accessibility, Screen Recording, Input Monitoring, and microphone permissions.
 9. Confirm Gradium STT and TTS smoke requests.
-10. Confirm the pinned Hermes Telegram client version, polling health, numeric owner allowlist, and disabled groups.
+10. Confirm the pinned Telegram client version, polling health, numeric owner allowlist, and disabled groups.
 11. Confirm surface adapters lack macOS Accessibility, Screen Recording, and Input Monitoring privileges.
 12. Confirm no secrets are printed by health or diagnostic endpoints.
 
@@ -350,8 +350,8 @@ npm run build
 
 ### 5.6 Telegram walkthrough
 
-1. Start the local Foundry host worker and NemoClaw-managed Hermes Telegram channel with the dedicated test bot; confirm
-   no public listener.
+1. Start the local Foundry host worker, Hermes gateway, and thin Telegram adapter with the dedicated test bot; confirm no
+   public listener.
 2. From the allowlisted owner account, accept the provider disclosure through the bot's inline button.
 3. Send `/learn Telegram CRM update` with the canonical demonstration video.
 4. Confirm the bot acknowledges a stable automation ID promptly while processing continues in the background.
@@ -449,7 +449,7 @@ Quality misses must be documented with measured values and must not conceal a mu
 - [ ] Video authoring, background status, review, and version/hash-bound approval work end to end.
 - [ ] Schema-derived runtime input collection and start preview work end to end.
 - [ ] Start and commit require separate Telegram buttons; rejection, timeout, replay, and mismatch fail closed.
-- [ ] NemoClaw's Telegram channel and Gradium remain outside the privileged desktop-control boundary.
+- [ ] Telegram and Gradium adapters remain outside the privileged desktop-control boundary.
 - [ ] Every Telegram-originated automation bundle is generated through NemoClaw/Hermes and validated on the host.
 
 ### Security and operations

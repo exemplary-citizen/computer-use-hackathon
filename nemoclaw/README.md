@@ -143,16 +143,12 @@ The initial bridge intentionally exposes only `foundry_health` and `get_authorin
 confirmed that Gemini 3.5 Flash selected `foundry_health`, the request crossed the sandbox mailbox and authenticated CLI
 transport, and the hash-bound host response returned through Hermes.
 
-## 6. Configure the managed Telegram channel
+## 6. Telegram boundary
 
-Hermes 0.17.0 already includes Telegram polling, numeric user allowlists, attachment handling, and inline keyboards.
-Use NemoClaw's credential flow rather than adding a second bot process:
+Hermes 0.17.0 has native Telegram polling and inline keyboards, but its public plugin API does not expose custom Telegram
+callback handlers. Foundry therefore uses its own thin host adapter for polling, bounded media download, and deterministic
+button consumption. The adapter forwards conversation turns to the authenticated Hermes gateway; it does not call a
+model directly, generate instructions, publish skills, or invoke HoloDesktop.
 
-```bash
-nemohermes hai-hermes channels add telegram
-nemohermes hai-hermes channels status --channel telegram --json
-```
-
-Enter the BotFather token only in that interactive setup. Configure the numeric owner ID and restrict
-`telegram.allowed_chats` to the owner's direct-message chat before live use. Never paste the token into a repository
-file, command transcript, or chat with an AI model.
+Do not also enable `nemohermes channels add telegram` with the same bot token: Telegram permits only one long-polling
+consumer. Store the BotFather token outside the repository and expose it only to the Foundry Telegram adapter.

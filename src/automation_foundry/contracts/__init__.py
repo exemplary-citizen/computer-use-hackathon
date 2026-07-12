@@ -28,8 +28,11 @@ from automation_foundry.contracts.models import (
     RunRequest,
     RunResult,
     RunState,
+    Sha256,
     SourceMetadata,
     StagedChange,
+    SurfaceCallbackAction,
+    SurfaceCallbackGrant,
 )
 from automation_foundry.contracts.transitions import ALLOWED_RUN_TRANSITIONS, require_run_transition
 
@@ -62,7 +65,10 @@ __all__ = [
     "RunRequest",
     "RunResult",
     "RunState",
+    "Sha256",
     "SourceMetadata",
     "StagedChange",
+    "SurfaceCallbackAction",
+    "SurfaceCallbackGrant",
     "require_run_transition",
 ]

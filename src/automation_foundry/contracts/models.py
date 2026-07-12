@@ -70,6 +70,17 @@ class CapabilityResponseStatus(StrEnum):
     FAILED = "failed"
 
 
+class SurfaceCallbackAction(StrEnum):
+    """Human action represented by one deterministic surface button."""
+
+    ACCEPT_DISCLOSURE = "accept_disclosure"
+    APPROVE_AUTOMATION = "approve_automation"
+    START_RUN = "start_run"
+    COMMIT_RUN = "commit_run"
+    REJECT_RUN = "reject_run"
+    CANCEL_RUN = "cancel_run"
+
+
 class EvidenceSourceType(StrEnum):
     """Supported source categories for evidence references."""
 
@@ -328,6 +339,35 @@ class FoundryCapabilityResponse(StrictModel):
             return self
         if not self.error_code or not self.error_message or self.result:
             raise ValueError("Unsuccessful capability response requires an error and no result")
+        return self
+
+
+class SurfaceCallbackGrant(StrictModel):
+    """Consumed callback identity and immutable action binding."""
+
+    id: UUID
+    action: SurfaceCallbackAction
+    telegram_user_id: int = Field(gt=0)
+    telegram_chat_id: int = Field(gt=0)
+    payload_sha256: Sha256
+    automation_id: UUID | None = None
+    run_id: UUID | None = None
+    issued_at: datetime
+    expires_at: datetime
+    consumed_at: datetime | None = None
+
+    @model_validator(mode="after")
+    def validate_lifecycle(self) -> SurfaceCallbackGrant:
+        """Require timezone-aware, ordered callback timestamps."""
+        timestamps = (self.issued_at, self.expires_at, self.consumed_at)
+        if any(value is not None and value.utcoffset() is None for value in timestamps):
+            raise ValueError("Surface callback timestamps must include a timezone")
+        if self.expires_at <= self.issued_at:
+            raise ValueError("Surface callback expiry must follow issuance")
+        if self.telegram_chat_id != self.telegram_user_id:
+            raise ValueError("Telegram callbacks are restricted to the owner's direct-message chat")
+        if self.consumed_at is not None and self.consumed_at < self.issued_at:
+            raise ValueError("Surface callback consumption cannot precede issuance")
         return self
 
 
