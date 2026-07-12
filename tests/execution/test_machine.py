@@ -139,12 +139,42 @@ class GenericBundleTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("Open TextEdit", adapter.messages[0])
         self.assertIn("Type the exact greeting_text", adapter.messages[1])
 
+    async def test_generic_bundle_accepts_live_markdown_report_with_embedded_field_json(self) -> None:
+        temporary = TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        settings = make_settings(root)
+        settings.bundle_path = make_generic_bundle(root / "generic")
+        adapter = _GenericAdapter(
+            stage_answer=(
+                "# Staging Complete\n\n**Application:** TextEdit\n\n"
+                '**Staged Fields:** {"greeting_text": "Hello from Foundry"}\n\n'
+                "**Visible Verification:** Blank unsaved document is ready."
+            )
+        )
+        coordinator = RunCoordinator(settings, adapter_factory=lambda _spec: adapter)
+        await coordinator.startup()
+
+        preview = await coordinator.prepare(
+            "TextEdit",
+            {"greeting_text": "Hello from Foundry"},
+            InvocationSource.TELEGRAM,
+        )
+        await coordinator.confirm_start(preview.request.id)
+
+        state = await wait_for_state(coordinator, preview.request.id, RunState.AWAITING_COMMIT_APPROVAL)
+
+        self.assertEqual(state, "awaiting_commit_approval")
+        await coordinator.reject_commit(preview.request.id, InvocationSource.TELEGRAM, "telegram-owner")
+        self.assertEqual(await wait_for_state(coordinator, preview.request.id, RunState.CANCELLED), "cancelled")
+
 
 class _GenericAdapter:
     """One-session stand-in for generic learned desktop execution."""
 
-    def __init__(self) -> None:
+    def __init__(self, stage_answer: str | None = None) -> None:
         self.messages: list[str] = []
+        self.stage_answer = stage_answer
 
     def start_session(self) -> str:
         return "generic-session"
@@ -154,7 +184,8 @@ class _GenericAdapter:
         self.messages.append(message)
         if len(self.messages) == 1:
             return TurnOutcome(
-                answer=(
+                answer=self.stage_answer
+                or (
                     '{"record":"TextEdit","staged_fields":{"greeting_text":"Hello from Foundry"},'
                     '"visible_verification":"Blank unsaved TextEdit document is ready."}'
                 ),

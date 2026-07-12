@@ -502,7 +502,9 @@ class RunCoordinator:
             if _prose_matches_stage(spec, outcome.answer):
                 return
             raise fault("malformed_stage_answer", "stage report did not contain the exact requested values") from error
-        if not isinstance(parsed, dict) or "staged_fields" not in parsed or "record" not in parsed:
+        if "staged_fields" not in parsed or "record" not in parsed:
+            if _prose_matches_stage(spec, outcome.answer):
+                return
             raise fault("malformed_stage_answer", "stage answer missing record/staged_fields")
         if parsed["staged_fields"] != spec.field_changes:
             raise fault("malformed_stage_answer", "agent-reported fields differ from the requested change")
