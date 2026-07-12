@@ -191,14 +191,24 @@ class BundleValidator:
 
         procedure_payload = self._read_json(version_root / "procedure.json", errors)
         steps = self._validate_procedure(procedure_payload, errors)
-        if steps and not any(step.persistent_action and step.requires_confirmation_before for step in steps):
-            errors.append(
-                ValidationIssue(
-                    "missing_confirmation_boundary",
-                    "Procedure must identify its guarded persistent action",
-                    "procedure.json",
+        persistent_steps = [step for step in steps if step.persistent_action]
+        if persistent_steps:
+            if not all(step.requires_confirmation_before for step in persistent_steps):
+                errors.append(
+                    ValidationIssue(
+                        "missing_confirmation_boundary",
+                        "Every persistent action must require confirmation",
+                        "procedure.json",
+                    )
                 )
-            )
+            if not _COMMIT_WORDS.search(skill) or not _STOP_WORDS.search(skill):
+                errors.append(
+                    ValidationIssue(
+                        "missing_confirmation_boundary",
+                        "Skill must stop for explicit review before its persistent action",
+                        "SKILL.md",
+                    )
+                )
 
         checks_payload = self._read_json(version_root / "checks.json", errors)
         self._validate_checks(checks_payload, errors)
@@ -299,14 +309,6 @@ class BundleValidator:
         body = match.group("body").strip()
         if not body:
             issues.append(ValidationIssue("empty_skill_body", "Skill procedure body is required", "SKILL.md"))
-        if not _COMMIT_WORDS.search(body) or not _STOP_WORDS.search(body):
-            issues.append(
-                ValidationIssue(
-                    "missing_confirmation_boundary",
-                    "Skill must stop for explicit review before its persistent action",
-                    "SKILL.md",
-                )
-            )
         return issues
 
     def _read_json(self, path: Path, errors: list[ValidationIssue]) -> Any:

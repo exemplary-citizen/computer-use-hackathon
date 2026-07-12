@@ -112,6 +112,13 @@ FAULTS: dict[str, FaultSpec] = {
             docs_anchor="spec#5.8-safe-two-turn-desktop-execution",
         ),
         FaultSpec(
+            code="holo_rate_limited",
+            message="H Company temporarily rate-limited new desktop sessions.",
+            cause="The local desktop trajectory endpoint returned HTTP 429 after too many recent sessions.",
+            remediation="Wait for the provider cooldown, then explicitly start a fresh run; failed runs are not retried.",
+            docs_anchor="spec#14-edge-cases-and-failure-modes",
+        ),
+        FaultSpec(
             code="stale_session",
             message="The Holo session ended before commit approval completed.",
             cause="The live session was lost or expired during the approval wait.",

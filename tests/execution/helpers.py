@@ -60,6 +60,78 @@ def make_valid_bundle(target_dir: Path) -> Path:
     return bundle_path
 
 
+def make_generic_bundle(target_dir: Path, *, persistent_text: bool = True) -> Path:
+    """Create a hash-valid learned text-entry bundle for coordinator tests.
+
+    Args:
+        target_dir: Temp directory to copy into.
+        persistent_text: Whether text entry requires a separate commit approval.
+
+    Returns:
+        Path to the rewritten generic ``approved_bundle.json``.
+    """
+    bundle_path = make_valid_bundle(target_dir)
+    data = json.loads(bundle_path.read_text(encoding="utf-8"))
+    schema = {
+        "type": "object",
+        "additionalProperties": False,
+        "properties": {"greeting_text": {"type": "string", "minLength": 1}},
+        "required": ["greeting_text"],
+    }
+    data["input_schema"] = schema
+    data["version"]["inputs"] = [
+        {
+            "name": "greeting_text",
+            "json_type": "string",
+            "description": "Exact text to type.",
+            "required": True,
+            "default": None,
+            "examples": ["Hello from Foundry"],
+        }
+    ]
+    inference = {
+        "source_id": None,
+        "source_type": "inference",
+        "timestamp_seconds": None,
+        "page": None,
+        "section": None,
+        "excerpt": None,
+        "frame_path": None,
+        "inference_reason": "Synthetic generic execution test.",
+    }
+    data["version"]["steps"] = [
+        {
+            "id": "open_editor",
+            "instruction": "Open TextEdit and create a blank unsaved document.",
+            "critical": True,
+            "persistent_action": False,
+            "requires_confirmation_before": False,
+            "evidence": [inference],
+        },
+        {
+            "id": "type_text",
+            "instruction": "Type the exact greeting_text value into the document.",
+            "critical": True,
+            "persistent_action": persistent_text,
+            "requires_confirmation_before": persistent_text,
+            "evidence": [inference],
+        },
+    ]
+    root = bundle_path.parent
+    for artifact in data["version"]["artifacts"]:
+        if artifact["name"] == "input_schema":
+            (root / artifact["relative_path"]).write_text(json.dumps(schema, indent=2) + "\n", encoding="utf-8")
+        artifact["sha256"] = hashlib.sha256((root / artifact["relative_path"]).read_bytes()).hexdigest()
+    payload = [
+        {"name": artifact["name"], "path": artifact["relative_path"], "sha256": artifact["sha256"]}
+        for artifact in sorted(data["version"]["artifacts"], key=lambda item: item["name"])
+    ]
+    canonical = json.dumps(payload, separators=(",", ":"), sort_keys=True).encode("utf-8")
+    data["version"]["approval"]["payload_sha256"] = hashlib.sha256(canonical).hexdigest()
+    bundle_path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    return bundle_path
+
+
 def make_settings(tmp: Path, script: str = "stage-ok", approval_timeout: float = 1.0) -> ExecutionSettings:
     """Build isolated execution settings over a temp directory.
 

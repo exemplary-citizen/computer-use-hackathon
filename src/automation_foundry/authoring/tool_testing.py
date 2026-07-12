@@ -97,8 +97,15 @@ class ToolTestExecutor(Protocol):
 class HermesToolTestExecutor:
     """Ask Hermes to launch the fixed test harness inside its NemoClaw sandbox."""
 
-    def __init__(self, client: HermesClient):
+    def __init__(self, client: HermesClient, workspace: WorkspaceBridge):
+        """Initialize the sandbox executor.
+
+        Args:
+            client: Hermes agent API client.
+            workspace: Authenticated sandbox workspace transport.
+        """
         self.client = client
+        self.workspace = workspace
 
     async def execute(self, job: ToolTestJob) -> str:
         """Run only the staged harness command and retrieve its bounded result file."""
@@ -113,6 +120,7 @@ class HermesToolTestExecutor:
             ),
         )
         result_path = job.host_root / "output" / "result.json"
+        self.workspace.download_tool_test_result(job.result_path, result_path)
         if not result_path.is_file():
             raise RuntimeError("NemoClaw tool test result is missing")
         if result_path.stat().st_size > 1_000_000:
@@ -176,6 +184,7 @@ class SandboxToolTestRunner:
             request_path=sandbox_root / "request.json",
             result_path=sandbox_root / "output/result.json",
         )
+        self.workspace.publish_tool_test(job.host_root, job.sandbox_root)
         raw_result = await self.executor.execute(job)
         if len(raw_result.encode("utf-8")) > 1_000_000:
             raise ValueError("Sandbox tool test result exceeds configured output limit")

@@ -12,6 +12,19 @@ from automation_foundry.contracts import AutomationStatus
 from automation_foundry.storage import ArtifactStoreConfig
 
 
+class SuccessfulPipeline:
+    """Complete a retry without requiring provider credentials."""
+
+    def __init__(self, store) -> None:
+        self.store = store
+
+    async def run(self, automation_id, progress) -> None:
+        manifest = self.store.get_manifest(automation_id)
+        manifest.status = AutomationStatus.REVIEW_REQUIRED
+        self.store.save_manifest(manifest)
+        progress("complete", 100, "Bundle is ready for review")
+
+
 class AuthoringServiceTests(unittest.TestCase):
     """Verify persistent failure, deactivation, and deletion behavior."""
 
@@ -43,6 +56,17 @@ class AuthoringServiceTests(unittest.TestCase):
         progress = self.service.processing_progress(automation.id)
         self.assertIsNotNone(progress)
         self.assertEqual(progress.stage, "failed")
+
+    def test_successful_retry_clears_stale_processing_error(self) -> None:
+        automation = self.store.create_automation("Update CRM record")
+        asyncio.run(self.service.process(automation.id))
+        self.assertIsNotNone(self.service.processing_error(automation.id))
+        self.service.pipeline = SuccessfulPipeline(self.store)
+
+        asyncio.run(self.service.process(automation.id))
+
+        self.assertEqual(self.store.get_manifest(automation.id).status, AutomationStatus.REVIEW_REQUIRED)
+        self.assertIsNone(self.service.processing_error(automation.id))
 
     def test_deactivate_and_delete_update_persistent_state(self) -> None:
         automation = self.store.create_automation("Update CRM record")

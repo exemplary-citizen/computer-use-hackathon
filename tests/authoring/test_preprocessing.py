@@ -157,6 +157,28 @@ class EvidencePreprocessorTests(unittest.IsolatedAsyncioTestCase):
         evidence_path = self.store.automation_root(automation.id) / "evidence" / "evidence.json"
         self.assertFalse(evidence_path.exists())
 
+    async def test_explicit_visual_only_mode_retains_audio_with_empty_transcript(self) -> None:
+        automation = self.store.create_automation("Update CRM lead")
+        uploads = UploadPolicyConfig(max_video_bytes=100).make(self.store)
+        uploads.store_upload(
+            automation.id,
+            filename="narrated.mp4",
+            media_type="video/mp4",
+            stream=io.BytesIO(b"synthetic-video"),
+        )
+
+        package = (
+            await PreprocessingConfig(allow_untranscribed_audio=True)
+            .make(
+                self.store,
+                command_runner=FakeMediaRunner(include_audio=True),
+            )
+            .preprocess(automation.id)
+        )
+
+        self.assertIsNotNone(package.videos[0].audio_path)
+        self.assertEqual(package.videos[0].transcript, [])
+
     async def test_video_duration_limit_fails_before_extraction(self) -> None:
         automation = self.store.create_automation("Update CRM lead")
         uploads = UploadPolicyConfig(max_video_bytes=100).make(self.store)

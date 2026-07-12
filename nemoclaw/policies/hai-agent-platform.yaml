@@ -18,7 +18,7 @@ network_policies:
   hai-agent-platform:
     name: hai-agent-platform
     endpoints:
-      - host: agp.eu.hcompany.ai        # EU (the demos' default); use agp.hcompany.ai for US
+      - host: agp.eu.hcompany.ai
         port: 443
         protocol: rest
         enforcement: enforce
@@ -27,7 +27,14 @@ network_policies:
           # confirmed the endpoint; the agent only talks to the hosted MCP proxy, not agp directly.
           - allow: { method: GET, path: "/**" }    # SSE streams and reads
           - allow: { method: POST, path: "/**" }   # MCP JSON-RPC
+      - host: agp.hcompany.ai
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        rules:
+          - allow: { method: GET, path: "/**" }
+          - allow: { method: POST, path: "/**" }
     binaries:
       # The NemoClaw Hermes runtime that makes the calls (verified via openshell term). If your
       # image differs, a denied request in `openshell term` names the real binary path to use.
-      - { path: /opt/hermes/.venv/bin/python3 }
+      - { path: /opt/hermes/.venv/bin/python }

@@ -1,85 +1,154 @@
-# Deploy the demos inside NemoClaw
+# Run Automation Foundry through NemoClaw/Hermes
 
-[NemoClaw](https://github.com/NVIDIA/NemoClaw) (NVIDIA) isn't another MCP host like Claude Code,
-Hermes, or Codex. It's a security runtime: it builds an **NVIDIA OpenShell sandbox** and runs an
-agent harness inside it under an explicit network-egress policy. Its `nemohermes` variant runs
-**Hermes**, so this is the [`hermes/`](../hermes/) integration deployed inside that sandbox. The
-NemoClaw-specific work is the egress policy that lets the sandboxed agent reach our hosted server.
-
-The hosted `hai-agent-platform` server fits best here: it's HTTP, so the sandbox only needs egress
-plus the key. The stdio demo servers would need the repo and `uv` baked into the image, which fights
-the sandbox model.
+NemoClaw is the required agent sandbox for authoring Automation Foundry bundles. Hermes runs inside OpenShell and uses
+Gemini 3.5 Flash through OpenRouter for its agent loop. The trusted macOS host remains the only process allowed to drive
+HoloDesktop or publish approved skills.
 
 ## Prerequisites
 
-- Docker (NemoClaw builds a ~2.4 GB image and runs OpenShell + k3s).
-- An inference-provider credential to run the Hermes model (NVIDIA, Anthropic, Nous, or local
-  Ollama/vLLM). This is separate from `HAI_API_KEY`.
-- This repo's `HAI_API_KEY` (the `hk-` key the server authenticates with).
+- Docker with at least 4 CPUs and 10 GB of memory available;
+- Docker Buildx available to the CLI (`brew install docker-buildx` for Homebrew Docker);
+- `nemohermes` and OpenShell 0.0.72 or newer;
+- an OpenRouter API key;
+- an H Company `HAI_API_KEY` when the hosted agent-platform MCP server is enabled.
 
-## 1. Onboard from the custom image
+Provider credentials must be entered through NemoClaw/OpenShell or exported in a private terminal. Do not put them in
+this directory or pass them to browser code.
 
-The stock Hermes sandbox ships an `mcp` package without the streamable-HTTP client, so the hosted
-server can't connect. [`image/Dockerfile`](image/Dockerfile) adds it at build time. Onboard from it:
+## 1. Onboard the stock managed image
 
-```bash
-export NEMOCLAW_AGENT=hermes
-nemohermes onboard --from nemoclaw/image/Dockerfile --name hai-hermes
-```
-
-The wizard asks for an inference provider, model, and credential. The build runs a check that fails
-if HTTP-MCP support didn't land, so a green build means the transport is in place.
-
-## 2. Allow egress to H Company
-
-The baseline Hermes policy permits Nous, PyPI, and NVIDIA endpoints, but not `agp.hcompany.ai`, so
-the server is blocked until you apply [`policies/hai-agent-platform.yaml`](policies/hai-agent-platform.yaml):
+The stock NemoClaw Hermes image includes the managed entrypoint, gateway supervisor, credential boundary, and
+streamable-HTTP MCP support. A custom `--from` Dockerfile replaces those managed layers and must not be used merely to
+install MCP support.
 
 ```bash
-nemohermes hai-hermes policy-add --from-file nemoclaw/policies/hai-agent-platform.yaml
-nemohermes hai-hermes policy-list      # confirm agp.eu.hcompany.ai is listed
+export OPENROUTER_API_KEY=replace-in-your-private-shell
+export NEMOCLAW_PROVIDER=openrouter
+export NEMOCLAW_MODEL=google/gemini-3.5-flash
+
+nemohermes onboard \
+  --name hai-hermes \
+  --agent hermes \
+  --no-gpu \
+  --tool-disclosure progressive \
+  --yes-i-accept-third-party-software
 ```
 
-## 3. Register the server
-
-Hermes config lives at `/sandbox/.hermes/config.yaml` inside the sandbox (the host `~/.hermes` does
-not apply). Connect, then add the block with your real EU `hk-` key:
+Verify the runtime and restore both local forwards after a reboot or laptop sleep:
 
 ```bash
-nemohermes hai-hermes connect
-```
-```yaml
-mcp_servers:
-  hai-agent-platform:
-    url: https://agp.eu.hcompany.ai/mcp
-    headers:
-      Authorization: "Bearer hk-...your-key..."
-    timeout: 420
+nemohermes hai-hermes doctor
+nemohermes hai-hermes recover
+curl -sf http://127.0.0.1:8642/health
 ```
 
-## 4. Verify
-
-Inside the sandbox, the one-shot check (expect the six tools `run_agent`, `list_agents`,
-`wait_for_session`, `send_message`, `cancel_session`, `share_session`):
+With Colima, start Docker before recovery. If OpenShell resumes the sandbox with `sleep infinity` and reports
+`SUPERVISOR_UNAVAILABLE`, rebuild from the recorded managed image; NemoClaw backs up and restores sandbox state:
 
 ```bash
-hermes mcp test hai-agent-platform
+colima start --cpu 4 --memory 10 --disk 40
+nemohermes hai-hermes rebuild --yes
 ```
 
-Then drive it through the agent: start the Hermes chat (the command `connect` prints) and ask it to
-"list the available H agents". To prove the call leaves the sandbox, run `openshell term` on the host
-while it runs; you'll see the request to `agp.eu.hcompany.ai:443` from the Hermes runtime. The browser
-dashboard (port 18789) is forwarded only while a `connect` session is open.
+NemoClaw 0.0.79 can currently abort that rebuild before mutation when one of its Debian package pins is no longer
+available upstream. The existing sandbox remains intact. Do not replace it with an unmanaged container; keep the failed
+preflight output and run the gateway through the supported sandbox command while the upstream pin is repaired:
 
-## Notes
+```bash
+nemohermes hai-hermes exec --no-tty -- hermes gateway run
+```
 
-- **The egress policy is the integration.** Without it, OpenShell blocks the call to agp. The
-  policy's `binaries` entry must match the runtime that makes the call, which in the NVIDIA Hermes
-  image is `/opt/hermes/.venv/bin/python3`. If a call is denied, `openshell term` names the binary
-  and host so you can adjust.
-- **Why a custom image.** The stock sandbox's `mcp` lacks `mcp.client.streamable_http`, and a runtime
-  install won't fix it: the venv is uv-managed (no `pip`), the egress policy blocks `uv` from PyPI,
-  and `uv` doesn't trust the image's patched CA bundle. Build time avoids all three, so the transport
-  goes in via [`image/Dockerfile`](image/Dockerfile).
-- For full blueprint examples (model, agent, and policy together), see
-  [NVIDIA/nemoclaw-community](https://github.com/NVIDIA/nemoclaw-community).
+The Hermes OpenAI-compatible API is available at `http://127.0.0.1:8642/v1`. Retrieve its bearer token at runtime with
+`nemohermes hai-hermes gateway-token --quiet`; never persist or print it.
+
+## 2. Allow the H Company agent platform
+
+Review and apply the repository-owned policy. It allows only GET and POST requests to the EU and US agent-platform
+hosts from the Hermes Python runtime.
+
+```bash
+nemohermes hai-hermes policy-add --dry-run --from-file nemoclaw/policies/hai-agent-platform.yaml --yes
+nemohermes hai-hermes policy-add --from-file nemoclaw/policies/hai-agent-platform.yaml --yes
+nemohermes hai-hermes policy-list
+```
+
+## 3. Register the hosted MCP server
+
+Prefer NemoClaw's managed MCP command so credentials stay in the OpenShell provider boundary. Do not edit
+`/sandbox/.hermes/.env` or copy an H Company key into the image.
+
+```bash
+nemohermes hai-hermes mcp add hai-agent-platform \
+  --url https://agp.eu.hcompany.ai/mcp \
+  --env HAI_API_KEY
+nemohermes hai-hermes mcp status hai-agent-platform
+```
+
+Use `https://agp.hcompany.ai/mcp` when the selected H Company region is US.
+
+## 4. Shared authoring workspace
+
+The preferred macOS path uses NemoClaw's authenticated upload transport and needs no kernel extension:
+
+```bash
+export FOUNDRY_WORKSPACE_MOUNT="$PWD/data/nemoclaw-workspace"
+export FOUNDRY_WORKSPACE_REQUIRE_MOUNT=false
+export FOUNDRY_NEMOCLAW_SANDBOX_NAME=hai-hermes
+```
+
+`WorkspaceBridge` creates a bounded local job directory and publishes only that job below `/sandbox/workspace` through
+`nemohermes upload`. A verified SSHFS mount remains supported when macFUSE is already available:
+
+```bash
+brew install --cask macfuse
+brew install gromgit/fuse/sshfs-mac
+nemohermes hai-hermes share mount \
+  /sandbox/workspace \
+  "$HOME/.local/share/automation-foundry/nemoclaw-workspace"
+```
+
+Do not enable mount mode until `nemohermes hai-hermes share status` reports it mounted.
+
+## Safety checks
+
+- `nemohermes hai-hermes doctor` must report zero failures and zero warnings.
+- `curl -sf http://127.0.0.1:8642/health` must return success before authoring is enabled.
+- Failure to reach NemoClaw/Hermes is fail-closed; Automation Foundry does not fall back to a host model.
+- The sandbox never receives macOS Accessibility permission or direct HoloDesktop control.
+
+## 5. Install the Foundry MCP capability bridge
+
+Upload the repository package into the sandbox and register its stdio MCP server. The server exposes only typed Foundry
+capabilities and communicates with the trusted host through bounded files below `/sandbox/workspace`.
+
+```bash
+nemohermes hai-hermes exec --no-tty --timeout 30 -- rm -rf /sandbox/automation-foundry
+nemohermes hai-hermes exec --no-tty --timeout 30 -- mkdir -p /sandbox/automation-foundry/src
+nemohermes hai-hermes upload src/automation_foundry /sandbox/automation-foundry/src/
+nemohermes hai-hermes exec -- hermes mcp add automation-foundry \
+  --command /opt/hermes/.venv/bin/python \
+  --env PYTHONPATH=/sandbox/automation-foundry/src \
+  --args -m automation_foundry.orchestration.mcp_server
+nemohermes hai-hermes exec --no-tty --timeout 30 -- hermes mcp test automation-foundry
+```
+
+Start the trusted host worker in a separate terminal with the normal Foundry environment exported:
+
+```bash
+export FOUNDRY_NEMOCLAW_SANDBOX_NAME=hai-hermes
+uv run automation-foundry-capability-worker
+```
+
+The initial bridge intentionally exposes only `foundry_health` and `get_authoring_status`. A live 2026-07-12 probe
+confirmed that Gemini 3.5 Flash selected `foundry_health`, the request crossed the sandbox mailbox and authenticated CLI
+transport, and the hash-bound host response returned through Hermes.
+
+## 6. Telegram boundary
+
+Hermes 0.17.0 has native Telegram polling and inline keyboards, but its public plugin API does not expose custom Telegram
+callback handlers. Foundry therefore uses its own thin host adapter for polling, bounded media download, and deterministic
+button consumption. The adapter forwards conversation turns to the authenticated Hermes gateway; it does not call a
+model directly, generate instructions, publish skills, or invoke HoloDesktop.
+
+Do not also enable `nemohermes channels add telegram` with the same bot token: Telegram permits only one long-polling
+consumer. Store the BotFather token outside the repository and expose it only to the Foundry Telegram adapter.

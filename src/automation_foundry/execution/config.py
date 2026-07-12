@@ -25,13 +25,15 @@ class ExecutionSettings(BaseSettings):
     """`mock` drives the scripted fake adapter; `live` requires HoloDesktop."""
     holo_mock_script: str = "stage-ok"
     """Behavior of the fake adapter (see execution.holo.FAKE_SCRIPTS)."""
+    holo_region: Literal["us", "eu"] = "us"
+    """H Company agent-platform region used by the live desktop adapter."""
     approval_timeout_seconds: float = 120.0
     """Commit-approval window; expiry cancels the run without saving."""
     heartbeat_seconds: float = 10.0
     """Max silent interval on the event stream while a Holo turn is in flight."""
-    hard_max_steps: int = 60
+    hard_max_steps: int = 120
     """Ceiling a RunRequest.max_steps may never exceed."""
-    hard_max_time_seconds: int = 600
+    hard_max_time_seconds: int = 900
     """Ceiling a RunRequest.max_time_seconds may never exceed."""
     voice_enabled: bool = True
     """Off hides voice UI and skips Gradium init; dashboard flow unaffected."""
@@ -51,6 +53,8 @@ class ExecutionSettings(BaseSettings):
     """SQLite index for run rows and the single-active-run guard."""
     fixture_data_root: Path | None = None
     """Override for desktop-fixture state files (tests point this at a temp dir)."""
+    telegram_auto_commit_targets: tuple[str, ...] = ("Atlas Returns Desk",)
+    """Owner-only demo targets whose Start button also authorizes the staged commit."""
 
     def clamp_budgets(self, max_steps: int, max_time_seconds: int) -> tuple[int, int]:
         """Clamp requested budgets to the configured hard caps.

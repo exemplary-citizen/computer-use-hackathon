@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import sqlite3
 import unittest
 from pathlib import Path
@@ -13,9 +14,10 @@ from desktop_fixtures.store import load_state, state_path
 from automation_foundry.contracts import InvocationSource, RunState
 from automation_foundry.contracts.transitions import require_run_transition
 from automation_foundry.execution.errors import ExecutionFault
+from automation_foundry.execution.holo import TurnOutcome
 from automation_foundry.execution.machine import InputValidationError, RunCoordinator
 
-from tests.execution.helpers import CANONICAL_INPUTS, make_settings, wait_for_state
+from tests.execution.helpers import CANONICAL_INPUTS, make_generic_bundle, make_settings, wait_for_state
 
 
 class MachineTestBase(unittest.IsolatedAsyncioTestCase):
@@ -98,6 +100,168 @@ class HappyPathTests(MachineTestBase):
         sarah = next(record for record in state.records if record.full_name == "Sarah Chen")
         self.assertEqual(sarah.status, "Qualified")
 
+
+class GenericBundleTests(unittest.IsolatedAsyncioTestCase):
+    """Execute learned schemas without CRM-specific field assumptions."""
+
+    async def test_generic_bundle_stages_plan_then_commits_same_adapter(self) -> None:
+        temporary = TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        settings = make_settings(root)
+        settings.bundle_path = make_generic_bundle(root / "generic")
+        adapter = _GenericAdapter()
+        coordinator = RunCoordinator(settings, adapter_factory=lambda _spec: adapter)
+        await coordinator.startup()
+
+        preview = await coordinator.prepare(
+            "TextEdit",
+            {"greeting_text": "Hello from Foundry"},
+            InvocationSource.TELEGRAM,
+        )
+        await coordinator.confirm_start(preview.request.id)
+        await wait_for_state(coordinator, preview.request.id, RunState.AWAITING_COMMIT_APPROVAL)
+        staged = coordinator.staged_change(preview.request.id)
+        assert staged is not None
+        self.assertEqual(staged.target_app, "TextEdit")
+        self.assertEqual(staged.changes[0].before, None)
+        self.assertEqual(staged.changes[0].after, "Hello from Foundry")
+
+        await coordinator.approve_commit(
+            preview.request.id,
+            staged.payload_sha256,
+            InvocationSource.TELEGRAM,
+            "telegram-owner",
+        )
+        state = await wait_for_state(coordinator, preview.request.id, RunState.SUCCEEDED)
+
+        self.assertEqual(state, "succeeded")
+        self.assertEqual(len(adapter.messages), 2)
+        self.assertIn("Open TextEdit", adapter.messages[0])
+        self.assertIn("request_commit_approval", adapter.messages[0])
+        self.assertIn("Type the exact greeting_text", adapter.messages[1])
+        await _wait_for_adapter_cancel(adapter)
+        self.assertTrue(adapter.cancelled)
+
+    async def test_non_persistent_bundle_completes_without_commit_approval(self) -> None:
+        temporary = TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        settings = make_settings(root)
+        settings.bundle_path = make_generic_bundle(root / "generic", persistent_text=False)
+        adapter = _GenericAdapter()
+        coordinator = RunCoordinator(settings, adapter_factory=lambda _spec: adapter)
+        await coordinator.startup()
+
+        preview = await coordinator.prepare(
+            "TextEdit",
+            {"greeting_text": "Hello from Foundry"},
+            InvocationSource.TELEGRAM,
+        )
+        await coordinator.confirm_start(preview.request.id)
+
+        state = await wait_for_state(coordinator, preview.request.id, RunState.SUCCEEDED)
+
+        self.assertEqual(state, "succeeded")
+        self.assertEqual(len(adapter.messages), 1)
+        self.assertIn("NON-PERSISTENT WORKFLOW", adapter.messages[0])
+        self.assertNotIn(
+            "awaiting_commit_approval",
+            [event.state.value for event in coordinator.events.replay(preview.request.id)],
+        )
+
+    async def test_commit_prompt_reacquires_target_before_typing(self) -> None:
+        temporary = TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        settings = make_settings(root)
+        settings.bundle_path = make_generic_bundle(root / "generic")
+        adapter = _GenericAdapter()
+        coordinator = RunCoordinator(settings, adapter_factory=lambda _spec: adapter)
+        await coordinator.startup()
+        preview = await coordinator.prepare(
+            "TextEdit",
+            {"greeting_text": "Hello from Foundry"},
+            InvocationSource.TELEGRAM,
+        )
+        await coordinator.confirm_start(preview.request.id)
+        await wait_for_state(coordinator, preview.request.id, RunState.AWAITING_COMMIT_APPROVAL)
+        staged = coordinator.staged_change(preview.request.id)
+        assert staged is not None
+
+        await coordinator.approve_commit(
+            preview.request.id,
+            staged.payload_sha256,
+            InvocationSource.TELEGRAM,
+            "telegram-owner",
+        )
+        await wait_for_state(coordinator, preview.request.id, RunState.SUCCEEDED)
+
+        self.assertIn("current foreground window is untrusted", adapter.messages[1])
+        self.assertIn('explicitly activate "TextEdit"', adapter.messages[1])
+        self.assertIn("Never type workflow content into the approval surface", adapter.messages[1])
+
+    async def test_generic_bundle_accepts_live_markdown_report_with_embedded_field_json(self) -> None:
+        temporary = TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        settings = make_settings(root)
+        settings.bundle_path = make_generic_bundle(root / "generic")
+        adapter = _GenericAdapter(
+            stage_answer=(
+                "# Staging Complete\n\n**Application:** TextEdit\n\n"
+                '**Staged Fields:** {"greeting_text": "Hello from Foundry"}\n\n'
+                "**Visible Verification:** Blank unsaved document is ready."
+            )
+        )
+        coordinator = RunCoordinator(settings, adapter_factory=lambda _spec: adapter)
+        await coordinator.startup()
+
+        preview = await coordinator.prepare(
+            "TextEdit",
+            {"greeting_text": "Hello from Foundry"},
+            InvocationSource.TELEGRAM,
+        )
+        await coordinator.confirm_start(preview.request.id)
+
+        state = await wait_for_state(coordinator, preview.request.id, RunState.AWAITING_COMMIT_APPROVAL)
+
+        self.assertEqual(state, "awaiting_commit_approval")
+        await coordinator.reject_commit(preview.request.id, InvocationSource.TELEGRAM, "telegram-owner")
+        self.assertEqual(await wait_for_state(coordinator, preview.request.id, RunState.CANCELLED), "cancelled")
+
+
+class _GenericAdapter:
+    """One-session stand-in for generic learned desktop execution."""
+
+    def __init__(self, stage_answer: str | None = None) -> None:
+        self.messages: list[str] = []
+        self.stage_answer = stage_answer
+        self.cancelled = False
+
+    def start_session(self) -> str:
+        return "generic-session"
+
+    def send_message(self, session_reference: str, message: str) -> TurnOutcome:
+        assert session_reference == "generic-session"
+        self.messages.append(message)
+        if len(self.messages) == 1:
+            return TurnOutcome(
+                answer=self.stage_answer
+                or (
+                    '{"record":"TextEdit","staged_fields":{"greeting_text":"Hello from Foundry"},'
+                    '"visible_verification":"Blank unsaved TextEdit document is ready."}'
+                ),
+                steps_used=2,
+            )
+        return TurnOutcome(answer="Typed the approved text and verified it visually.", steps_used=1)
+
+    def is_alive(self, session_reference: str) -> bool:
+        return session_reference == "generic-session"
+
+    def cancel(self, session_reference: str) -> None:
+        assert session_reference == "generic-session"
+        self.cancelled = True
 
 class ApprovalSafetyTests(MachineTestBase):
     approval_timeout = 0.25
@@ -309,6 +473,14 @@ class RestartReconciliationTests(unittest.IsolatedAsyncioTestCase):
             second = await coordinator.prepare("crm_a", dict(CANONICAL_INPUTS), InvocationSource.DASHBOARD)
             await coordinator.confirm_start(second.request.id)  # slot is free again
             await coordinator.cancel(second.request.id)
+
+
+async def _wait_for_adapter_cancel(adapter: _GenericAdapter) -> None:
+    deadline = asyncio.get_running_loop().time() + 1
+    while not adapter.cancelled:
+        if asyncio.get_running_loop().time() >= deadline:
+            raise AssertionError("terminal run did not release its desktop session")
+        await asyncio.sleep(0.01)
 
 
 if __name__ == "__main__":

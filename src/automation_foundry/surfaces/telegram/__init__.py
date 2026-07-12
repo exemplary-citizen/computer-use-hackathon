@@ -1,0 +1,48 @@
+"""Owner-only Telegram surface contracts."""
+
+from automation_foundry.surfaces.telegram.callbacks import (
+    IssuedTelegramCallback,
+    TelegramCallbackRejectedError,
+    TelegramCallbackStore,
+    TelegramCallbackStoreConfig,
+)
+from automation_foundry.surfaces.telegram.interactions import (
+    PROVIDER_DISCLOSURE_SHA256,
+    PROVIDER_DISCLOSURE_TEXT,
+    TelegramButton,
+    TelegramChatType,
+    TelegramInboundUpdate,
+    TelegramInteractionService,
+    TelegramSurfaceConfig,
+    TelegramSurfaceResponse,
+    TelegramUpdateKind,
+)
+from automation_foundry.surfaces.telegram.learning import TelegramLearningCoordinator
+from automation_foundry.surfaces.telegram.media import (
+    QuarantinedTelegramVideo,
+    TelegramMediaInbox,
+    TelegramMediaInboxConfig,
+)
+from automation_foundry.surfaces.telegram.transport import TelegramBotRuntime, TelegramTransportConfig
+
+__all__ = [
+    "IssuedTelegramCallback",
+    "PROVIDER_DISCLOSURE_SHA256",
+    "PROVIDER_DISCLOSURE_TEXT",
+    "QuarantinedTelegramVideo",
+    "TelegramCallbackRejectedError",
+    "TelegramCallbackStore",
+    "TelegramCallbackStoreConfig",
+    "TelegramButton",
+    "TelegramBotRuntime",
+    "TelegramChatType",
+    "TelegramInboundUpdate",
+    "TelegramInteractionService",
+    "TelegramLearningCoordinator",
+    "TelegramMediaInbox",
+    "TelegramMediaInboxConfig",
+    "TelegramSurfaceConfig",
+    "TelegramSurfaceResponse",
+    "TelegramTransportConfig",
+    "TelegramUpdateKind",
+]

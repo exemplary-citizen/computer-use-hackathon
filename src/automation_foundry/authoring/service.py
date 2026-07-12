@@ -94,6 +94,7 @@ class AuthoringService:
         manifest.status = AutomationStatus.PROCESSING
         self.store.save_manifest(manifest)
         self._write_progress(automation_id, "queued", 0, "Ingestion job accepted")
+        error_path = self.store.automation_root(automation_id) / "processing_error.json"
         try:
             if self.pipeline is None:
                 raise RuntimeError(
@@ -105,11 +106,11 @@ class AuthoringService:
                     automation_id, stage, percent, message
                 ),
             )
+            error_path.unlink(missing_ok=True)
         except Exception as exc:
             manifest = self.store.get_manifest(automation_id)
             manifest.status = AutomationStatus.FAILED
             self.store.save_manifest(manifest)
-            error_path = self.store.automation_root(automation_id) / "processing_error.json"
             error_path.write_text(
                 f"{json.dumps({'error': type(exc).__name__, 'message': _safe_error_message(exc)}, indent=2)}\n",
                 encoding="utf-8",
@@ -229,7 +230,7 @@ class AuthoringService:
         """Make an automation non-runnable while retaining its audit artifacts."""
         manifest = self.store.get_manifest(automation_id)
         manifest.status = AutomationStatus.INACTIVE
-        self.bundles.unpublish(manifest.slug)
+        self.bundles.unpublish(manifest.slug, automation_id)
         self.store.save_manifest(manifest)
         return manifest
 
@@ -259,19 +260,24 @@ def build_authoring_service(settings: AppSettings) -> AuthoringService:
         workspace = WorkspaceConfig(
             host_mount=settings.workspace_mount,
             require_mount=settings.workspace_require_mount,
+            nemoclaw_sandbox_name=settings.nemoclaw_sandbox_name,
+            nemohermes_binary=settings.nemohermes_binary,
+            transfer_timeout_seconds=settings.workspace_transfer_timeout_seconds,
         ).make(store)
         workspace.initialize()
         transcriber = None
         if settings.gradium_api_key is not None:
             transcriber = GradiumTranscriberConfig(settings.gradium_api_key.get_secret_value()).make()
-        preprocessor = PreprocessingConfig().make(store, transcriber=transcriber)
+        preprocessor = PreprocessingConfig(allow_untranscribed_audio=settings.allow_untranscribed_audio).make(
+            store, transcriber=transcriber
+        )
         client = HermesClientConfig(
             settings.hermes_api_key.get_secret_value(),
             base_url=settings.hermes_base_url,
             model=settings.hermes_model,
         ).make()
         pipeline = IngestionPipeline(preprocessor, BundleGenerator(workspace, client), bundles)
-        tool_test_runner = SandboxToolTestRunner(workspace, HermesToolTestExecutor(client))
+        tool_test_runner = SandboxToolTestRunner(workspace, HermesToolTestExecutor(client, workspace))
     service = AuthoringService(
         store,
         UploadPolicyConfig().make(store),

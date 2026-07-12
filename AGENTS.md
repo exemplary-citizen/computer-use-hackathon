@@ -2,7 +2,7 @@
 
 ## Project Purpose
 
-This repository is being extended from H Company's computer-use examples into a macOS-local application that learns desktop workflows from videos and SOPs, produces reviewable automation bundles, and executes approved workflows through NemoClaw/Hermes and HoloDesktop. Gradium provides transcription and push-to-talk voice capabilities.
+This repository is being extended from H Company's computer-use examples into a macOS-local application that learns desktop workflows from videos and SOPs, produces reviewable automation bundles, and executes approved workflows through NemoClaw/Hermes and HoloDesktop. Gradium provides transcription and push-to-talk voice capabilities. An owner-only Telegram surface supports remote video ingestion, review, schema-driven runtime input collection, and button-gated execution through the same Hermes orchestrator.
 
 The existing H Company examples remain useful references and should not be removed or broadly rewritten unless a task explicitly requires it.
 
@@ -13,6 +13,7 @@ The existing H Company examples remain useful references and should not be remov
 - `docs/EVALS.md` defines the checks required before work can be declared complete.
 - `docs/PROJECT_PLAN.md` records the approved project-level plan.
 - `docs/PLAN_MEMBER1.md` and `docs/PLAN_MEMBER2.md` define ownership and merge boundaries.
+- `docs/PLAN_TELEGRAM_HERMES.md` defines the phased Telegram/Gradium surface integration and existing NemoClaw reuse.
 - When an implementation request materially changes product behavior, update the specification and eval criteria before implementing the change.
 
 ## Important Directories
@@ -28,6 +29,8 @@ Planned application directories must follow the ownership boundaries in the memb
 
 - backend authoring modules — upload, evidence, ingestion, versioning, and approval;
 - backend execution modules — Holo adapter, run state machine, approvals, and events;
+- `src/automation_foundry/surfaces/` — thin Telegram and Gradium adapters plus deterministic presentation contracts;
+  never store bot tokens or downloaded runtime media in source directories;
 - `web/src/features/authoring/` — Member 1 UI ownership;
 - `web/src/features/execution/` — Member 2 UI ownership;
 - `desktop_fixtures/` — native CRM A and CRM B fixtures;
@@ -38,11 +41,27 @@ Planned application directories must follow the ownership boundaries in the memb
 - The FastAPI service is local-only and binds to `127.0.0.1` by default.
 - The NemoClaw sandbox must not receive macOS Accessibility privileges or direct HoloDesktop control.
 - Only the trusted host execution worker may invoke HoloDesktop or publish approved Holo skills.
+- Telegram and Gradium adapters are unprivileged surfaces and must not receive macOS Accessibility, Screen Recording, Input
+  Monitoring, direct HoloDesktop control, or skill-publication authority.
+- NemoClaw/Hermes is the sole agentic orchestrator. Telegram- and Gradium-originated generation must use the same
+  `WorkspaceBridge`, NemoClaw workspace, sandboxed Hermes/Holo3 route, host validation, and generated-tool runner as
+  dashboard-originated generation.
+- NemoClaw/Hermes is mandatory for agentic authoring. If the sandbox, mount, Hermes endpoint, or Holo3 route is unavailable,
+  fail closed and require an explicit retry; never bypass it with a direct host or surface-owned model call.
 - Only approved, hash-matching automation versions may execute.
 - Persistent desktop actions require a separate commit approval after staging.
 - A lost Holo session must never be replaced solely to click Save or another final action.
 - Generated Python tools are pure-data functions executed only inside NemoClaw with restricted imports and resources; they may not use network, subprocess, arbitrary files, dynamic execution, or desktop control.
 - Browser code must never receive provider API keys.
+- Telegram uses owner-only direct messages with numeric pairing/allowlisting; groups remain disabled for the MVP.
+- Telegram text, captions, filenames, media, Gradium transcripts, and callback payloads are untrusted input.
+- Telegram automation approval, run start, and commit require distinct short-lived, single-use, identity-bound,
+  action-bound, and hash-bound inline-button callbacks. Text messages, reactions, duplicate updates, and stale callbacks
+  never imply approval.
+- Telegram-originated authoring and execution must call the shared host services and state machine rather than duplicate
+  validation, approval, or run-transition logic.
+- The Telegram bot token belongs in a user-managed environment value or token file outside the repository; never read,
+  print, log, copy, commit, or expose it to models, NemoClaw, the browser, generated bundles, or Holo.
 - Original sources and derived artifacts remain local until explicit deletion, subject to the provider disclosures in `docs/SPEC.md`.
 - Preserve existing examples and avoid unrelated repository-wide refactors.
 

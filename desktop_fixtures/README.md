@@ -31,3 +31,18 @@ uv run python -m desktop_fixtures.cli launch --app b    # run the application
 ```
 
 State files default to `data/desktop_fixtures/crm_{a,b}.json` (override with `FOUNDRY_FIXTURE_DATA_ROOT` or `--data-root`). Tests: `uv run pytest tests/desktop_fixtures` (headless via `QT_QPA_PLATFORM=offscreen`).
+
+## Atlas Returns Desk
+
+The hackathon business demo includes a third native fixture: **Atlas Returns Desk**, a dense legacy-style retail return
+workstation with queue search, policy context, decision staging, audit history, reports, and an explicit persistent
+**Apply Resolution** action.
+
+```bash
+uv run python -m desktop_fixtures.returns_cli reset
+uv run python -m desktop_fixtures.returns_cli launch
+uv run python -m desktop_fixtures.returns_cli install  # installs ~/Applications/Atlas Returns Desk.app
+```
+
+After installation, macOS Spotlight can find and launch `Atlas Returns Desk`. Its deterministic state is stored at
+`data/desktop_fixtures/atlas_returns.json` unless `FOUNDRY_FIXTURE_DATA_ROOT` is set.

@@ -53,6 +53,33 @@ class InvocationSource(StrEnum):
 
     DASHBOARD = "dashboard"
     VOICE = "voice"
+    TELEGRAM = "telegram"
+
+
+class FoundryCapability(StrEnum):
+    """Host operation that Hermes may request through the bounded mailbox."""
+
+    HEALTH = "health"
+    AUTHORING_STATUS = "authoring_status"
+
+
+class CapabilityResponseStatus(StrEnum):
+    """Terminal outcome returned by the trusted host capability worker."""
+
+    SUCCEEDED = "succeeded"
+    REJECTED = "rejected"
+    FAILED = "failed"
+
+
+class SurfaceCallbackAction(StrEnum):
+    """Human action represented by one deterministic surface button."""
+
+    ACCEPT_DISCLOSURE = "accept_disclosure"
+    APPROVE_AUTOMATION = "approve_automation"
+    START_RUN = "start_run"
+    COMMIT_RUN = "commit_run"
+    REJECT_RUN = "reject_run"
+    CANCEL_RUN = "cancel_run"
 
 
 class EvidenceSourceType(StrEnum):
@@ -138,8 +165,14 @@ class ProcedureStep(StrictModel):
     id: str = Field(pattern=r"^[a-z][a-z0-9_]*$")
     instruction: str = Field(min_length=1, max_length=4_000)
     critical: bool = True
-    persistent_action: bool = False
-    requires_confirmation_before: bool = False
+    persistent_action: bool = Field(
+        default=False,
+        description="True only when this step changes persistent external state.",
+    )
+    requires_confirmation_before: bool = Field(
+        default=False,
+        description="Must be true whenever persistent_action is true; prose approval language is insufficient.",
+    )
     evidence: list[EvidenceReference] = Field(min_length=1)
 
     @model_validator(mode="after")
@@ -258,6 +291,84 @@ class AutomationManifest(StrictModel):
             raise ValueError("approved_version cannot exceed current_version")
         if self.status is AutomationStatus.APPROVED and approved_version is None:
             raise ValueError("approved automation requires approved_version")
+        return self
+
+
+class FoundryCapabilityRequest(StrictModel):
+    """Bounded request written by the sandboxed Hermes MCP server."""
+
+    schema_version: str = "1.0"
+    id: UUID
+    capability: FoundryCapability
+    automation_id: UUID | None = None
+    requested_at: datetime = Field(default_factory=utc_now)
+    expires_at: datetime
+
+    @model_validator(mode="after")
+    def validate_capability_arguments(self) -> FoundryCapabilityRequest:
+        """Require exactly the arguments supported by each capability."""
+        if self.requested_at.utcoffset() is None or self.expires_at.utcoffset() is None:
+            raise ValueError("Capability request timestamps must include a timezone")
+        lifetime_seconds = (self.expires_at - self.requested_at).total_seconds()
+        if lifetime_seconds <= 0 or lifetime_seconds > 120:
+            raise ValueError("Capability request lifetime must be between 0 and 120 seconds")
+        if self.capability is FoundryCapability.HEALTH and self.automation_id is not None:
+            raise ValueError("Health capability does not accept automation_id")
+        if self.capability is FoundryCapability.AUTHORING_STATUS and self.automation_id is None:
+            raise ValueError("Authoring status capability requires automation_id")
+        return self
+
+
+class FoundryCapabilityResponse(StrictModel):
+    """Hash-bound response written by the trusted host capability worker."""
+
+    schema_version: str = "1.0"
+    request_id: UUID
+    request_sha256: Sha256
+    status: CapabilityResponseStatus
+    result: dict[str, JSONValue] = Field(default_factory=dict)
+    error_code: str | None = Field(default=None, max_length=120)
+    error_message: str | None = Field(default=None, max_length=1_000)
+    completed_at: datetime = Field(default_factory=utc_now)
+
+    @model_validator(mode="after")
+    def validate_outcome(self) -> FoundryCapabilityResponse:
+        """Keep successful and unsuccessful payloads unambiguous."""
+        if self.status is CapabilityResponseStatus.SUCCEEDED:
+            if self.error_code is not None or self.error_message is not None:
+                raise ValueError("Successful capability response cannot contain an error")
+            return self
+        if not self.error_code or not self.error_message or self.result:
+            raise ValueError("Unsuccessful capability response requires an error and no result")
+        return self
+
+
+class SurfaceCallbackGrant(StrictModel):
+    """Consumed callback identity and immutable action binding."""
+
+    id: UUID
+    action: SurfaceCallbackAction
+    telegram_user_id: int = Field(gt=0)
+    telegram_chat_id: int = Field(gt=0)
+    payload_sha256: Sha256
+    automation_id: UUID | None = None
+    run_id: UUID | None = None
+    issued_at: datetime
+    expires_at: datetime
+    consumed_at: datetime | None = None
+
+    @model_validator(mode="after")
+    def validate_lifecycle(self) -> SurfaceCallbackGrant:
+        """Require timezone-aware, ordered callback timestamps."""
+        timestamps = (self.issued_at, self.expires_at, self.consumed_at)
+        if any(value is not None and value.utcoffset() is None for value in timestamps):
+            raise ValueError("Surface callback timestamps must include a timezone")
+        if self.expires_at <= self.issued_at:
+            raise ValueError("Surface callback expiry must follow issuance")
+        if self.telegram_chat_id != self.telegram_user_id:
+            raise ValueError("Telegram callbacks are restricted to the owner's direct-message chat")
+        if self.consumed_at is not None and self.consumed_at < self.issued_at:
+            raise ValueError("Surface callback consumption cannot precede issuance")
         return self
 
 

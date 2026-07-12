@@ -22,6 +22,7 @@ from automation_foundry.contracts import (
     ProcedureStep,
     ReviewConflict,
 )
+from automation_foundry.execution.bundles import load_verified_bundle
 from automation_foundry.storage import ArtifactStoreConfig
 
 
@@ -168,6 +169,8 @@ class BundleApprovalTests(unittest.TestCase):
         self.assertEqual(len(approval.payload_sha256), 64)
         published = self.manager.published_skill_root / manifest.slug / "SKILL.md"
         self.assertEqual(published.read_text(encoding="utf-8"), SAFE_SKILL)
+        handoff = self.store.automation_root(self.automation.id) / "approved_bundle.json"
+        self.assertEqual(load_verified_bundle(handoff).bundle.manifest.id, self.automation.id)
 
     def test_hash_mismatch_blocks_approval_and_reconciliation(self) -> None:
         version, report = self.manager.create_version(self.automation.id, valid_draft())
@@ -180,6 +183,22 @@ class BundleApprovalTests(unittest.TestCase):
         manifest = self.store.get_manifest(self.automation.id)
         self.assertIsNone(manifest.approved_version)
         self.assertEqual(manifest.status, AutomationStatus.REVIEW_REQUIRED)
+
+    def test_non_persistent_draft_needs_no_commit_boundary(self) -> None:
+        draft = valid_draft()
+        draft.skill_markdown = (
+            "---\ndescription: Type text into an unsaved local draft.\n---\n\n"
+            "# Draft text\n\nOpen TextEdit and type the requested value into an unsaved document."
+        )
+        draft.steps = [
+            step.model_copy(update={"persistent_action": False, "requires_confirmation_before": False})
+            for step in draft.steps
+        ]
+
+        version, report = self.manager.create_version(self.automation.id, draft)
+
+        self.assertTrue(report.valid, report.errors)
+        self.manager.approve(self.automation.id, version.version, actor="Reviewer")
 
     def test_editing_approved_artifact_creates_unapproved_version(self) -> None:
         version, _ = self.manager.create_version(self.automation.id, valid_draft())
@@ -199,6 +218,7 @@ class BundleApprovalTests(unittest.TestCase):
         self.assertEqual(manifest.current_version, 2)
         self.assertIsNone(manifest.approved_version)
         self.assertFalse((self.manager.published_skill_root / manifest.slug / "SKILL.md").exists())
+        self.assertFalse((self.store.automation_root(self.automation.id) / "approved_bundle.json").exists())
 
     def test_unresolved_material_conflict_blocks_approval(self) -> None:
         draft = valid_draft()

@@ -10,7 +10,7 @@ ALLOWED_RUN_TRANSITIONS: dict[RunState, frozenset[RunState]] = {
         {RunState.EXECUTING, RunState.CANCELLED, RunState.FAILED}
     ),
     RunState.EXECUTING: frozenset(
-        {RunState.AWAITING_COMMIT_APPROVAL, RunState.CANCELLED, RunState.FAILED}
+        {RunState.AWAITING_COMMIT_APPROVAL, RunState.SUCCEEDED, RunState.CANCELLED, RunState.FAILED}
     ),
     RunState.AWAITING_COMMIT_APPROVAL: frozenset(
         {RunState.COMMITTING, RunState.CANCELLED, RunState.FAILED}
