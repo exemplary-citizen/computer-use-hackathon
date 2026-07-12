@@ -230,7 +230,7 @@ class AuthoringService:
         """Make an automation non-runnable while retaining its audit artifacts."""
         manifest = self.store.get_manifest(automation_id)
         manifest.status = AutomationStatus.INACTIVE
-        self.bundles.unpublish(manifest.slug)
+        self.bundles.unpublish(manifest.slug, automation_id)
         self.store.save_manifest(manifest)
         return manifest
 

@@ -19,8 +19,10 @@ from automation_foundry.contracts import (
     ApprovalDecision,
     ApprovalRecord,
     ArtifactReference,
+    AutomationManifest,
     AutomationStatus,
     AutomationVersion,
+    ApprovedBundle,
     GeneratedTool,
     InvocationSource,
 )
@@ -119,7 +121,7 @@ class BundleManager:
         manifest.current_version = version_number
         manifest.approved_version = None
         manifest.status = AutomationStatus.REVIEW_REQUIRED
-        self.unpublish(manifest.slug)
+        self.unpublish(manifest.slug, automation_id)
         self.store.save_manifest(manifest)
         return version, report
 
@@ -174,11 +176,18 @@ class BundleManager:
         manifest.current_version = version_number
         manifest.approved_version = None
         manifest.status = AutomationStatus.REVIEW_REQUIRED
-        self.unpublish(manifest.slug)
+        self.unpublish(manifest.slug, automation_id)
         self.store.save_manifest(manifest)
         return version, report
 
-    def approve(self, automation_id: UUID, version_number: int, *, actor: str) -> ApprovalRecord:
+    def approve(
+        self,
+        automation_id: UUID,
+        version_number: int,
+        *,
+        actor: str,
+        source: InvocationSource = InvocationSource.DASHBOARD,
+    ) -> ApprovalRecord:
         """Bind approval to current bytes and atomically publish the approved skill."""
         actor = " ".join(actor.split())
         if not actor:
@@ -194,7 +203,7 @@ class BundleManager:
         approval = ApprovalRecord(
             id=uuid4(),
             decision=ApprovalDecision.APPROVED,
-            source=InvocationSource.DASHBOARD,
+            source=source,
             payload_sha256=payload_hash,
             actor=actor,
         )
@@ -209,6 +218,7 @@ class BundleManager:
         manifest.status = AutomationStatus.APPROVED
         self._publish_skill(manifest.slug, version_root / "SKILL.md")
         self.store.save_manifest(manifest)
+        self._write_approved_bundle(manifest, version, version_root)
         return approval
 
     def reconcile(self, automation_id: UUID) -> bool:
@@ -231,13 +241,20 @@ class BundleManager:
         manifest.approved_version = None
         manifest.status = AutomationStatus.REVIEW_REQUIRED
         self.store.save_manifest(manifest)
-        self.unpublish(manifest.slug)
+        self.unpublish(manifest.slug, automation_id)
         return False
 
-    def unpublish(self, slug: str) -> None:
-        """Remove a formerly approved skill when its runnable approval is invalidated."""
+    def unpublish(self, slug: str, automation_id: UUID | None = None) -> None:
+        """Remove formerly approved outputs when runnable approval is invalidated.
+
+        Args:
+            slug: Published skill directory name.
+            automation_id: Automation whose execution handoff must also be removed.
+        """
         published = self.published_skill_root / slug / "SKILL.md"
         published.unlink(missing_ok=True)
+        if automation_id is not None:
+            (self.store.automation_root(automation_id) / "approved_bundle.json").unlink(missing_ok=True)
 
     def _artifact_references(self, automation_id: UUID, version_number: int) -> list[ArtifactReference]:
         version_root = self._version_root(automation_id, version_number)
@@ -259,6 +276,24 @@ class BundleManager:
         if not root.is_dir():
             raise KeyError(f"Unknown automation version: {version_number}")
         return root
+
+    def _write_approved_bundle(
+        self,
+        manifest: AutomationManifest,
+        version: AutomationVersion,
+        version_root: Path,
+    ) -> None:
+        approved = ApprovedBundle(
+            manifest=manifest,
+            version=version,
+            sop_markdown=(version_root / "SOP.md").read_text(encoding="utf-8"),
+            skill_markdown=(version_root / "SKILL.md").read_text(encoding="utf-8"),
+            input_schema=json.loads((version_root / "inputs.schema.json").read_text(encoding="utf-8")),
+            tools_code=(version_root / "tools.py").read_text(encoding="utf-8"),
+            eval_cases=json.loads((version_root / "eval_cases.json").read_text(encoding="utf-8")),
+        )
+        destination = self.store.automation_root(manifest.id) / "approved_bundle.json"
+        _atomic_write_text(destination, _json_text(approved.model_dump(mode="json")))
 
     def _load_version(self, root: Path) -> AutomationVersion:
         path = root / "version.json"

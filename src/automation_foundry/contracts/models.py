@@ -53,6 +53,7 @@ class InvocationSource(StrEnum):
 
     DASHBOARD = "dashboard"
     VOICE = "voice"
+    TELEGRAM = "telegram"
 
 
 class FoundryCapability(StrEnum):

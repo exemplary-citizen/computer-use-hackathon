@@ -22,6 +22,7 @@ from automation_foundry.contracts import (
     ProcedureStep,
     ReviewConflict,
 )
+from automation_foundry.execution.bundles import load_verified_bundle
 from automation_foundry.storage import ArtifactStoreConfig
 
 
@@ -168,6 +169,8 @@ class BundleApprovalTests(unittest.TestCase):
         self.assertEqual(len(approval.payload_sha256), 64)
         published = self.manager.published_skill_root / manifest.slug / "SKILL.md"
         self.assertEqual(published.read_text(encoding="utf-8"), SAFE_SKILL)
+        handoff = self.store.automation_root(self.automation.id) / "approved_bundle.json"
+        self.assertEqual(load_verified_bundle(handoff).bundle.manifest.id, self.automation.id)
 
     def test_hash_mismatch_blocks_approval_and_reconciliation(self) -> None:
         version, report = self.manager.create_version(self.automation.id, valid_draft())
@@ -199,6 +202,7 @@ class BundleApprovalTests(unittest.TestCase):
         self.assertEqual(manifest.current_version, 2)
         self.assertIsNone(manifest.approved_version)
         self.assertFalse((self.manager.published_skill_root / manifest.slug / "SKILL.md").exists())
+        self.assertFalse((self.store.automation_root(self.automation.id) / "approved_bundle.json").exists())
 
     def test_unresolved_material_conflict_blocks_approval(self) -> None:
         draft = valid_draft()
