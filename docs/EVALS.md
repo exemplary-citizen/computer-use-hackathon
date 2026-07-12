@@ -373,6 +373,7 @@ Must-pass demo checks:
 - [ ] **Apply Resolution** accepts an internal note without requiring optional decision fields, persists the note and
   audit event, and reveals red `UPDATED!` text beneath the button without opening a popup, validation, or confirmation
   dialog.
+- [ ] After displaying `UPDATED!`, Atlas restores canonical queue state in the background while remaining open.
 - [ ] The demo cursor overlay renders a red crosshair centered on the pointer, remains above Mail and Atlas, and is
   transparent to mouse input.
 - [ ] Quitting and reopening Atlas restores canonical case data and does not reopen on the previously resolved case.
@@ -389,8 +390,10 @@ Must-pass demo checks:
   without rendering a second Commit/Reject prompt; a non-Atlas target still requires the separate commit button.
 - [ ] The Atlas review summary labels its persistent step **Start-authorized action** and does not instruct the owner to
   stop for a second approval.
-- [ ] The Atlas commit turn clicks the green **Apply Resolution** button once, observes red `UPDATED!`, quits Atlas, and ends;
-  an Atlas terminal failure remains locally inspectable but produces no Telegram failure reply.
+- [ ] The Atlas commit turn clicks the green **Apply Resolution** button once, observes red `UPDATED!`, then selects the
+  next-newest different return email without reopening the processed message or committing a second case.
+- [ ] If no different return email exists among the three newest items, the workflow reports none and never falls back
+  to the processed message; an Atlas terminal failure remains locally inspectable but produces no Telegram failure reply.
 
 Focused automated command: `uv run pytest tests/desktop_fixtures/test_atlas_returns.py -q`.
 

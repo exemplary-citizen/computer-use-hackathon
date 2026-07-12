@@ -63,7 +63,7 @@ class GenericLiveStandIn:
             )
         if "APPROVED ATLAS COMMIT" in message:
             return TurnOutcome(
-                answer="Clicked green Apply Resolution, observed red UPDATED!, and quit Atlas Returns Desk.",
+                answer="Clicked Apply Resolution, observed red UPDATED!, and selected next case RTN-1068 in Mail.",
                 steps_used=2,
             )
         return TurnOutcome(answer="Typed exact approved greeting and verified it.", steps_used=2)
@@ -210,7 +210,12 @@ class TestTelegramExecutionCoordinator:
         assert "do not return to Mail" in self.adapter.messages[0]
         assert "Apply Resolution` exactly once" in self.adapter.messages[1]
         assert "red `UPDATED!` directly beneath the button" in self.adapter.messages[1]
-        assert "quit Atlas Returns Desk" in self.adapter.messages[1]
+        assert 'verify return case "RTN-1064"' in self.adapter.messages[1]
+        assert "Do not quit Atlas" in self.adapter.messages[1]
+        assert "exclude the exact message used in Turn 1" in self.adapter.messages[1]
+        assert 'processed case "RTN-1064"' in self.adapter.messages[1]
+        assert "Leave that next message selected" in self.adapter.messages[1]
+        assert "never reopen the processed message" in self.adapter.messages[1]
         approved = self.authoring.load_version(manifest.id, version.version)
         assert approved.approval is not None
 

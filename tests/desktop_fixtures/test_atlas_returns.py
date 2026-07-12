@@ -78,6 +78,13 @@ class AtlasReturnsTests(unittest.TestCase):
         self.assertEqual(self.window._update_confirmation.text(), "UPDATED!")
         self.assertIn("#b42318", self.window._update_confirmation.styleSheet())
 
+        self.window._reset_after_update()
+
+        reset_case = next(case for case in load_returns_state(self.path).cases if case.case_id == "RTN-1064")
+        self.assertEqual(reset_case.status, "Escalated")
+        self.assertEqual(reset_case.internal_note, "")
+        self.assertEqual(self.window._update_confirmation.text(), "")
+
     def test_quit_restores_canonical_state_for_next_launch(self) -> None:
         self.window._search.setText("RTN-1064")
         self.window.filter_cases()

@@ -526,6 +526,8 @@ class RunCoordinator:
             if spec.field_changes and _prose_matches_stage(spec, outcome.answer):
                 return
             raise fault("malformed_stage_answer", "stage answer missing record/staged_fields")
+        if not isinstance(parsed["record"], str) or not parsed["record"].strip():
+            raise fault("malformed_stage_answer", "stage answer has no record identity")
         staged_fields = parsed["staged_fields"]
         if not isinstance(staged_fields, dict) or not staged_fields:
             if spec.field_changes:
@@ -545,9 +547,11 @@ class RunCoordinator:
         outcome: TurnOutcome,
     ) -> StagedChange:
         reported_fields = spec.field_changes
+        reported_record = spec.record_name
         if not reported_fields:
             parsed = _parse_json_object(outcome.answer)
             reported_fields = {str(name): str(value) for name, value in parsed["staged_fields"].items()}
+            reported_record = str(parsed["record"]).strip()
         if pre_state is None:
             changes = [
                 FieldChange(field=field_name, before=None, after=after)
@@ -569,7 +573,7 @@ class RunCoordinator:
         return StagedChange(
             run_id=run_id,
             target_app=f"crm_{spec.app}" if spec.app in ("a", "b") else spec.app,
-            record_identity=spec.record_name,
+            record_identity=reported_record,
             changes=changes,
             visible_verification=verification or "Agent reported the form shows the staged values.",
             session_reference=session_reference,
@@ -694,12 +698,19 @@ class RunCoordinator:
         if spec.app.strip().casefold() == "atlas returns desk":
             return (
                 "TURN 2 OF 2 — APPROVED ATLAS COMMIT. "
-                f"{target_guard}Reactivate Atlas Returns Desk and verify the same return case and staged internal note. "
+                f"{target_guard}Reactivate Atlas Returns Desk and verify return case "
+                f"{json.dumps(staged.record_identity)} and the staged internal note. "
                 "Click the green button labeled `Apply Resolution` exactly once. Wait until the Atlas status area "
-                "visibly displays red `UPDATED!` directly beneath the button. Then quit Atlas Returns Desk and perform no further "
-                "desktop action. Report `record` as the same target context, `staged_fields` as these exact approved "
+                "visibly displays red `UPDATED!` directly beneath the button. Do not quit Atlas; it resets its queue "
+                "automatically in the background. Then activate Apple Mail and read the current Inbox order fresh. "
+                f"Explicitly exclude the exact message used in Turn 1 and every message for processed case "
+                f"{json.dumps(staged.record_identity)}. Inspect at most the three newest messages from newest to oldest "
+                "and select the first message whose subject contains a different `RTN-####` case ID. Leave that next "
+                "message selected and end without processing it. If no different matching message exists, leave the "
+                "Inbox unchanged, report that no next case is available, and never reopen the processed message. "
+                "Report `record` as the processed case, `staged_fields` as these exact approved "
                 f"values: {json.dumps(approved_fields, sort_keys=True)}, and `visible_verification` confirming that "
-                "red `UPDATED!` appeared before Atlas was closed."
+                "red `UPDATED!` appeared plus the different next case ID selected, or that no different case exists."
             )
         if spec.commit_instructions:
             commit_steps = "\n".join(f"- {instruction}" for instruction in spec.commit_instructions)

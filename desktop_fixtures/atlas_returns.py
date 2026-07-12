@@ -6,7 +6,7 @@ import csv
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QAction, QColor, QCloseEvent, QIcon, QKeySequence, QPixmap
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -62,6 +62,7 @@ WINDOW_WIDTH = 1440
 WINDOW_HEIGHT = 900
 WINDOW_ORIGIN_X = 28
 WINDOW_ORIGIN_Y = 32
+UPDATE_RESET_MILLISECONDS = 5_000
 
 _ATLAS_STYLESHEET = """
 * { font-family: "Helvetica Neue", Arial, sans-serif; font-size: 12px; color: #1f2933; }
@@ -268,6 +269,7 @@ class AtlasReturnsWindow(QMainWindow):
         if self._queue.rowCount():
             self._queue.selectRow(0)
         self._update_confirmation.setText("UPDATED!")
+        QTimer.singleShot(UPDATE_RESET_MILLISECONDS, self._reset_after_update)
         return True
 
     def assign_selected_case(self) -> None:
@@ -1049,6 +1051,9 @@ class AtlasReturnsWindow(QMainWindow):
 
     def _refresh_summary_pages(self) -> None:
         self._refresh_metrics()
+
+    def _reset_after_update(self) -> None:
+        self.reset_demo_data(require_confirmation=False)
 
     def _pages_set_index(self, index: int) -> None:
         if hasattr(self, "_pages"):
