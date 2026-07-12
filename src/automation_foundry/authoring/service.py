@@ -267,7 +267,9 @@ def build_authoring_service(settings: AppSettings) -> AuthoringService:
         transcriber = None
         if settings.gradium_api_key is not None:
             transcriber = GradiumTranscriberConfig(settings.gradium_api_key.get_secret_value()).make()
-        preprocessor = PreprocessingConfig().make(store, transcriber=transcriber)
+        preprocessor = PreprocessingConfig(allow_untranscribed_audio=settings.allow_untranscribed_audio).make(
+            store, transcriber=transcriber
+        )
         client = HermesClientConfig(
             settings.hermes_api_key.get_secret_value(),
             base_url=settings.hermes_base_url,

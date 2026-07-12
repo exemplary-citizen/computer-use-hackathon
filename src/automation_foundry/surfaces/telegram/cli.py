@@ -38,6 +38,7 @@ def resolve_telegram_settings(settings: AppSettings) -> AppSettings:
             "workspace_require_mount": False,
             "nemoclaw_sandbox_name": sandbox_name,
             "hermes_api_key": hermes_api_key,
+            "allow_untranscribed_audio": settings.gradium_api_key is None,
         }
     )
 

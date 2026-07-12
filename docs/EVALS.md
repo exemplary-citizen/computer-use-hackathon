@@ -201,6 +201,8 @@ disabled. Exercise at least the following cases with recorded Telegram update ID
 
 1. First-use provider disclosure accepted by inline button, with the original `/learn` video continuing without resend.
 2. `/learn <name>` with a valid narrated video.
+   When Gradium is intentionally absent in the Telegram hackathon configuration, verify visual-only processing records
+   an empty transcript instead of inventing narration; the normal backend configuration must still fail closed.
 3. Valid silent video.
 4. Missing, malformed, unsupported, oversized, and over-duration attachments.
 5. Duplicate delivery of the same Telegram update.

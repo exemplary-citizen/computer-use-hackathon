@@ -33,6 +33,8 @@ class PreprocessingConfig(BaseModel):
     """Maximum normalized SOP pages."""
     frame_interval_seconds: int = Field(default=1, ge=1, le=10)
     """Periodic frame sample interval before later visual deduplication."""
+    allow_untranscribed_audio: bool = False
+    """Permit explicit visual-only processing when audio exists but no transcriber is configured."""
 
     def make(
         self,
@@ -175,8 +177,10 @@ class EvidencePreprocessor:
         if audio_path.is_file() and audio_path.stat().st_size > 44:
             persisted_audio_path = audio_path.relative_to(automation_root).as_posix()
             if self.transcriber is None:
-                raise RuntimeError("Gradium transcription is not configured for narrated video")
-            transcript = await self.transcriber.transcribe(audio_path)
+                if not self.config.allow_untranscribed_audio:
+                    raise RuntimeError("Gradium transcription is not configured for narrated video")
+            else:
+                transcript = await self.transcriber.transcribe(audio_path)
         else:
             audio_path.unlink(missing_ok=True)
 

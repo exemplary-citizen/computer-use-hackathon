@@ -23,6 +23,7 @@ class AppSettings(BaseSettings):
     telegram_owner_id: int | None = None
     telegram_inbox_root: Path = Path("data/telegram-inbox")
     gradium_api_key: SecretStr | None = None
+    allow_untranscribed_audio: bool = False
     hermes_api_key: SecretStr | None = None
     hermes_base_url: str = "http://127.0.0.1:8642/v1"
     hermes_model: str = "hermes"

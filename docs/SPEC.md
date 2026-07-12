@@ -99,6 +99,9 @@ The host backend must:
 - expose processing progress and actionable failures.
 
 The implementation may reduce redundant video frames, but must preserve enough timestamped evidence to recover all gold critical steps. Frame selection parameters must be recorded with the ingestion job.
+For the local Telegram hackathon demo only, when Gradium is not configured, narrated video may continue from visual
+evidence with an empty transcript and retained audio reference. This degraded mode must not invent narrated instructions;
+unsupported steps remain review-required. Dashboard authoring remains strict by default.
 
 ### 5.3 Agentic bundle generation
 

@@ -20,6 +20,7 @@ Hard requirements:
 - Return one JSON object satisfying the supplied schema; do not wrap it in Markdown.
 - Cite video timestamps or SOP pages/sections for procedural claims when evidence exists.
 - Mark unsupported claims as inferences that require review.
+- When audio_path is present but transcript is empty, treat narration as unavailable and never invent spoken instructions.
 - Never emit screen coordinates, selectors, source-app geometry, secrets, or CRM-B-specific knowledge.
 - Preserve source disagreements as explicit conflicts. Never silently choose one source.
 - Include a mandatory stop-and-review boundary before Save, Commit, Submit, or an equivalent persistent action.

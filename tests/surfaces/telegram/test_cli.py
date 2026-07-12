@@ -27,6 +27,7 @@ def test_resolve_settings_discovers_masked_local_gateway_token(monkeypatch, tmp_
     assert not resolved.workspace_require_mount
     assert resolved.hermes_api_key is not None
     assert resolved.hermes_api_key.get_secret_value() == "super-secret-token"
+    assert resolved.allow_untranscribed_audio
     assert "super-secret-token" not in repr(resolved)
     assert workspace_mount.is_dir()
 
