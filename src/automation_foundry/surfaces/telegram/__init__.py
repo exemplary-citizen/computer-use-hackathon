@@ -17,11 +17,17 @@ from automation_foundry.surfaces.telegram.interactions import (
     TelegramSurfaceResponse,
     TelegramUpdateKind,
 )
+from automation_foundry.surfaces.telegram.media import (
+    QuarantinedTelegramVideo,
+    TelegramMediaInbox,
+    TelegramMediaInboxConfig,
+)
 
 __all__ = [
     "IssuedTelegramCallback",
     "PROVIDER_DISCLOSURE_SHA256",
     "PROVIDER_DISCLOSURE_TEXT",
+    "QuarantinedTelegramVideo",
     "TelegramCallbackRejectedError",
     "TelegramCallbackStore",
     "TelegramCallbackStoreConfig",
@@ -29,6 +35,8 @@ __all__ = [
     "TelegramChatType",
     "TelegramInboundUpdate",
     "TelegramInteractionService",
+    "TelegramMediaInbox",
+    "TelegramMediaInboxConfig",
     "TelegramSurfaceConfig",
     "TelegramSurfaceResponse",
     "TelegramUpdateKind",
